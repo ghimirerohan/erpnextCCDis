@@ -34,6 +34,17 @@ A comprehensive ERP application built with Frappe Framework and Vue.js, featurin
 
 ## Installation
 
+### Using bench get-app (Recommended)
+
+To install this app in any Frappe bench environment:
+
+```bash
+bench get-app custom_erp https://github.com/ghimirerohan/erpnextCCDis.git
+bench install-app custom_erp
+```
+
+### Manual Installation
+
 1. Clone the repository
 2. Install backend dependencies:
    ```bash
@@ -51,6 +62,27 @@ A comprehensive ERP application built with Frappe Framework and Vue.js, featurin
    ```bash
    npm run build
    ```
+
+## Frontend App Installation
+
+The frontend app is included in the `frontend/` directory and will be automatically installed when you install the main app. However, if you need to set up the frontend separately:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+### Frontend Development
+
+To run the frontend in development mode:
+
+```bash
+cd frontend
+npm run dev
+```
+
+This will start the Vite development server on `http://localhost:5173`.
 
 ## Development
 
