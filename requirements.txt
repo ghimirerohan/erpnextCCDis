@@ -1,0 +1,10 @@
+# Invoice Camera Scanner Dependencies
+ai-sdk>=0.1.0
+zod-python>=0.1.0
+
+# Image processing dependencies
+Pillow>=9.0.0
+opencv-python>=4.5.0
+
+# Additional utilities
+python-dotenv>=0.19.0

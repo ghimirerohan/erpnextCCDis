@@ -1,8 +1,8 @@
 app_name = "custom_erp"
 app_title = "Custom Erp"
-app_publisher = "Rohan"
-app_description = "ERP Customization"
-app_email = "ghimirerorhan@gmail.com"
+app_publisher = "Rohan Ghimire"
+app_description = "Customization Of ERPNext Through Overrides and Extensions"
+app_email = "ghimirerohan@gmail.com"
 app_license = "mit"
 
 # Apps
@@ -26,7 +26,36 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/custom_erp/css/custom_erp.css"
-# app_include_js = "/assets/custom_erp/js/custom_erp.js"
+# app_include_css = [
+#    "/assets/custom_erp/css/nepali.datepicker.v5.0.5.min.css"
+# ]
+# app_include_js = [
+#    "/assets/custom_erp/js/nepali.datepicker.v5.0.5.min.js",
+#    "/assets/custom_erp/js/override_date.js",
+#    "/assets/custom_erp/js/sajan.nepaliFunctions.min.js"
+# ]
+
+fixtures = [
+    # Tracks added/modified fields, even in core doctypes
+    "Custom Field",
+    # Tracks changes to field properties (read-only, default values, etc.)
+    "Property Setter",
+    # Tracks changes to print formats
+    "Print Format",
+    # Tracks custom scripts (JS customizations)
+    "Custom Script",
+    # Tracks workflow rules & states
+    "Workflow",
+    "Workflow State",
+    "Workflow Action",
+    # Tracks custom reports
+    "Report",
+    # Tracks role changes
+    "Role",
+    # Tracks client-side scripts attached to reports
+    "Report Script",
+]
+
 
 # include js, css files in header of web template
 # web_include_css = "/assets/custom_erp/css/custom_erp.css"
@@ -43,7 +72,7 @@ app_license = "mit"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {"Purchase Invoice" : "public/js/invoice_scanner.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -194,6 +223,17 @@ app_license = "mit"
 # before_request = ["custom_erp.utils.before_request"]
 # after_request = ["custom_erp.utils.after_request"]
 
+# API Endpoints
+# ----------------
+app_include_js = [
+    "/assets/custom_erp/js/sales_invoice_api.js"
+]
+
+override_whitelisted_methods = {
+    # expose our new API endpoints for programmatic creation from external UI
+    # not overriding core, only adding custom endpoints under our module
+}
+
 # Job Events
 # ----------
 # before_job = ["custom_erp.utils.before_job"]
@@ -236,4 +276,19 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+override_doctype_class = {
+	"Purchase Invoice": "custom_erp.custom_erp.purchase_invoice.purchase_invoice_override.PurchaseInvoiceOverride",
+	# Ensure Opening Invoice Creation Tool uses our override to sanitize CSV values
+	# and inject a default placeholder item where item fields are blank
+	"Opening Invoice Creation Tool": "custom_erp.custom_erp.opening_invoice_tool.opening_invoice_creation_tool_override.OpeningInvoiceCreationToolOverride"
+}
 
+doc_events = {
+    "Sales Invoice": {
+        "before_insert": "custom_erp.custom_erp.sales_invoice.sales_invoice.before_insert"
+    },
+    "Stock Reconciliation": {
+        "before_save": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation.before_save"
+    }
+
+}
