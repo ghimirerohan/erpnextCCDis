@@ -4,7 +4,7 @@ Bench command to identify and fix submitted Sales Invoices without GL Entries
 
 Usage:
     bench --site site1.localhost execute custom_erp.management.commands.fix_sales_invoice_gl_entries.fix_sales_invoices_without_gl_entries --dry-run
-    bench --site site1.localhost execute custom_erp.management.commands.fix_sales_invoice_gl_entries.fix_sales_invoices_without_gl_entries --fix
+    bench --site development.localhost execute custom_erp.management.commands.fix_sales_invoice_gl_entries.fix_sales_invoices_without_gl_entries --fix
 """
 
 import frappe

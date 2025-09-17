@@ -103,6 +103,9 @@
 
         <div class="mt-6 flex gap-3">
           <Button theme="blue" :loading="extracting" @click="extractInvoice" :disabled="!canExtract">Extract Invoice</Button>
+          <Button theme="gray" variant="outline" @click="showLastInvoices" :loading="loadingLastInvoices">
+            View Last 3 {{ finalize.type === 'purchase' ? 'Purchase' : 'Sales' }} Invoices
+          </Button>
           <Alert v-if="extractError" theme="red">{{ extractError }}</Alert>
         </div>
       </div>
@@ -420,7 +423,7 @@
           <input type="number" 
                  v-model.number="newItemData.valuation_price" 
                  step="0.01" min="0"
-                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500"
                  placeholder="0.00" />
         </div>
         
@@ -444,6 +447,68 @@
         <button @click="createNewItem" 
                 class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
           Create Item
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Last Invoices Dialog -->
+  <div v-if="showLastInvoicesDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-medium text-gray-900">Last 3 {{ finalize.type === 'purchase' ? 'Purchase' : 'Sales' }} Invoices</h3>
+        <p class="text-sm text-gray-500 mt-1">Showing the most recent invoices by posting date</p>
+      </div>
+      
+      <div class="px-6 py-4">
+        <div v-if="loadingLastInvoices" class="flex justify-center items-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span class="ml-3 text-gray-600">Loading invoices...</span>
+        </div>
+        
+        <div v-else-if="lastInvoices.length === 0" class="text-center py-8">
+          <div class="text-gray-400 text-6xl mb-4">📄</div>
+          <p class="text-gray-600">No {{ finalize.type === 'purchase' ? 'purchase' : 'sales' }} invoices found</p>
+        </div>
+        
+        <div v-else class="space-y-4">
+          <div v-for="invoice in lastInvoices" :key="invoice.name" 
+               class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Name</label>
+                <p class="text-sm text-gray-900 font-mono">{{ invoice.name }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Posting Date</label>
+                <p class="text-sm text-gray-900">{{ formatDate(invoice.posting_date) }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                <p class="text-sm text-gray-900 font-semibold">₹{{ formatAmount(invoice.grand_total) }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                      :class="getStatusClass(invoice.docstatus)">
+                  {{ getStatusText(invoice.docstatus) }}
+                </span>
+              </div>
+            </div>
+            <div v-if="finalize.type === 'purchase' && invoice.bill_no" class="mt-3 pt-3 border-t border-gray-100">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Supplier Invoice No</label>
+                <p class="text-sm text-gray-900">{{ invoice.bill_no }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+        <button @click="showLastInvoicesDialog = false" 
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+          Close
         </button>
       </div>
     </div>
@@ -479,7 +544,7 @@ const scanning = ref(false)
 const scannedImageBlob = ref(null)
 const scannedImageUrl = ref('')
 
-// Image preview URLs
+// Optimized image preview URL management
 const imagePreviewUrl = computed(() => {
   if (selectedFile.value) return URL.createObjectURL(selectedFile.value)
   if (capturedDataUrl.value) return capturedDataUrl.value
@@ -521,6 +586,11 @@ const newItemData = reactive({
 const invoiceType = ref('') // 'tax_invoice' or 'credit_note'
 const isProcessing = ref(false) // Prevent multiple submissions
 const detectionMethod = ref('') // 'title' or 'inferred'
+
+// Last invoices functionality
+const showLastInvoicesDialog = ref(false)
+const loadingLastInvoices = ref(false)
+const lastInvoices = ref([])
 
 // Camera variables removed - replaced with scanner functionality
 
@@ -659,22 +729,35 @@ const scanFinalPhoto = async () => {
   }
 }
 
-// Image management functions
+// Enhanced image cleanup function
 const clearImage = () => {
   // Revoke object URLs to prevent memory leaks
   if (scannedImageUrl.value) {
     URL.revokeObjectURL(scannedImageUrl.value)
   }
   
+  // Clear all image references
   selectedFile.value = null
   selectedFileName.value = ''
   capturedDataUrl.value = ''
   scannedImageBlob.value = null
   scannedImageUrl.value = ''
+  
+  // Force garbage collection if available
+  if (window.gc) {
+    window.gc()
+  }
 }
 
 const clearFinalPhoto = () => {
-  finalize.finalPhotoFile = null
+  if (finalize.finalPhotoFile) {
+    finalize.finalPhotoFile = null
+  }
+  
+  // Force garbage collection if available
+  if (window.gc) {
+    window.gc()
+  }
 }
 
 // Camera functions removed - replaced with scanner functionality
@@ -694,15 +777,60 @@ const safeJson = async (res) => {
   } catch (e) { return {} }
 }
 
+// Memory management utilities
+const memoryMonitor = {
+  checkMemoryUsage: () => {
+    if ('memory' in performance) {
+      const memory = performance.memory
+      const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024)
+      const totalMB = Math.round(memory.totalJSHeapSize / 1024 / 1024)
+      const limitMB = Math.round(memory.jsHeapSizeLimit / 1024 / 1024)
+      
+      console.log(`Memory Usage: ${usedMB}MB / ${totalMB}MB (${limitMB}MB limit)`)
+      
+      // Warn if memory usage is high
+      if (usedMB > limitMB * 0.8) {
+        console.warn('High memory usage detected! Consider clearing some data.')
+        return false
+      }
+      return true
+    }
+    return true
+  },
+  
+  forceCleanup: () => {
+    // Clear any cached data
+    if (window.gc) {
+      window.gc()
+    }
+    
+    // Clear any stored data that might be taking up memory
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (e) {
+      console.warn('Could not clear storage:', e)
+    }
+  }
+}
+
+// Enhanced robust fetch with memory monitoring
 const robustFetch = async (url, opts = {}) => {
   const maxRetries = 2
   const retryDelays = [500, 1000]
+  
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Check memory before making request
+      if (!memoryMonitor.checkMemoryUsage()) {
+        memoryMonitor.forceCleanup()
+      }
+      
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 30000)
       const res = await fetch(url, { ...opts, signal: controller.signal })
       clearTimeout(timeout)
+      
       // Retry on transient gateways
       if ([502, 503, 504].includes(res.status) && attempt < maxRetries) {
         await new Promise(r => setTimeout(r, retryDelays[attempt]))
@@ -846,8 +974,18 @@ const extractInvoice = async () => {
 
 const toBase64 = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader()
-  reader.onload = () => resolve(String(reader.result))
-  reader.onerror = reject
+  reader.onload = () => {
+    const result = String(reader.result)
+    // Clear the reader to free memory
+    reader.onload = null
+    reader.onerror = null
+    resolve(result)
+  }
+  reader.onerror = (error) => {
+    reader.onload = null
+    reader.onerror = null
+    reject(error)
+  }
   reader.readAsDataURL(file)
 })
 
@@ -887,6 +1025,12 @@ const submitInvoice = async () => {
   submitting.value = true
   
   try {
+    // Check memory before starting
+    if (!memoryMonitor.checkMemoryUsage()) {
+      memoryMonitor.forceCleanup()
+    }
+    
+    // Create payload with minimal memory footprint
     const payload = {
       invoiceNumber: invoice.value.invoiceNumber,
       invoiceDate: invoice.value.invoiceDate,
@@ -894,41 +1038,85 @@ const submitInvoice = async () => {
       supplier: finalize.supplierName || 'bntl',
       discount_amount: invoice.value.totalDiscountAmount || 0,
       isReturn: finalize.isReturn,
-      items: (invoice.value.items || []).map((it, idx) => ({
+      items: []
+    }
+    
+    // Process items efficiently to reduce memory usage
+    const items = invoice.value.items || []
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      const item = {
         materialCode: it.materialCode,
         materialDescription: it.materialDescription,
         salesQty: it.salesQty,
         uom: it.uom,
         unitPrice: it.unitPrice,
         lineTotal: it.lineTotal,
-        ...(finalize.type === 'purchase' ? { leakages: finalize.items[idx]?.leakages || 0, bursts: finalize.items[idx]?.bursts || 0 } : {})
-      }))
+      }
+      
+      // Add purchase-specific fields only if needed
+      if (finalize.type === 'purchase') {
+        item.leakages = finalize.items[i]?.leakages || 0
+        item.bursts = finalize.items[i]?.bursts || 0
+      }
+      
+      payload.items.push(item)
     }
+    
+    // Add optional fields
     if (finalize.type === 'purchase') {
       if (finalize.billAmount) payload.cust_bill_actual_amount = finalize.billAmount
-      if (finalize.finalPhotoFile) payload.photo_base64 = await toBase64(finalize.finalPhotoFile)
-      const res = await robustFetch('/api/method/custom_erp.custom_erp.purchase_invoice.api.create_purchase_invoice', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload })
-      })
-      const raw = await safeJson(res)
-      const j = parseMsg(raw)
-      if (!res.ok || !j?.success) throw new Error(j?.error || 'Failed to create Purchase Invoice')
-      window.alert(`Purchase Invoice Created: ${j?.name}`)
-    } else {
-      const res = await robustFetch('/api/method/custom_erp.custom_erp.sales_invoice.api.create_sales_invoice', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload })
-      })
-      const raw = await safeJson(res)
-      const j = parseMsg(raw)
-      if (!res.ok || !j?.success) throw new Error(j?.error || 'Failed to create Sales Invoice')
-      window.alert(`Sales Invoice Created: ${j?.name}`)
+      if (finalize.finalPhotoFile) {
+        // Process photo with memory optimization
+        payload.photo_base64 = await toBase64(finalize.finalPhotoFile)
+      }
     }
+    
+    // Check memory again before API call
+    if (!memoryMonitor.checkMemoryUsage()) {
+      memoryMonitor.forceCleanup()
+    }
+    
+    // Make API call with retry logic
+    let res
+    if (finalize.type === 'purchase') {
+      res = await robustFetch('/api/method/custom_erp.custom_erp.purchase_invoice.api.create_purchase_invoice', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ payload })
+      })
+    } else {
+      res = await robustFetch('/api/method/custom_erp.custom_erp.sales_invoice.api.create_sales_invoice', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ payload })
+      })
+    }
+    
+    const raw = await safeJson(res)
+    const j = parseMsg(raw)
+    
+    if (!res.ok || !j?.success) {
+      throw new Error(j?.error || `Failed to create ${finalize.type === 'purchase' ? 'Purchase' : 'Sales'} Invoice`)
+    }
+    
+    window.alert(`${finalize.type === 'purchase' ? 'Purchase' : 'Sales'} Invoice Created: ${j?.name}`)
+    
+    // Clear memory after successful creation
+    payload.items = null
+    if (payload.photo_base64) {
+      payload.photo_base64 = null
+    }
+    
+    // Force cleanup after successful creation
+    memoryMonitor.forceCleanup()
+    
   } catch (e) {
     // As a safety net, verify whether the invoice actually got created
     try {
       const verify = await checkForDuplicateInvoice(true)
       if (verify?.existingName) {
-        window.alert(`Purchase Invoice Created: ${verify.existingName}`)
+        window.alert(`${finalize.type === 'purchase' ? 'Purchase' : 'Sales'} Invoice Created: ${verify.existingName}`)
       } else {
         throw new Error(e?.message || 'Failed')
       }
@@ -938,6 +1126,9 @@ const submitInvoice = async () => {
   } finally {
     submitting.value = false
     isProcessing.value = false
+    
+    // Final cleanup
+    memoryMonitor.forceCleanup()
   }
 }
 
@@ -1122,6 +1313,96 @@ const undoLastDelete = () => {
   // Insert back at the original position
   invoice.value.items.splice(lastDeleted.index, 0, lastDeleted.item)
   finalize.items.splice(lastDeleted.index, 0, lastDeleted.finalizeItem)
+}
+
+// Last invoices functions
+const showLastInvoices = async () => {
+  if (!finalize.type) {
+    window.alert('Please select an invoice type first')
+    return
+  }
+  
+  showLastInvoicesDialog.value = true
+  await fetchLastInvoices()
+}
+
+const fetchLastInvoices = async () => {
+  loadingLastInvoices.value = true
+  lastInvoices.value = []
+  
+  try {
+    const apiEndpoint = finalize.type === 'purchase' 
+      ? '/api/method/custom_erp.custom_erp.purchase_invoice.api.get_last_invoices'
+      : '/api/method/custom_erp.custom_erp.sales_invoice.api.get_last_invoices'
+    
+    const res = await robustFetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 3 })
+    })
+    
+    const data = await safeJson(res)
+    const msg = data.message || data
+    
+    if (!res.ok || !msg?.success) {
+      throw new Error(msg?.error || 'Failed to fetch invoices')
+    }
+    
+    lastInvoices.value = msg.invoices || []
+  } catch (e) {
+    console.error('Error fetching last invoices:', e)
+    window.alert(`Error fetching invoices: ${e?.message || 'Failed to fetch invoices'}`)
+  } finally {
+    loadingLastInvoices.value = false
+  }
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch (e) {
+    return dateString
+  }
+}
+
+const formatAmount = (amount) => {
+  if (!amount && amount !== 0) return '0.00'
+  return Number(amount).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const getStatusClass = (docstatus) => {
+  switch (docstatus) {
+    case 0:
+      return 'bg-yellow-100 text-yellow-800'
+    case 1:
+      return 'bg-green-100 text-green-800'
+    case 2:
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getStatusText = (docstatus) => {
+  switch (docstatus) {
+    case 0:
+      return 'Draft'
+    case 1:
+      return 'Submitted'
+    case 2:
+      return 'Cancelled'
+    default:
+      return 'Unknown'
+  }
 }
 
 // Watch for changes in scanned image to ensure proper preview

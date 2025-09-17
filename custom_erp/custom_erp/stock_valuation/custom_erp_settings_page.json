@@ -1,0 +1,23 @@
+[
+ {
+  "creation": "2024-01-01 00:00:00.000000",
+  "doctype": "Page",
+  "icon": "settings",
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Custom ERP",
+  "name": "custom-erp-settings",
+  "owner": "Administrator",
+  "page_name": "custom-erp-settings",
+  "roles": [
+   {
+    "role": "System Manager"
+   }
+  ],
+  "script": null,
+  "standard": "No",
+  "style": null,
+  "system_page": 0,
+  "title": "Custom ERP Settings"
+ }
+]

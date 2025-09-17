@@ -9,6 +9,10 @@ class PurchaseInvoiceOverride(ERPNextPurchaseInvoice):
 
     def validate(self):
         print("Custom validate method for Purchase Invoice")
+        
+        # ENSURE CORRECT SIGNS: Always validate and correct signs based on return status
+        self._ensure_correct_signs()
+        
         if(self.is_new()):
             for item in self.items:
                 try:
@@ -88,6 +92,72 @@ class PurchaseInvoiceOverride(ERPNextPurchaseInvoice):
     # ----------------------
     # Internal helpers
     # ----------------------
+    def _ensure_correct_signs(self):
+        """
+        Ensure correct signs for discount, cust_bill_actual_amount and item quantities/amounts
+        based on the return status of the purchase invoice.
+        """
+        is_return = getattr(self, "is_return", False)
+        
+        # Handle discount amount
+        if hasattr(self, "discount_amount") and self.discount_amount is not None:
+            abs_discount = abs(float(self.discount_amount))
+            if is_return:
+                # For returns: discount should be NEGATIVE
+                if self.discount_amount > 0:
+                    self.discount_amount = -abs_discount
+            else:
+                # For regular invoices: discount should be POSITIVE
+                if self.discount_amount < 0:
+                    self.discount_amount = abs_discount
+        
+        # Handle custom bill actual amount
+        if hasattr(self, "cust_bill_actual_amount") and self.cust_bill_actual_amount is not None:
+            abs_bill_amount = abs(float(self.cust_bill_actual_amount))
+            if is_return:
+                # For returns: bill amount should be NEGATIVE
+                if self.cust_bill_actual_amount > 0:
+                    self.cust_bill_actual_amount = -abs_bill_amount
+            else:
+                # For regular invoices: bill amount should be POSITIVE
+                if self.cust_bill_actual_amount < 0:
+                    self.cust_bill_actual_amount = abs_bill_amount
+        
+        # Handle item quantities and amounts
+        for item in self.items:
+            if hasattr(item, "qty") and item.qty is not None:
+                abs_qty = abs(float(item.qty))
+                if is_return:
+                    # For returns: quantities should be NEGATIVE
+                    if item.qty > 0:
+                        item.qty = -abs_qty
+                else:
+                    # For regular invoices: quantities should be POSITIVE
+                    if item.qty < 0:
+                        item.qty = abs_qty
+            
+            if hasattr(item, "amount") and item.amount is not None:
+                abs_amount = abs(float(item.amount))
+                if is_return:
+                    # For returns: amounts should be NEGATIVE
+                    if item.amount > 0:
+                        item.amount = -abs_amount
+                else:
+                    # For regular invoices: amounts should be POSITIVE
+                    if item.amount < 0:
+                        item.amount = abs_amount
+            
+            if hasattr(item, "net_amount") and item.net_amount is not None:
+                abs_net_amount = abs(float(item.net_amount))
+                if is_return:
+                    # For returns: net amounts should be NEGATIVE
+                    if item.net_amount > 0:
+                        item.net_amount = -abs_net_amount
+                else:
+                    # For regular invoices: net amounts should be POSITIVE
+                    if item.net_amount < 0:
+                        item.net_amount = abs_net_amount
+
     def _adjust_gl_entries(self, base_gl_entries: list[dict]) -> list[dict]:
         """Adjust base GL rows to match business rules.
 
