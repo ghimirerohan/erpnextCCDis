@@ -117,7 +117,7 @@ doctype_js = {"Purchase Invoice" : "public/js/invoice_scanner.js"}
 # ------------
 
 # before_install = "custom_erp.install.before_install"
-# after_install = "custom_erp.install.after_install"
+after_install = "custom_erp.install.after_install"
 
 # Uninstallation
 # ------------
