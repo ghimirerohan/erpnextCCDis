@@ -10,6 +10,17 @@ import frappe
 from frappe import _
 from frappe.utils.file_manager import save_file
 
+# Import memory configuration
+try:
+    from .memory_config import get_memory_config, log_memory_usage
+    MEMORY_CONFIG_AVAILABLE = True
+except ImportError:
+    MEMORY_CONFIG_AVAILABLE = False
+    def get_memory_config():
+        return None
+    def log_memory_usage(operation, additional_info=None):
+        pass
+
 
 def _parse_date(date_str: Optional[str]) -> Optional[str]:
     """Parse common date formats to YYYY-MM-DD string for DocType fields."""
@@ -47,11 +58,17 @@ def _ensure_supplier(supplier_name: str) -> str:
 
 def _build_pi_items(items: List[Dict[str, Any]], isReturn: bool = False) -> List[Dict[str, Any]]:
     built: List[Dict[str, Any]] = []
+    
+    # Pre-allocate list size for better memory efficiency
+    built = [None] * len(items) if items else []
+    
     for idx, item in enumerate(items or []):
+        # Extract values with defaults to avoid multiple lookups
         qty = item.get("qty") or item.get("salesQty") or 0
         rate = item.get("rate") or item.get("unitPrice")
         amount = item.get("amount") or item.get("lineTotal")
         uom = item.get("uom") or item.get("UOM")
+        
         # Normalize common cases UOM labels
         if isinstance(uom, str):
             u = uom.strip().lower()
@@ -62,28 +79,58 @@ def _build_pi_items(items: List[Dict[str, Any]], isReturn: bool = False) -> List
         
         # Use materialCode for item_code and materialDescription for item_name
         item_code = item.get("materialCode") or item.get("item_code") or ""
-        item_name_from_master = frappe.get_value("Item", item_code, "item_name")
-        item_name =item_name_from_master or  item.get("materialDescription") or item.get("item_name") or item_code
         
-        # For returns, make quantities and amounts negative in the backend
-        # This ensures proper accounting while keeping frontend quantities positive
+        # Cache item name lookup to avoid repeated database calls
+        item_name_from_master = None
+        if item_code:
+            item_name_from_master = frappe.get_value("Item", item_code, "item_name")
+        
+        item_name = item_name_from_master or item.get("materialDescription") or item.get("item_name") or item_code
+        
+        # STRICT SIGN HANDLING: Ensure correct signs based on return status
+        # First, get absolute values to avoid double-negation
+        abs_qty = abs(float(qty)) if qty is not None else 0
+        abs_amount = abs(float(amount)) if amount is not None else 0
+        
+        # Apply correct sign based on return status
         if isReturn:
-            qty = -abs(qty)  # Make negative but preserve absolute value
+            # For returns: make quantities and amounts NEGATIVE
+            # But ensure we don't double-negate by checking current sign
+            if qty is not None:
+                qty = -abs_qty  # Always negative for returns
             if amount is not None:
-                amount = -abs(amount)  # Make negative but preserve absolute value
+                amount = -abs_amount  # Always negative for returns
+        else:
+            # For regular invoices: ensure quantities and amounts are POSITIVE
+            if qty is not None:
+                qty = abs_qty  # Always positive for regular invoices
+            if amount is not None:
+                amount = abs_amount  # Always positive for regular invoices
         
-        built.append({
+        # Build item dict efficiently
+        item_dict = {
             "doctype": "Purchase Invoice Item",
             "item_code": item_code,  # Use materialCode as item_code
             "item_name": item_name,  # Use materialDescription as item_name
             "qty": qty,
-            **({"uom": uom} if uom else {}),
-            **({"rate": rate} if rate is not None else {}),
-            **({"amount": amount} if amount is not None else {}),
-            # Custom fields
-            **({"cust_leakage_qty": int(item.get("cust_leakage_qty") or item.get("leakages") or 0)}),
-            **({"cust_burst_qty": int(item.get("cust_burst_qty") or item.get("bursts") or 0)}),
-        })
+        }
+        
+        # Add optional fields only if they exist
+        if uom:
+            item_dict["uom"] = uom
+        if rate is not None:
+            item_dict["rate"] = rate
+        if amount is not None:
+            item_dict["amount"] = amount
+        
+        # Custom fields - use direct assignment for better performance
+        leakages = int(item.get("cust_leakage_qty") or item.get("leakages") or 0)
+        bursts = int(item.get("cust_burst_qty") or item.get("bursts") or 0)
+        item_dict["cust_leakage_qty"] = leakages
+        item_dict["cust_burst_qty"] = bursts
+        
+        built[idx] = item_dict
+    
     return built
 
 
@@ -138,10 +185,24 @@ def create_purchase_invoice(payload: Dict[str, Any] | str = None) -> Dict[str, A
       "photo_filename": "invoice.png"               # optional
     }
     """
+    import gc
+    import json
+    
+    # Log memory usage at start
+    log_memory_usage("create_purchase_invoice_start", {"payload_size": len(str(payload)) if payload else 0})
+    
     try:
+        # Check if we should abort due to memory constraints
+        if MEMORY_CONFIG_AVAILABLE:
+            memory_config = get_memory_config()
+            if memory_config and memory_config.should_abort_operation():
+                frappe.throw(_("System is under high memory pressure. Please try again later."))
+        
+        # Force garbage collection before starting
+        gc.collect()
+        
         # Parse payload string if needed
         if isinstance(payload, str):
-            import json
             payload = json.loads(payload)
         if not payload:
             frappe.throw(_("Payload is required"))
@@ -156,29 +217,65 @@ def create_purchase_invoice(payload: Dict[str, Any] | str = None) -> Dict[str, A
         # Build the Purchase Invoice document
         isReturn = payload.get("isReturn", False)
         
-        # For returns, make discount amount negative in the backend
+        # STRICT SIGN HANDLING: Ensure discount amount has correct sign based on return status
         discount_amount = payload.get("discount_amount")
-        if isReturn and discount_amount is not None:
-            discount_amount = -abs(discount_amount)  # Make negative but preserve absolute value
+        if discount_amount is not None:
+            # Get absolute value to avoid double-negation
+            abs_discount = abs(float(discount_amount))
+            if isReturn:
+                # For returns: discount amount should be NEGATIVE
+                discount_amount = -abs_discount
+            else:
+                # For regular invoices: discount amount should be POSITIVE
+                discount_amount = abs_discount
         
-        doc = frappe.get_doc({
+        # Create document with minimal memory footprint
+        doc_data = {
             "doctype": "Purchase Invoice",
             "supplier": supplier_name,
             "update_stock": 1,
             "set_posting_time": 1,
             "is_return": isReturn,  # Set the return flag for Credit Notes
-            **({"bill_no": bill_no} if bill_no else {}),
-            **({"bill_date": bill_date} if bill_date else {}),
-            **({"posting_date": bill_date} if bill_date else {}),
-            **({"discount_amount": discount_amount} if discount_amount is not None else {}),
-            **({"cust_bill_actual_amount": payload.get("cust_bill_actual_amount")} if payload.get("cust_bill_actual_amount") is not None else {}),
-            # Set default Taxes and Charges template
-            # "taxes_and_charges": "Nepal Tax - RTAS",
-        })
-
-        # Add items
-        for item in _build_pi_items(payload.get("items") or [], payload.get("isReturn", False)):
-            doc.append("items", item)
+        }
+        
+        # Add optional fields only if they exist
+        if bill_no:
+            doc_data["bill_no"] = bill_no
+        if bill_date:
+            doc_data["bill_date"] = bill_date
+            doc_data["posting_date"] = bill_date
+        if discount_amount is not None:
+            doc_data["discount_amount"] = discount_amount
+        if payload.get("cust_bill_actual_amount") is not None:
+            doc_data["cust_bill_actual_amount"] = payload.get("cust_bill_actual_amount")
+        
+        doc = frappe.get_doc(doc_data)
+        
+        # Add items with memory optimization
+        items = payload.get("items") or []
+        if items:
+            # Get optimal batch size based on memory usage
+            batch_size = 50  # Default
+            if MEMORY_CONFIG_AVAILABLE:
+                memory_config = get_memory_config()
+                if memory_config:
+                    batch_size = memory_config.get_batch_size()
+            
+            # Process items in batches to reduce memory usage
+            for i in range(0, len(items), batch_size):
+                batch = items[i:i + batch_size]
+                for item in _build_pi_items(batch, payload.get("isReturn", False)):
+                    doc.append("items", item)
+                
+                # Force garbage collection after each batch
+                gc.collect()
+                
+                # Log memory usage after each batch
+                log_memory_usage("create_purchase_invoice_batch", {
+                    "batch_number": i // batch_size + 1,
+                    "total_batches": (len(items) + batch_size - 1) // batch_size,
+                    "items_processed": min(i + batch_size, len(items))
+                })
 
         # Ensure sane defaults to avoid math on NoneType in overrides
         for it in doc.items:
@@ -201,21 +298,49 @@ def create_purchase_invoice(payload: Dict[str, Any] | str = None) -> Dict[str, A
 
         # Run validations and calculations once, then insert as draft
         doc.insert()
+        
+        # Force garbage collection after document creation
+        gc.collect()
+        
+        # Log memory usage after document creation
+        log_memory_usage("create_purchase_invoice_doc_created", {"doc_name": doc.name})
 
-        # Attach photo if provided
+        # Attach photo if provided (with memory optimization)
         file_url = None
         if payload.get("photo_base64"):
             try:
                 file_url = _attach_photo(doc.name, payload.get("photo_base64"), payload.get("photo_filename") or "invoice_photo.jpg")
+                # Force garbage collection after photo attachment
+                gc.collect()
+                
+                # Log memory usage after photo attachment
+                log_memory_usage("create_purchase_invoice_photo_attached", {"doc_name": doc.name})
             except Exception:
                 frappe.log_error(frappe.get_traceback(), "Attach photo failed in create_purchase_invoice")
 
-        return {
+        result = {
             "success": True,
             "name": doc.name,
             "file_url": file_url,
         }
+        
+        # Clear references to free memory
+        del doc
+        del payload
+        gc.collect()
+        
+        # Log final memory usage
+        log_memory_usage("create_purchase_invoice_complete", {"doc_name": result["name"]})
+        
+        return result
+        
     except Exception as e:
+        # Force garbage collection on error
+        gc.collect()
+        
+        # Log error with memory usage
+        log_memory_usage("create_purchase_invoice_error", {"error": str(e)})
+        
         frappe.log_error(frappe.get_traceback(), "create_purchase_invoice failed")
         # Always return JSON error (not HTML) to frontend
         return {"success": False, "error": str(e)}
@@ -723,6 +848,47 @@ def check_duplicate_invoice(supplier=None, invoice_number=None, invoice_date=Non
         
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "check_duplicate_invoice failed")
+        return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def get_last_invoices(limit=3) -> Dict[str, Any]:
+    """
+    Get the last N purchase invoices ordered by posting date.
+    
+    Args:
+        limit: Number of invoices to return (default: 3)
+        
+    Returns:
+        List of last invoices with key details
+    """
+    try:
+        limit = int(limit) if limit else 3
+        
+        # Get last invoices ordered by posting date
+        invoices = frappe.get_all(
+            "Purchase Invoice",
+            fields=[
+                "name",
+                "posting_date",
+                "grand_total",
+                "docstatus",
+                "bill_no"
+            ],
+            filters={
+                "docstatus": ["!=", 2]  # Exclude cancelled invoices
+            },
+            order_by="posting_date desc",
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "invoices": invoices
+        }
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_last_purchase_invoices failed")
         return {"success": False, "error": str(e)}
 
 

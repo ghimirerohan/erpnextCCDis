@@ -54,6 +54,8 @@ fixtures = [
     "Role",
     # Tracks client-side scripts attached to reports
     "Report Script",
+    # Tracks custom pages
+    "Page",
 ]
 
 
@@ -201,7 +203,56 @@ doctype_js = {"Purchase Invoice" : "public/js/invoice_scanner.js"}
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "custom_erp.event.get_events"
 # }
-#
+
+# Apply valuation overrides via monkey patch in app startup; keep whitelisted overrides minimal
+override_whitelisted_methods = {
+	"erpnext.stock.get_item_details.get_valuation_rate": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.get_valuation_rate_for_item_details"
+}
+
+# --- Document Events ---
+# Consolidated so Sales Invoice normalization runs before core validations
+# IMPORTANT: The stock valuation hooks have been modified to preserve Sales Invoice rates
+# while still updating valuation_rate for stock purposes. See stock_ledger_override.py for details.
+doc_events = {
+    "Sales Invoice": {
+        # "before_validate": "custom_erp.custom_erp.sales_invoice.sales_invoice.before_validate",
+        "before_insert": [
+            "custom_erp.custom_erp.sales_invoice.sales_invoice.before_insert",
+            "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+        ],
+        "before_save":[
+             "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        ],
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+    },
+    "Stock Reconciliation": {
+        "before_save": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation.before_save"
+    },
+    "Purchase Invoice": {
+        "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+    },
+    "Stock Entry": {
+        "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+    },
+    "Delivery Note": {
+        "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+    },
+    "Purchase Receipt": {
+        "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+    },
+    "Stock Ledger Entry": {
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_sle_fixed_valuation_rate",
+    },
+}
+
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
@@ -229,10 +280,14 @@ app_include_js = [
     "/assets/custom_erp/js/sales_invoice_api.js"
 ]
 
-override_whitelisted_methods = {
-    # expose our new API endpoints for programmatic creation from external UI
-    # not overriding core, only adding custom endpoints under our module
-}
+# Ensure our monkey patches are applied at session start and after migration
+on_session_creation = [
+	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides"
+]
+
+after_migrate = [
+	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides"
+]
 
 # Job Events
 # ----------
@@ -280,15 +335,13 @@ override_doctype_class = {
 	"Purchase Invoice": "custom_erp.custom_erp.purchase_invoice.purchase_invoice_override.PurchaseInvoiceOverride",
 	# Ensure Opening Invoice Creation Tool uses our override to sanitize CSV values
 	# and inject a default placeholder item where item fields are blank
-	"Opening Invoice Creation Tool": "custom_erp.custom_erp.opening_invoice_tool.opening_invoice_creation_tool_override.OpeningInvoiceCreationToolOverride"
+	"Opening Invoice Creation Tool": "custom_erp.custom_erp.opening_invoice_tool.opening_invoice_creation_tool_override.OpeningInvoiceCreationToolOverride",
+	# Stock Reconciliation override for UOM conversion and serial/batch bundle handling
+	# "Stock Reconciliation": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation_override.StockReconciliationOverride"
 }
 
-doc_events = {
-    "Sales Invoice": {
-        "before_insert": "custom_erp.custom_erp.sales_invoice.sales_invoice.before_insert"
-    },
-    "Stock Reconciliation": {
-        "before_save": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation.before_save"
-    }
+# Route Vue SPA under /jsapp and nested paths to the same page
+website_route_rules = [
+    {"from_route": "/jsapp/<path:app_path>", "to_route": "jsapp"},
+]
 
-}

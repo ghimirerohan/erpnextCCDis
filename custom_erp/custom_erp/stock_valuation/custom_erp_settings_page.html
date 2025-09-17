@@ -1,0 +1,62 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="container">
+    <h1>Custom ERP Settings</h1>
+    <p>Configure Custom ERP features and overrides.</p>
+    
+    <div class="card">
+        <div class="card-header">
+            <h4>Fixed Valuation Rate Settings</h4>
+        </div>
+        <div class="card-body">
+            <p>Configure the fixed valuation rate feature that overrides ERPNext's default valuation logic.</p>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable_fixed_valuation_rate">
+                    Enable Fixed Valuation Rate
+                </label>
+                <small class="form-text text-muted">
+                    When enabled, the system will always use the valuation_rate from Item master for all stock valuation calculations.
+                </small>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+</div>
+
+<script>
+frappe.call({
+    method: 'custom_erp.custom_erp.stock_valuation.custom_erp_settings.get_fixed_valuation_rate_status',
+    callback: function(r) {
+        if (r.message && r.message.enabled) {
+            document.getElementById('enable_fixed_valuation_rate').checked = true;
+        }
+    }
+});
+
+function saveSettings() {
+    const enabled = document.getElementById('enable_fixed_valuation_rate').checked;
+    
+    frappe.call({
+        method: 'frappe.client.save',
+        args: {
+            doc: {
+                doctype: 'Custom ERP Settings',
+                name: 'Custom ERP Settings',
+                enable_fixed_valuation_rate: enabled
+            }
+        },
+        callback: function(r) {
+            if (r.exc) {
+                frappe.msgprint('Error saving settings: ' + r.exc);
+            } else {
+                frappe.msgprint('Settings saved successfully!');
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

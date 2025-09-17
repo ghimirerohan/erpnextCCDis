@@ -1,0 +1,70 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="container">
+    <h1>Custom ERP Settings</h1>
+    <p>Configure Custom ERP features and overrides.</p>
+    
+    <div class="card">
+        <div class="card-header">
+            <h4>Fixed Valuation Rate Settings</h4>
+        </div>
+        <div class="card-body">
+            <p>Configure the fixed valuation rate feature that overrides ERPNext's default valuation logic.</p>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable_fixed_valuation_rate" checked>
+                    Enable Fixed Valuation Rate (Enabled by Default)
+                </label>
+                <small class="form-text text-muted">
+                    When enabled, the system will always use the valuation_rate from Item master for all stock valuation calculations. This feature is enabled by default to ensure consistent valuation rates.
+                </small>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+</div>
+
+<script>
+frappe.call({
+    method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.get_fixed_valuation_rate_status',
+    callback: function(r) {
+        if (r.message && r.message.enabled) {
+            document.getElementById('enable_fixed_valuation_rate').checked = true;
+        } else {
+            document.getElementById('enable_fixed_valuation_rate').checked = false;
+        }
+    }
+});
+
+function saveSettings() {
+    const enabled = document.getElementById('enable_fixed_valuation_rate').checked;
+    
+    if (enabled) {
+        frappe.call({
+            method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.enable_fixed_valuation_rate',
+            callback: function(r) {
+                if (r.message && r.message.success) {
+                    frappe.msgprint('Fixed Valuation Rate feature enabled successfully!');
+                } else {
+                    frappe.msgprint('Error enabling feature: ' + (r.message ? r.message.message : 'Unknown error'));
+                }
+            }
+        });
+    } else {
+        frappe.call({
+            method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.disable_fixed_valuation_rate',
+            callback: function(r) {
+                if (r.message && r.message.success) {
+                    frappe.msgprint('Fixed Valuation Rate feature disabled successfully!');
+                } else {
+                    frappe.msgprint('Error disabling feature: ' + (r.message ? r.message.message : 'Unknown error'));
+                }
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

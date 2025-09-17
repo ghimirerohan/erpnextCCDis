@@ -331,10 +331,43 @@ def check_duplicate_invoice(customer=None, invoice_number=None, invoice_date=Non
     except Exception as e:
         frappe.log_error(f"check_duplicate_invoice failed: {str(e)}")
         return {"success": False, "error": str(e)}
+
+
+@frappe.whitelist()
+def get_last_invoices(limit=3):
+    """
+    Get the last N sales invoices ordered by posting date.
+    
+    Args:
+        limit: Number of invoices to return (default: 3)
+        
+    Returns:
+        List of last invoices with key details
+    """
+    try:
+        limit = int(limit) if limit else 3
+        
+        # Get last invoices ordered by posting date
+        invoices = frappe.get_all(
+            "Sales Invoice",
+            fields=[
+                "name",
+                "posting_date",
+                "grand_total",
+                "docstatus"
+            ],
+            filters={
+                "docstatus": ["!=", 2]  # Exclude cancelled invoices
+            },
+            order_by="posting_date desc",
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "invoices": invoices
+        }
         
     except Exception as e:
-        frappe.log_error(f"Error in get_customers: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        frappe.log_error(f"get_last_sales_invoices failed: {str(e)}")
+        return {"success": False, "error": str(e)}
