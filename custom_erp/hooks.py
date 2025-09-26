@@ -225,9 +225,6 @@ doc_events = {
         ],
         "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
     },
-    "Stock Reconciliation": {
-        "before_save": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation.before_save"
-    },
     "Purchase Invoice": {
         "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
         "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
@@ -248,6 +245,15 @@ doc_events = {
         "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
         "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
     },
+    "Stock Reconciliation": {
+        "before_save": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "on_submit": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate",
+        "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_fixed_valuation_rate_before_gl_creation",
+    },
+    # "Stock Reconciliation": {
+    #     "before_save": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation.before_save",
+        
+    # },
     "Stock Ledger Entry": {
         "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_sle_fixed_valuation_rate",
     },
@@ -337,7 +343,9 @@ override_doctype_class = {
 	# and inject a default placeholder item where item fields are blank
 	"Opening Invoice Creation Tool": "custom_erp.custom_erp.opening_invoice_tool.opening_invoice_creation_tool_override.OpeningInvoiceCreationToolOverride",
 	# Stock Reconciliation override for UOM conversion and serial/batch bundle handling
-	# "Stock Reconciliation": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation_override.StockReconciliationOverride"
+	# "Stock Reconciliation": "custom_erp.custom_erp.stock_reconciliation.stock_reconciliation_override.StockReconciliationOverride",
+	# Repost Item Valuation override to allow cancellation when cancelling Stock Reconciliation
+	"Repost Item Valuation": "custom_erp.custom_erp.stock_reconciliation.repost_item_valuation_override.RepostItemValuationOverride"
 }
 
 # Route Vue SPA under /jsapp and nested paths to the same page

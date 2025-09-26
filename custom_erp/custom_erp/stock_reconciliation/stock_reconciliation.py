@@ -34,18 +34,18 @@ def before_save(doc, method=None):
             #             item.qty = flt(item.qty) * flt(conversion_factor)
 
             # Preserve existing behaviour if nothing entered explicitly but item is in Nos
-            if stock_uom == "Nos":
-                conversion_factor = frappe.get_value(
-                    "UOM Conversion Detail",
-                    {"parent": item.item_code, "uom": "CS"},
-                    "conversion_factor",
-                )
-                if conversion_factor:
-                    before, after = split_decimal_parts(item.qty)
-                    if after >= conversion_factor:
-                        before += after // conversion_factor
-                        after = after % conversion_factor
-                    item.qty = before * conversion_factor + after
+            # if stock_uom == "Nos" and entered_uom == "CS":
+            #     conversion_factor = frappe.get_value(
+            #         "UOM Conversion Detail",
+            #         {"parent": item.item_code, "uom": "CS"},
+            #         "conversion_factor",
+            #     )
+            #     if conversion_factor:
+            #         before, after = split_decimal_parts(item.qty)
+            #         if after >= conversion_factor:
+            #             before += after // conversion_factor
+            #             after = after % conversion_factor
+            #         item.qty = before * conversion_factor + after
 
         if doc.items:
             # Clear any empty serial/batch bundle fields to avoid validation errors

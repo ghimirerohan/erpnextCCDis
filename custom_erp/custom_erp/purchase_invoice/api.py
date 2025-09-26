@@ -456,7 +456,7 @@ def extract_invoice(image_data: Optional[str] = None, file_url: Optional[str] = 
     }
 
     try:
-        resp = requests.post(url, params=params, data=_json.dumps(body), headers={"Content-Type": "application/json"}, timeout=60)
+        resp = requests.post(url, params=params, data=_json.dumps(body), headers={"Content-Type": "application/json"}, timeout=900)
         resp.raise_for_status()
         data = resp.json()
         # Parse JSON text from model output

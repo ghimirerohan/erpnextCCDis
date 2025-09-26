@@ -14,6 +14,7 @@ Key Features:
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 from erpnext.stock.stock_ledger import get_valuation_rate as original_get_valuation_rate
 from erpnext.stock.utils import get_valuation_method as original_get_valuation_method
 
@@ -272,6 +273,8 @@ def ensure_fixed_valuation_rate_before_gl_creation(doc, method):
 		items_table = doc.items
 	elif doc.doctype == "Purchase Receipt":
 		items_table = doc.items
+	elif doc.doctype == "Stock Reconciliation":
+		items_table = doc.items
 	
 	if items_table:
 		for item in items_table:
@@ -304,9 +307,9 @@ def ensure_fixed_valuation_rate_before_gl_creation(doc, method):
 					
 					# Recalculate stock value
 					if hasattr(item, 'stock_qty') and item.stock_qty:
-						item.stock_value = valuation_rate * item.stock_qty
+						item.stock_value = valuation_rate * flt(item.stock_qty)
 					elif hasattr(item, 'qty') and item.qty:
-						item.stock_value = valuation_rate * item.qty
+						item.stock_value = valuation_rate * flt(item.qty)
 
 
 def ensure_fixed_valuation_rate(doc, method):
@@ -326,6 +329,8 @@ def ensure_fixed_valuation_rate(doc, method):
 	elif doc.doctype == "Delivery Note":
 		items_table = doc.items
 	elif doc.doctype == "Purchase Receipt":
+		items_table = doc.items
+	elif doc.doctype == "Stock Reconciliation":
 		items_table = doc.items
 	
 	if items_table:
@@ -359,9 +364,9 @@ def ensure_fixed_valuation_rate(doc, method):
 					
 					# Recalculate stock value
 					if hasattr(item, 'stock_qty') and item.stock_qty:
-						item.stock_value = valuation_rate * item.stock_qty
+						item.stock_value = valuation_rate * flt(item.stock_qty)
 					elif hasattr(item, 'qty') and item.qty:
-						item.stock_value = valuation_rate * item.qty
+						item.stock_value = valuation_rate * flt(item.qty)
 
 
 def ensure_sle_fixed_valuation_rate(doc, method):
