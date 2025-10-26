@@ -279,8 +279,8 @@ async function startImport() {
     })
 
     if (response.success) {
-      // Subscribe to progress events
-      subscribeToProgress()
+      // Subscribe to progress events with job_id
+      subscribeToProgress(response.job_id)
     } else {
       alert('Error starting import: ' + (response.error || 'Unknown error'))
       showProgress.value = false
@@ -295,44 +295,94 @@ async function startImport() {
 }
 
 // Subscribe to real-time progress
-function subscribeToProgress() {
-  if (!window.frappe || !window.frappe.realtime) {
-    console.error('Frappe realtime not available')
-    return
+let progressInterval = null
+
+function subscribeToProgress(jobId) {
+  // Try WebSocket first
+  if (window.frappe && window.frappe.realtime) {
+    console.log('Using WebSocket for realtime updates')
+    window.frappe.realtime.on('uploadsales_progress', (data) => {
+      updateProgress(data)
+    })
+  } else {
+    console.log('WebSocket not available, using polling fallback')
+  }
+  
+  // Always use polling as fallback/backup
+  startProgressPolling(jobId)
+}
+
+// ADDED BY AI: UPLOAD_SALES - Polling fallback for progress
+function startProgressPolling(jobId) {
+  // Clear any existing interval
+  if (progressInterval) {
+    clearInterval(progressInterval)
+  }
+  
+  // Poll every 500ms
+  progressInterval = setInterval(async () => {
+    try {
+      const response = await call('custom_erp.custom_erp.api.uploadsales.get_job_progress', {
+        job_id: jobId
+      })
+      
+      if (response && response.success) {
+        updateProgress(response.data)
+      }
+    } catch (error) {
+      console.error('Error polling progress:', error)
+    }
+  }, 500)
+}
+
+// ADDED BY AI: UPLOAD_SALES - Update progress from data
+function updateProgress(data) {
+  if (!data) return
+  
+  progress.value = {
+    processed: data.processed || 0,
+    total: data.total || 0,
+    message: data.current_message || '',
+    imported: data.imported_count || 0,
+    skipped: data.skipped_count || 0,
+    errors: data.error_count || 0,
+    amount: data.total_amount || 0
   }
 
-  window.frappe.realtime.on('uploadsales_progress', (data) => {
-    progress.value = {
-      processed: data.processed || 0,
+  // Check if completed
+  if (data.completed) {
+    // Stop polling
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
+    }
+    
+    // Unsubscribe from WebSocket if available
+    if (window.frappe && window.frappe.realtime) {
+      window.frappe.realtime.off('uploadsales_progress')
+    }
+    
+    showProgress.value = false
+    showSummary.value = true
+    summary.value = {
       total: data.total || 0,
-      message: data.current_message || '',
       imported: data.imported_count || 0,
       skipped: data.skipped_count || 0,
       errors: data.error_count || 0,
-      amount: data.total_amount || 0
+      amount: data.total_amount || 0,
+      errorCsvPath: data.error_csv_path || null
     }
-
-    // Check if completed
-    if (data.completed) {
-      showProgress.value = false
-      showSummary.value = true
-      summary.value = {
-        total: data.total || 0,
-        imported: data.imported_count || 0,
-        skipped: data.skipped_count || 0,
-        errors: data.error_count || 0,
-        amount: data.total_amount || 0,
-        errorCsvPath: data.error_csv_path || null
-      }
-
-      // Unsubscribe
-      window.frappe.realtime.off('uploadsales_progress')
-    }
-  })
+  }
 }
 
 // Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset and validation errors
 function resetUpload() {
+  // Stop polling if active
+  if (progressInterval) {
+    clearInterval(progressInterval)
+    progressInterval = null
+  }
+  
   csvContent.value = null
   selectedDriver.value = null
   selectedVehicle.value = null

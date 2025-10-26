@@ -691,7 +691,7 @@ def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, v
 # ADDED BY AI: UPLOAD_SALES - Publish Progress
 def publish_progress(job_id, processed, total, message, imported, skipped, errors, total_amount, completed=False, error=None, error_csv_path=None):
     """
-    Publish real-time progress update.
+    Publish real-time progress update via WebSocket AND cache for polling.
     """
     data = {
         "job_id": job_id,
@@ -707,11 +707,20 @@ def publish_progress(job_id, processed, total, message, imported, skipped, error
         "error_csv_path": error_csv_path
     }
     
-    frappe.publish_realtime(
-        event="uploadsales_progress",
-        message=data,
-        user=frappe.session.user
-    )
+    # Store in cache for polling (expires in 1 hour)
+    cache_key = f"uploadsales_progress_{job_id}"
+    frappe.cache().set_value(cache_key, data, expires_in_sec=3600)
+    
+    # Also publish via WebSocket for realtime updates
+    try:
+        frappe.publish_realtime(
+            event="uploadsales_progress",
+            message=data,
+            user=frappe.session.user
+        )
+    except Exception as e:
+        # WebSocket might not be available, but cache is still working
+        frappe.log_error(f"Error publishing realtime: {str(e)}", "Upload Sales Realtime")
 
 
 # ADDED BY AI: UPLOAD_SALES - Save Error CSV
@@ -750,6 +759,52 @@ def save_error_csv(error_rows: List[Dict], job_id: str) -> str:
     except Exception as e:
         frappe.log_error(f"Error saving error CSV: {str(e)}", "Upload Sales Error CSV")
         return None
+
+
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Job Progress (for polling)
+@frappe.whitelist()
+def get_job_progress(job_id):
+    """
+    Get current progress of an upload job (for polling when WebSocket unavailable).
+    
+    Args:
+        job_id: Job ID
+    
+    Returns:
+        Dict with current progress data
+    """
+    try:
+        # Get progress from cache
+        cache_key = f"uploadsales_progress_{job_id}"
+        progress_data = frappe.cache().get_value(cache_key)
+        
+        if not progress_data:
+            # Job not found or not started
+            return {
+                "success": True,
+                "data": {
+                    "processed": 0,
+                    "total": 0,
+                    "current_message": "Initializing...",
+                    "imported_count": 0,
+                    "skipped_count": 0,
+                    "error_count": 0,
+                    "total_amount": 0,
+                    "completed": False
+                }
+            }
+        
+        return {
+            "success": True,
+            "data": progress_data
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error getting job progress: {str(e)}", "Upload Sales Get Progress")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Download Error CSV
