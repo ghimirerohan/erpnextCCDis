@@ -211,6 +211,7 @@ whitelisted_methods = [
 	"custom_erp.custom_erp.api.uploadsales.get_drivers",
 	"custom_erp.custom_erp.api.uploadsales.get_vehicles",
 	"custom_erp.custom_erp.api.uploadsales.get_job_progress",
+	"custom_erp.custom_erp.api.uploadsales.run_data_import",
 	"custom_erp.custom_erp.api.uploadsales.download_error_csv"
 ]
 
