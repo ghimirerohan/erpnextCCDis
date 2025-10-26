@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/Home-DNG8BdSw.js","assets/vendor-DNPaXrxF.js","assets/ui-C-4uyU25.js","assets/ui-DDGBBxQa.css","assets/Home-Ck0Njp53.css","assets/Login-pFS0z6jB.js","assets/Scanner-DN5W2xym.js","assets/Scanner-5PP8r0eY.css","assets/QRPay-C93xOaHG.js","assets/QRPay-DTrWrUF1.css","assets/QRPayAdmin-DeZm4QfR.js","assets/QRPayAdmin-CnO66_g-.css","assets/UploadSales-CAlKfAmr.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/Home-_HdyaRSH.js","assets/vendor-DNPaXrxF.js","assets/ui-C-4uyU25.js","assets/ui-DDGBBxQa.css","assets/Home-Ck0Njp53.css","assets/Login-CaWx_Hnp.js","assets/Scanner-CHcQRwrQ.js","assets/Scanner-5PP8r0eY.css","assets/QRPay-DasxC0xd.js","assets/QRPay-DTrWrUF1.css","assets/QRPayAdmin-Dyo8yaPa.js","assets/QRPayAdmin-CnO66_g-.css","assets/UploadSales-BoR0Tu9E.js"])))=>i.map(i=>d[i]);
 var __async = (__this, __arguments, generator) => {
   return new Promise((resolve, reject) => {
     var fulfilled = (value2) => {
@@ -370,32 +370,32 @@ const routes = [
   {
     path: "/",
     name: "Home",
-    component: () => __vitePreload(() => import("./Home-DNG8BdSw.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0)
+    component: () => __vitePreload(() => import("./Home-_HdyaRSH.js"), true ? __vite__mapDeps([0,1,2,3,4]) : void 0)
   },
   {
     name: "Login",
     path: "/account/login",
-    component: () => __vitePreload(() => import("./Login-pFS0z6jB.js"), true ? __vite__mapDeps([5,1,2,3]) : void 0)
+    component: () => __vitePreload(() => import("./Login-CaWx_Hnp.js"), true ? __vite__mapDeps([5,1,2,3]) : void 0)
   },
   {
     name: "Scanner",
     path: "/scanner",
-    component: () => __vitePreload(() => import("./Scanner-DN5W2xym.js"), true ? __vite__mapDeps([6,1,2,3,7]) : void 0)
+    component: () => __vitePreload(() => import("./Scanner-CHcQRwrQ.js"), true ? __vite__mapDeps([6,1,2,3,7]) : void 0)
   },
   {
     name: "QRPay",
     path: "/qrpay",
-    component: () => __vitePreload(() => import("./QRPay-C93xOaHG.js"), true ? __vite__mapDeps([8,1,2,3,9]) : void 0)
+    component: () => __vitePreload(() => import("./QRPay-DasxC0xd.js"), true ? __vite__mapDeps([8,1,2,3,9]) : void 0)
   },
   {
     name: "QRPayAdmin",
     path: "/qrpay-admin",
-    component: () => __vitePreload(() => import("./QRPayAdmin-DeZm4QfR.js"), true ? __vite__mapDeps([10,1,2,3,11]) : void 0)
+    component: () => __vitePreload(() => import("./QRPayAdmin-Dyo8yaPa.js"), true ? __vite__mapDeps([10,1,2,3,11]) : void 0)
   },
   {
     name: "UploadSales",
     path: "/uploadsales",
-    component: () => __vitePreload(() => import("./UploadSales-CAlKfAmr.js"), true ? __vite__mapDeps([12,2,1,3]) : void 0)
+    component: () => __vitePreload(() => import("./UploadSales-BoR0Tu9E.js"), true ? __vite__mapDeps([12,2,1,3]) : void 0)
   }
 ];
 const router = createRouter({
@@ -3687,4 +3687,4 @@ registerScopedSW();
 export {
   session as s
 };
-//# sourceMappingURL=index-DAX_0W7Y.js.map
+//# sourceMappingURL=index-BMvFzPHH.js.map

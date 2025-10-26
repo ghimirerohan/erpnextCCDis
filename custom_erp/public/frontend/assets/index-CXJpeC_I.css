@@ -3497,6 +3497,9 @@ select {
 .border-l-2 {
 	border-left-width: 2px;
 }
+.border-l-4 {
+	border-left-width: 4px;
+}
 .border-l-\[1px\] {
 	border-left-width: 1px;
 }
@@ -3633,6 +3636,10 @@ select {
 	--tw-border-opacity: 1;
 	border-color: rgb(253 194 194 / var(--tw-border-opacity, 1));
 }
+.border-red-400 {
+	--tw-border-opacity: 1;
+	border-color: rgb(247 149 150 / var(--tw-border-opacity, 1));
+}
 .border-red-500 {
 	--tw-border-opacity: 1;
 	border-color: rgb(224 54 54 / var(--tw-border-opacity, 1));
@@ -3711,6 +3718,10 @@ select {
 .bg-gray-200 {
 	--tw-bg-opacity: 1;
 	background-color: rgb(237 237 237 / var(--tw-bg-opacity, 1));
+}
+.bg-gray-300 {
+	--tw-bg-opacity: 1;
+	background-color: rgb(226 226 226 / var(--tw-bg-opacity, 1));
 }
 .bg-gray-400 {
 	--tw-bg-opacity: 1;
@@ -5076,9 +5087,6 @@ select {
 }
 .disabled\:bg-surface-gray-3:disabled {
 	background-color: var(--surface-gray-3, #EDEDED);
-}
-.disabled\:opacity-50:disabled {
-	opacity: 0.5;
 }
 .group:hover .group-hover\:bg-gray-400 {
 	--tw-bg-opacity: 1;

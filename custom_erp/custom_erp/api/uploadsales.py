@@ -340,13 +340,14 @@ def generate_output_csv_rows(transformed_invoices: List[Dict[str, Any]]) -> List
 @frappe.whitelist()
 def transform_and_preview(csv_content):
     """
-    Transform uploaded CSV and return preview of first 10 invoices.
+    Transform uploaded CSV and return preview of first 10 VALID invoices.
+    Invoices with validation errors are skipped from preview.
     
     Args:
         csv_content: CSV file content as string
     
     Returns:
-        Dict with preview_rows, total_invoices, errors
+        Dict with preview_rows, total_invoices, valid_invoice_count, validation_errors
     """
     try:
         # Parse CSV
@@ -355,32 +356,44 @@ def transform_and_preview(csv_content):
         # Group by invoice
         grouped = group_rows_by_invoice(rows)
         
-        # Transform first 10 invoices WITH validation to show actual IDs
-        transformed_invoices = []
-        all_errors = []
+        # Transform ALL invoices to validate and collect errors
+        valid_invoices = []
+        validation_errors = []
         
-        invoice_numbers = list(grouped.keys())[:10]  # First 10 invoices
-        
-        for invoice_no in invoice_numbers:
-            invoice_rows = grouped[invoice_no]
-            # ADDED BY AI: UPLOAD_SALES - Changed validate_lookups to True for preview
+        for invoice_no, invoice_rows in grouped.items():
+            # ADDED BY AI: UPLOAD_SALES - Validate with lookups
             transformed, errors = transform_invoice_rows(invoice_rows, validate_lookups=True)
             
             if errors:
-                all_errors.extend([f"Invoice {invoice_no}: {e}" for e in errors])
-            
-            if transformed:
-                transformed_invoices.append(transformed)
+                # Format error message: "Invoice 8283-010755 skipped - Customer: Xyz not found in Customer table"
+                error_details = []
+                for error in errors:
+                    if "Customer" in error and "not found" in error:
+                        # Extract customer name from error
+                        error_details.append(f"Customer name: {error.split('Customer')[1].split('not')[0].strip()} not found in Customer table")
+                    elif "Item" in error and "not found" in error:
+                        # Extract item name from error
+                        error_details.append(f"Item name: {error.split('Item')[1].split('not')[0].strip()} not found in Item table")
+                    else:
+                        error_details.append(error)
+                
+                validation_errors.append(f"Invoice {invoice_no} skipped - {'; '.join(error_details)}")
+            else:
+                # Only add valid invoices
+                if transformed:
+                    valid_invoices.append(transformed)
         
-        # Generate output CSV rows
-        preview_rows = generate_output_csv_rows(transformed_invoices)
+        # Generate preview from first 10 valid invoices only
+        preview_invoices = valid_invoices[:10]
+        preview_rows = generate_output_csv_rows(preview_invoices)
         
         return {
             "success": True,
             "preview_rows": preview_rows[:20],  # Limit to 20 rows for display
             "total_invoices": len(grouped),
-            "preview_invoice_count": len(transformed_invoices),
-            "errors": all_errors
+            "valid_invoice_count": len(valid_invoices),
+            "validation_errors": validation_errors,
+            "preview_invoice_count": len(preview_invoices)
         }
         
     except Exception as e:

@@ -18,7 +18,7 @@ var __async = (__this, __arguments, generator) => {
     step((generator = generator.apply(__this, __arguments)).next());
   });
 };
-import { s as session } from "./index-DAX_0W7Y.js";
+import { s as session } from "./index-BMvFzPHH.js";
 import { m as commonjsGlobal, l as call } from "./ui-C-4uyU25.js";
 import { g as ref, o as openBlock, a as createElementBlock, ad as createStaticVNode, b as createBaseVNode, t as toDisplayString, N as withModifiers, n as normalizeClass, e as createCommentVNode, I as createTextVNode, F as Fragment, M as renderList, c as computed, E as normalizeStyle, k as onMounted, L as unref, y as createBlock } from "./vendor-DNPaXrxF.js";
 var papaparse_min = { exports: {} };
@@ -636,8 +636,8 @@ const _hoisted_10$3 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-90
 const _hoisted_11$3 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-900" };
 const _hoisted_12$3 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-900" };
 const _hoisted_13$3 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-900" };
-const _hoisted_14$2 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-900" };
-const _hoisted_15$2 = { class: "px-3 py-4 text-sm text-gray-900" };
+const _hoisted_14$3 = { class: "px-3 py-4 whitespace-nowrap text-sm text-gray-900" };
+const _hoisted_15$3 = { class: "px-3 py-4 text-sm text-gray-900" };
 const _sfc_main$3 = {
   __name: "PreviewTable",
   props: {
@@ -702,8 +702,8 @@ const _sfc_main$3 = {
                   createBaseVNode("td", _hoisted_11$3, toDisplayString(row["Customer"] || ""), 1),
                   createBaseVNode("td", _hoisted_12$3, toDisplayString(row["Item (Items)"] || ""), 1),
                   createBaseVNode("td", _hoisted_13$3, toDisplayString(row["Quantity (Items)"] || ""), 1),
-                  createBaseVNode("td", _hoisted_14$2, toDisplayString(row["Distributed Discount Amount (Items)"] || ""), 1),
-                  createBaseVNode("td", _hoisted_15$2, toDisplayString(row["Item Name (Items)"] || ""), 1)
+                  createBaseVNode("td", _hoisted_14$3, toDisplayString(row["Distributed Discount Amount (Items)"] || ""), 1),
+                  createBaseVNode("td", _hoisted_15$3, toDisplayString(row["Item Name (Items)"] || ""), 1)
                 ], 2);
               }), 128))
             ])
@@ -742,12 +742,12 @@ const _hoisted_10$2 = { class: "bg-yellow-50 border border-yellow-200 rounded-lg
 const _hoisted_11$2 = { class: "text-2xl font-bold text-yellow-600" };
 const _hoisted_12$2 = { class: "bg-red-50 border border-red-200 rounded-lg p-4" };
 const _hoisted_13$2 = { class: "text-2xl font-bold text-red-600" };
-const _hoisted_14$1 = { class: "bg-blue-50 border border-blue-200 rounded-lg p-4" };
-const _hoisted_15$1 = { class: "text-2xl font-bold text-blue-600" };
-const _hoisted_16$1 = { class: "p-4 bg-gray-50 border border-gray-200 rounded-lg" };
-const _hoisted_17$1 = { class: "flex items-start" };
-const _hoisted_18$1 = { class: "ml-3 flex-1" };
-const _hoisted_19$1 = { class: "text-sm text-gray-600 mt-1" };
+const _hoisted_14$2 = { class: "bg-blue-50 border border-blue-200 rounded-lg p-4" };
+const _hoisted_15$2 = { class: "text-2xl font-bold text-blue-600" };
+const _hoisted_16$2 = { class: "p-4 bg-gray-50 border border-gray-200 rounded-lg" };
+const _hoisted_17$2 = { class: "flex items-start" };
+const _hoisted_18$2 = { class: "ml-3 flex-1" };
+const _hoisted_19$2 = { class: "text-sm text-gray-600 mt-1" };
 const _sfc_main$2 = {
   __name: "ProgressPanel",
   props: {
@@ -805,13 +805,13 @@ const _sfc_main$2 = {
             createBaseVNode("div", _hoisted_13$2, toDisplayString(__props.progress.errors), 1),
             _cache[2] || (_cache[2] = createBaseVNode("div", { class: "text-sm text-red-700" }, "Errors", -1))
           ]),
-          createBaseVNode("div", _hoisted_14$1, [
-            createBaseVNode("div", _hoisted_15$1, toDisplayString(formatAmount(__props.progress.amount)), 1),
+          createBaseVNode("div", _hoisted_14$2, [
+            createBaseVNode("div", _hoisted_15$2, toDisplayString(formatAmount(__props.progress.amount)), 1),
             _cache[3] || (_cache[3] = createBaseVNode("div", { class: "text-sm text-blue-700" }, "Total Amount", -1))
           ])
         ]),
-        createBaseVNode("div", _hoisted_16$1, [
-          createBaseVNode("div", _hoisted_17$1, [
+        createBaseVNode("div", _hoisted_16$2, [
+          createBaseVNode("div", _hoisted_17$2, [
             _cache[5] || (_cache[5] = createBaseVNode("div", { class: "flex-shrink-0" }, [
               createBaseVNode("svg", {
                 class: "w-5 h-5 text-gray-400 mt-0.5",
@@ -825,9 +825,9 @@ const _sfc_main$2 = {
                 })
               ])
             ], -1)),
-            createBaseVNode("div", _hoisted_18$1, [
+            createBaseVNode("div", _hoisted_18$2, [
               _cache[4] || (_cache[4] = createBaseVNode("p", { class: "text-sm font-medium text-gray-900" }, "Current Status", -1)),
-              createBaseVNode("p", _hoisted_19$1, toDisplayString(__props.progress.message || "Processing..."), 1)
+              createBaseVNode("p", _hoisted_19$2, toDisplayString(__props.progress.message || "Processing..."), 1)
             ])
           ])
         ])
@@ -848,15 +848,15 @@ const _hoisted_10$1 = { class: "text-3xl font-bold text-red-600" };
 const _hoisted_11$1 = { class: "bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6 mb-6" };
 const _hoisted_12$1 = { class: "flex items-center justify-between" };
 const _hoisted_13$1 = { class: "text-3xl font-bold text-indigo-900 mt-2" };
-const _hoisted_14 = { class: "flex flex-col sm:flex-row gap-4" };
-const _hoisted_15 = ["href"];
-const _hoisted_16 = {
+const _hoisted_14$1 = { class: "flex flex-col sm:flex-row gap-4" };
+const _hoisted_15$1 = ["href"];
+const _hoisted_16$1 = {
   key: 0,
   class: "mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
 };
-const _hoisted_17 = { class: "flex" };
-const _hoisted_18 = { class: "ml-3" };
-const _hoisted_19 = { class: "text-sm font-medium text-green-800" };
+const _hoisted_17$1 = { class: "flex" };
+const _hoisted_18$1 = { class: "ml-3" };
+const _hoisted_19$1 = { class: "text-sm font-medium text-green-800" };
 const _hoisted_20 = {
   key: 1,
   class: "mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
@@ -932,7 +932,7 @@ const _sfc_main$1 = {
             ], -1))
           ])
         ]),
-        createBaseVNode("div", _hoisted_14, [
+        createBaseVNode("div", _hoisted_14$1, [
           createBaseVNode("button", {
             onClick: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("start-new")),
             class: "flex-1 inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
@@ -972,10 +972,10 @@ const _sfc_main$1 = {
               })
             ], -1),
             createTextVNode(" Download Error CSV ")
-          ]), 8, _hoisted_15)) : createCommentVNode("", true)
+          ]), 8, _hoisted_15$1)) : createCommentVNode("", true)
         ]),
-        __props.summary.imported > 0 ? (openBlock(), createElementBlock("div", _hoisted_16, [
-          createBaseVNode("div", _hoisted_17, [
+        __props.summary.imported > 0 ? (openBlock(), createElementBlock("div", _hoisted_16$1, [
+          createBaseVNode("div", _hoisted_17$1, [
             _cache[10] || (_cache[10] = createBaseVNode("div", { class: "flex-shrink-0" }, [
               createBaseVNode("svg", {
                 class: "w-5 h-5 text-green-400",
@@ -989,8 +989,8 @@ const _sfc_main$1 = {
                 })
               ])
             ], -1)),
-            createBaseVNode("div", _hoisted_18, [
-              createBaseVNode("p", _hoisted_19, " Successfully imported " + toDisplayString(__props.summary.imported) + " sales invoice" + toDisplayString(__props.summary.imported !== 1 ? "s" : "") + "! ", 1),
+            createBaseVNode("div", _hoisted_18$1, [
+              createBaseVNode("p", _hoisted_19$1, " Successfully imported " + toDisplayString(__props.summary.imported) + " sales invoice" + toDisplayString(__props.summary.imported !== 1 ? "s" : "") + "! ", 1),
               _cache[9] || (_cache[9] = createBaseVNode("p", { class: "text-sm text-green-700 mt-1" }, " All invoices are in draft status. You can review and submit them from the Sales Invoice list. ", -1))
             ])
           ])
@@ -1035,10 +1035,19 @@ const _hoisted_9 = { class: "flex items-center justify-between" };
 const _hoisted_10 = { class: "flex items-center space-x-3" };
 const _hoisted_11 = { class: "text-sm text-gray-500" };
 const _hoisted_12 = {
-  key: 4,
+  key: 3,
+  class: "bg-red-50 border-l-4 border-red-400 p-6 rounded-lg"
+};
+const _hoisted_13 = { class: "flex items-start" };
+const _hoisted_14 = { class: "ml-3 flex-1" };
+const _hoisted_15 = { class: "text-lg font-semibold text-red-800 mb-3" };
+const _hoisted_16 = { class: "text-sm text-red-700 space-y-2 max-h-64 overflow-y-auto" };
+const _hoisted_17 = {
+  key: 5,
   class: "flex justify-center"
 };
-const _hoisted_13 = ["disabled"];
+const _hoisted_18 = ["disabled"];
+const _hoisted_19 = { class: "font-bold" };
 const _sfc_main = {
   __name: "UploadSales",
   setup(__props) {
@@ -1051,6 +1060,8 @@ const _sfc_main = {
     const loadingVehicles = ref(false);
     const previewData = ref([]);
     const totalInvoices = ref(0);
+    const validInvoiceCount = ref(0);
+    const validationErrors = ref([]);
     const importing = ref(false);
     const showProgress = ref(false);
     const showSummary = ref(false);
@@ -1108,6 +1119,8 @@ const _sfc_main = {
           if (response.success) {
             previewData.value = response.preview_rows || [];
             totalInvoices.value = response.total_invoices || 0;
+            validInvoiceCount.value = response.valid_invoice_count || 0;
+            validationErrors.value = response.validation_errors || [];
           } else {
             alert("Error generating preview: " + (response.error || "Unknown error"));
           }
@@ -1124,6 +1137,8 @@ const _sfc_main = {
         selectedVehicle.value = null;
         previewData.value = [];
         totalInvoices.value = 0;
+        validInvoiceCount.value = 0;
+        validationErrors.value = [];
       }
     }
     function startImport() {
@@ -1199,6 +1214,8 @@ const _sfc_main = {
       selectedVehicle.value = null;
       previewData.value = [];
       totalInvoices.value = 0;
+      validInvoiceCount.value = 0;
+      validationErrors.value = [];
       importing.value = false;
       showProgress.value = false;
       showSummary.value = false;
@@ -1321,18 +1338,52 @@ const _sfc_main = {
             "loading-drivers": loadingDrivers.value,
             "loading-vehicles": loadingVehicles.value
           }, null, 8, ["driverValue", "vehicleValue", "drivers", "vehicles", "loading-drivers", "loading-vehicles"])) : createCommentVNode("", true),
+          validationErrors.value.length > 0 && !showProgress.value && !showSummary.value ? (openBlock(), createElementBlock("div", _hoisted_12, [
+            createBaseVNode("div", _hoisted_13, [
+              _cache[11] || (_cache[11] = createBaseVNode("div", { class: "flex-shrink-0" }, [
+                createBaseVNode("svg", {
+                  class: "h-6 w-6 text-red-400",
+                  fill: "none",
+                  stroke: "currentColor",
+                  viewBox: "0 0 24 24"
+                }, [
+                  createBaseVNode("path", {
+                    "stroke-linecap": "round",
+                    "stroke-linejoin": "round",
+                    "stroke-width": "2",
+                    d: "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  })
+                ])
+              ], -1)),
+              createBaseVNode("div", _hoisted_14, [
+                createBaseVNode("h3", _hoisted_15, " Validation Errors Found (" + toDisplayString(validationErrors.value.length) + " invoices skipped) ", 1),
+                createBaseVNode("div", _hoisted_16, [
+                  (openBlock(true), createElementBlock(Fragment, null, renderList(validationErrors.value, (error, index) => {
+                    return openBlock(), createElementBlock("div", {
+                      key: index,
+                      class: "flex items-start space-x-2 py-1"
+                    }, [
+                      _cache[9] || (_cache[9] = createBaseVNode("span", { class: "font-mono text-red-600" }, "•", -1)),
+                      createBaseVNode("span", null, toDisplayString(error), 1)
+                    ]);
+                  }), 128))
+                ]),
+                _cache[10] || (_cache[10] = createBaseVNode("p", { class: "mt-3 text-sm text-red-600 font-medium" }, " These invoices will not be imported. Please fix the data and try again. ", -1))
+              ])
+            ])
+          ])) : createCommentVNode("", true),
           previewData.value.length > 0 && !showProgress.value && !showSummary.value ? (openBlock(), createBlock(_sfc_main$3, {
-            key: 3,
+            key: 4,
             "preview-data": previewData.value,
-            "total-invoices": totalInvoices.value
+            "total-invoices": validInvoiceCount.value
           }, null, 8, ["preview-data", "total-invoices"])) : createCommentVNode("", true),
-          csvContent.value && !showProgress.value && !showSummary.value ? (openBlock(), createElementBlock("div", _hoisted_12, [
+          csvContent.value && !showProgress.value && !showSummary.value ? (openBlock(), createElementBlock("div", _hoisted_17, [
             createBaseVNode("button", {
               onClick: startImport,
-              disabled: !selectedDriver.value || importing.value,
-              class: "inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              disabled: !selectedDriver.value || importing.value || validInvoiceCount.value === 0,
+              class: normalizeClass(["inline-flex items-center px-8 py-4 border-2 text-lg font-bold rounded-lg shadow-lg transition-all duration-200", selectedDriver.value && validInvoiceCount.value > 0 ? "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 hover:border-indigo-700" : "bg-gray-300 text-gray-600 border-gray-300 cursor-not-allowed"])
             }, [
-              _cache[9] || (_cache[9] = createBaseVNode("svg", {
+              _cache[12] || (_cache[12] = createBaseVNode("svg", {
                 class: "w-6 h-6 mr-3",
                 fill: "none",
                 stroke: "currentColor",
@@ -1345,15 +1396,15 @@ const _sfc_main = {
                   d: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                 })
               ], -1)),
-              createTextVNode(" " + toDisplayString(selectedDriver.value ? "Start Import" : "Please select a driver first"), 1)
-            ], 8, _hoisted_13)
+              createBaseVNode("span", _hoisted_19, toDisplayString(!selectedDriver.value ? "Please select a driver first" : validInvoiceCount.value === 0 ? "No valid invoices to import" : `Start Import (${validInvoiceCount.value} invoices)`), 1)
+            ], 10, _hoisted_18)
           ])) : createCommentVNode("", true),
           showProgress.value ? (openBlock(), createBlock(_sfc_main$2, {
-            key: 5,
+            key: 6,
             progress: progress.value
           }, null, 8, ["progress"])) : createCommentVNode("", true),
           showSummary.value ? (openBlock(), createBlock(_sfc_main$1, {
-            key: 6,
+            key: 7,
             summary: summary.value,
             onStartNew: resetUpload
           }, null, 8, ["summary"])) : createCommentVNode("", true)
@@ -1365,4 +1416,4 @@ const _sfc_main = {
 export {
   _sfc_main as default
 };
-//# sourceMappingURL=UploadSales-CAlKfAmr.js.map
+//# sourceMappingURL=UploadSales-BoR0Tu9E.js.map

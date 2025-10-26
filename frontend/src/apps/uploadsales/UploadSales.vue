@@ -73,24 +73,52 @@
         :loading-vehicles="loadingVehicles"
       />
 
+      <!-- Validation Errors -->
+      <div v-if="validationErrors.length > 0 && !showProgress && !showSummary" class="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-6 w-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-3 flex-1">
+            <h3 class="text-lg font-semibold text-red-800 mb-3">
+              Validation Errors Found ({{ validationErrors.length }} invoices skipped)
+            </h3>
+            <div class="text-sm text-red-700 space-y-2 max-h-64 overflow-y-auto">
+              <div v-for="(error, index) in validationErrors" :key="index" class="flex items-start space-x-2 py-1">
+                <span class="font-mono text-red-600">•</span>
+                <span>{{ error }}</span>
+              </div>
+            </div>
+            <p class="mt-3 text-sm text-red-600 font-medium">
+              These invoices will not be imported. Please fix the data and try again.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Preview Table -->
       <PreviewTable
         v-if="previewData.length > 0 && !showProgress && !showSummary"
         :preview-data="previewData"
-        :total-invoices="totalInvoices"
+        :total-invoices="validInvoiceCount"
       />
 
       <!-- Start Import Button -->
       <div v-if="csvContent && !showProgress && !showSummary" class="flex justify-center">
         <button
           @click="startImport"
-          :disabled="!selectedDriver || importing"
-          class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          :disabled="!selectedDriver || importing || validInvoiceCount === 0"
+          class="inline-flex items-center px-8 py-4 border-2 text-lg font-bold rounded-lg shadow-lg transition-all duration-200"
+          :class="selectedDriver && validInvoiceCount > 0 ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 hover:border-indigo-700' : 'bg-gray-300 text-gray-600 border-gray-300 cursor-not-allowed'"
         >
           <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
           </svg>
-          {{ selectedDriver ? 'Start Import' : 'Please select a driver first' }}
+          <span class="font-bold">
+            {{ !selectedDriver ? 'Please select a driver first' : (validInvoiceCount === 0 ? 'No valid invoices to import' : `Start Import (${validInvoiceCount} invoices)`) }}
+          </span>
         </button>
       </div>
 
@@ -132,6 +160,8 @@ const loadingDrivers = ref(false)
 const loadingVehicles = ref(false)
 const previewData = ref([])
 const totalInvoices = ref(0)
+const validInvoiceCount = ref(0)
+const validationErrors = ref([])
 const importing = ref(false)
 const showProgress = ref(false)
 const showSummary = ref(false)
@@ -196,6 +226,8 @@ async function handleFileUpload(file) {
     if (response.success) {
       previewData.value = response.preview_rows || []
       totalInvoices.value = response.total_invoices || 0
+      validInvoiceCount.value = response.valid_invoice_count || 0
+      validationErrors.value = response.validation_errors || []
     } else {
       alert('Error generating preview: ' + (response.error || 'Unknown error'))
     }
@@ -213,6 +245,8 @@ function clearFile() {
     selectedVehicle.value = null
     previewData.value = []
     totalInvoices.value = 0
+    validInvoiceCount.value = 0
+    validationErrors.value = []
   }
 }
 
@@ -297,13 +331,15 @@ function subscribeToProgress() {
   })
 }
 
-// Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset
+// Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset and validation errors
 function resetUpload() {
   csvContent.value = null
   selectedDriver.value = null
   selectedVehicle.value = null
   previewData.value = []
   totalInvoices.value = 0
+  validInvoiceCount.value = 0
+  validationErrors.value = []
   importing.value = false
   showProgress.value = false
   showSummary.value = false
