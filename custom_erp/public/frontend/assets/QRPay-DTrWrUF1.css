@@ -1,0 +1,53 @@
+
+@keyframes spin-d9fdddbf {
+to {
+    transform: rotate(360deg);
+}
+}
+.animate-spin[data-v-d9fdddbf] {
+  animation: spin-d9fdddbf 1s linear infinite;
+}
+
+/* Custom animations for success UI */
+@keyframes pulse-slow-1308ca85 {
+0%, 100% {
+    opacity: 1;
+}
+50% {
+    opacity: 0.9;
+}
+}
+@keyframes bounce-slow-1308ca85 {
+0%, 100% {
+    transform: translateY(0);
+}
+50% {
+    transform: translateY(-10px);
+}
+}
+.animate-pulse-slow[data-v-1308ca85] {
+  animation: pulse-slow-1308ca85 3s ease-in-out infinite;
+}
+.animate-bounce-slow[data-v-1308ca85] {
+  animation: bounce-slow-1308ca85 2s ease-in-out infinite;
+}
+
+/* Backdrop blur support */
+.backdrop-blur-sm[data-v-1308ca85] {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+/* Existing fadeIn animation */
+@keyframes fadeIn-1308ca85 {
+from {
+    opacity: 0;
+    transform: translateY(6px);
+}
+to {
+    opacity: 1;
+    transform: translateY(0);
+}
+}
+section[data-v-1308ca85] {
+  animation: fadeIn-1308ca85 0.25s ease-out;
+}

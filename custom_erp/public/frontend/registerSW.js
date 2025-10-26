@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/assets/custom_erp/frontend/sw-qrpay.js', { scope: '/assets/custom_erp/frontend/' })})}

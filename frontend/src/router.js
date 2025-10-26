@@ -18,6 +18,21 @@ const routes = [
     path: "/scanner",
     component: () => import("@/pages/Scanner.vue"),
   },
+  {
+    name: "QRPay",
+    path: "/qrpay",
+    component: () => import("@/pages/QRPay.vue"),
+  },
+  {
+    name: "QRPayAdmin",
+    path: "/qrpay-admin",
+    component: () => import("@/pages/QRPayAdmin.vue"),
+  },
+  {
+    name: "UploadSales",
+    path: "/uploadsales",
+    component: () => import("@/apps/uploadsales/UploadSales.vue"),
+  },
 ]
 
 const router = createRouter({
