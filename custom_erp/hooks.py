@@ -74,7 +74,7 @@ fixtures = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {"Purchase Invoice" : "public/js/invoice_scanner.js"}
+doctype_js = {"Purchase Invoice": "public/js/invoice_scanner.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -174,23 +174,11 @@ after_install = "custom_erp.install.after_install"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"custom_erp.tasks.all"
-# 	],
-# 	"daily": [
-# 		"custom_erp.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"custom_erp.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"custom_erp.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"custom_erp.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "hourly": [
+        "custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs"
+    ],
+}
 
 # Testing
 # -------
@@ -208,6 +196,25 @@ after_install = "custom_erp.install.after_install"
 override_whitelisted_methods = {
 	"erpnext.stock.get_item_details.get_valuation_rate": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.get_valuation_rate_for_item_details"
 }
+
+# Whitelist Fonepay API methods
+whitelisted_methods = [
+	"custom_erp.custom_erp.api.fonepay.create_dynamic_qr",
+	"custom_erp.custom_erp.api.fonepay.listen_to_ws",
+	"custom_erp.custom_erp.api.fonepay.check_qr_status",
+	"custom_erp.custom_erp.api.fonepay.finalize_payment_from_ws",
+	"custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs",
+	"custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs",
+	# ADDED BY AI: UPLOAD_SALES - Upload Sales API methods
+	"custom_erp.custom_erp.api.uploadsales.transform_and_preview",
+	"custom_erp.custom_erp.api.uploadsales.enqueue_import_job",
+	"custom_erp.custom_erp.api.uploadsales.get_drivers",
+	"custom_erp.custom_erp.api.uploadsales.download_error_csv"
+]
+
+# --- Print Format Type ---
+# Register ReportBro as a custom print format type
+# no custom print format types
 
 # --- Document Events ---
 # Consolidated so Sales Invoice normalization runs before core validations
@@ -282,9 +289,27 @@ doc_events = {
 
 # API Endpoints
 # ----------------
+
+# Include Nepali Date Picker library and custom date controls
 app_include_js = [
-    "/assets/custom_erp/js/sales_invoice_api.js"
+    "/assets/custom_erp/lib/sajan.nepaliFunctions.min.js",
+    "/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js",
+    "/assets/custom_erp/js/nepali_date_adapter.js?v=5",
+    "/assets/custom_erp/js/nepali_date_patch.js?v=5",
+    "/assets/custom_erp/js/invoice_scanner.js"
 ]
+
+app_include_css = [
+    "/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.css",
+    "/assets/custom_erp/css/nepali_date_overrides.css"
+]
+
+# Include in web forms as well for portal/website date inputs
+web_include_js = app_include_js
+web_include_css = app_include_css
+
+# Boot session hook to add Nepali calendar setting to frappe.boot
+boot_session = "custom_erp.boot.get_boot_settings"
 
 # Ensure our monkey patches are applied at session start and after migration
 on_session_creation = [
@@ -350,6 +375,8 @@ override_doctype_class = {
 
 # Route Vue SPA under /jsapp and nested paths to the same page
 website_route_rules = [
+    # {"from_route": "/jsapp/qrpay", "to_route": "qrpay"},
+    # {"from_route": "/jsapp/qrpay-admin", "to_route": "qrpay-admin"},
     {"from_route": "/jsapp/<path:app_path>", "to_route": "jsapp"},
 ]
 
