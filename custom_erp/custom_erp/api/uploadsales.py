@@ -492,6 +492,19 @@ def test_api():
     }
 
 
+# ADDED BY AI: UPLOAD_SALES - NEW Test API to verify code changes are loaded
+@frappe.whitelist()
+def test_api_v2():
+    """Brand new test API to verify code is being updated."""
+    print("=== TEST API V2 CALLED - NEW CODE IS RUNNING ===")
+    return {
+        "success": True,
+        "message": "NEW CODE IS LOADED",
+        "version": "v2",
+        "timestamp": frappe.utils.now()
+    }
+
+
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Using Frappe Data Import)
 @frappe.whitelist()
 def enqueue_import_job(driver_id, vehicle_id, csv_content):

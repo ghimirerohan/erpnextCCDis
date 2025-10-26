@@ -278,9 +278,15 @@ async function startImport() {
     
     // Test API first
     console.log('Testing API connection...')
-    console.log('Calling API:', 'custom_erp.custom_erp.api.uploadsales.test_api')
-    const testResponse = await call('custom_erp.custom_erp.api.uploadsales.test_api')
-    console.log('Test API Response:', testResponse)
+    console.log('Calling API:', 'custom_erp.custom_erp.api.uploadsales.test_api_v2')
+    const testResponse = await call('custom_erp.custom_erp.api.uploadsales.test_api_v2')
+    console.log('Test API V2 Response:', testResponse)
+    
+    if (testResponse.message === 'NEW CODE IS LOADED') {
+      console.log('✅ NEW CODE IS RUNNING!')
+    } else {
+      console.log('⚠️ OLD CODE IS STILL RUNNING!')
+    }
     
     // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
     console.log('Calling main API:', 'custom_erp.custom_erp.api.uploadsales.enqueue_import_job')
