@@ -1,4 +1,6 @@
 import { createApp } from "vue"
+// ADDED BY AI: MULTI_PWA - Import scoped service worker registration
+import { registerScopedSW } from "./register-sw"
 
 import App from "./App.vue"
 import router from "./router"
@@ -48,3 +50,6 @@ for (const key in globalComponents) {
 }
 
 app.mount("#app")
+
+// ADDED BY AI: MULTI_PWA - Register scoped service worker
+registerScopedSW()

@@ -1,0 +1,86 @@
+/* custom_erp/public/css/nepali_date_overrides.css */
+/* Styling adjustments for Nepali DatePicker to fit Frappe UI theme */
+
+/* Ensure proper font rendering for BS dates and unicode characters */
+.form-control[data-fieldtype="Date"],
+.form-control[data-fieldtype="Datetime"] {
+    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+}
+
+/* Placeholder styling for BS dates */
+.form-control[data-fieldtype="Date"]::placeholder,
+.form-control[data-fieldtype="Datetime"]::placeholder {
+    font-family: "Noto Sans", sans-serif;
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+/* Nepali DatePicker container adjustments */
+.nepali-date-picker {
+    z-index: 1050 !important; /* Ensure it appears above other UI elements */
+    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Adjust picker positioning in modal dialogs */
+.modal .nepali-date-picker {
+    z-index: 1100 !important;
+}
+
+/* DatePicker dark mode adjustments for Frappe theme */
+.nepali-date-picker.dark-mode {
+    background-color: var(--bg-color);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Date input width adjustments to accommodate BS format */
+input[data-fieldtype="Date"] {
+    min-width: 120px;
+}
+
+/* Mini English dates styling */
+.nepali-date-picker .mini-english-date {
+    font-size: 0.85em;
+    color: var(--text-light);
+    opacity: 0.8;
+}
+
+/* Ensure picker buttons align with Frappe UI */
+.nepali-date-picker button {
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nepali-date-picker button:hover {
+    opacity: 0.8;
+}
+
+/* Selected date highlighting */
+.nepali-date-picker .selected-date {
+    background-color: var(--primary) !important;
+    color: white !important;
+}
+
+/* Today's date highlighting */
+.nepali-date-picker .today {
+    border: 2px solid var(--primary);
+}
+
+/* Month/Year selector styling */
+.nepali-date-picker select {
+    font-family: inherit;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--control-bg);
+    color: var(--text-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .nepali-date-picker {
+        font-size: 0.9em;
+    }
+}
+

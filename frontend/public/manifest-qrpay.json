@@ -1,0 +1,24 @@
+{
+  "name": "QRPay",
+  "short_name": "QRPay",
+  "start_url": "/jsapp/qrpay/",
+  "scope": "/jsapp/qrpay/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/qrpay-icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/qrpay-icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

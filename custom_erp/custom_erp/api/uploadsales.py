@@ -355,7 +355,7 @@ def transform_and_preview(csv_content):
         # Group by invoice
         grouped = group_rows_by_invoice(rows)
         
-        # Transform first 10 invoices
+        # Transform first 10 invoices WITH validation to show actual IDs
         transformed_invoices = []
         all_errors = []
         
@@ -363,7 +363,8 @@ def transform_and_preview(csv_content):
         
         for invoice_no in invoice_numbers:
             invoice_rows = grouped[invoice_no]
-            transformed, errors = transform_invoice_rows(invoice_rows, validate_lookups=False)
+            # ADDED BY AI: UPLOAD_SALES - Changed validate_lookups to True for preview
+            transformed, errors = transform_invoice_rows(invoice_rows, validate_lookups=True)
             
             if errors:
                 all_errors.extend([f"Invoice {invoice_no}: {e}" for e in errors])
@@ -431,14 +432,49 @@ def get_drivers():
         }
 
 
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Vehicles
+@frappe.whitelist()
+def get_vehicles():
+    """
+    Get list of vehicles for dropdown selection.
+    
+    Returns:
+        List of vehicles with name and license_plate
+    """
+    try:
+        # Get Vehicle doctype
+        if frappe.db.exists("DocType", "Vehicle"):
+            vehicles = frappe.get_all(
+                "Vehicle",
+                fields=["name", "license_plate"],
+                order_by="name"
+            )
+        else:
+            vehicles = []
+        
+        return {
+            "success": True,
+            "vehicles": vehicles
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in get_vehicles: {str(e)}", "Upload Sales Get Vehicles")
+        return {
+            "success": False,
+            "error": str(e),
+            "vehicles": []
+        }
+
+
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job
 @frappe.whitelist()
-def enqueue_import_job(driver_id, csv_content):
+def enqueue_import_job(driver_id, vehicle_id, csv_content):
     """
     Enqueue background job to import sales invoices.
     
     Args:
         driver_id: Selected driver ID
+        vehicle_id: Selected vehicle ID (optional)
         csv_content: CSV file content
     
     Returns:
@@ -455,6 +491,7 @@ def enqueue_import_job(driver_id, csv_content):
             timeout=3600,
             job_name=f"upload_sales_{job_id}",
             driver_id=driver_id,
+            vehicle_id=vehicle_id,
             csv_content=csv_content,
             job_id=job_id,
             user=user
@@ -475,7 +512,7 @@ def enqueue_import_job(driver_id, csv_content):
 
 
 # ADDED BY AI: UPLOAD_SALES - Background Job: Process Upload
-def process_upload_sales_job(driver_id, csv_content, job_id, user):
+def process_upload_sales_job(driver_id, vehicle_id, csv_content, job_id, user):
     """
     Background job to process sales invoice upload.
     
@@ -523,8 +560,8 @@ def process_upload_sales_job(driver_id, csv_content, job_id, user):
                     publish_progress(job_id, processed, total, f"Validation errors: {invoice_no}", imported, skipped, errors, total_amount)
                     continue
                 
-                # Create Sales Invoice
-                result = create_sales_invoice_doc(transformed, driver_id)
+                # Create Sales Invoice - ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
+                result = create_sales_invoice_doc(transformed, driver_id, vehicle_id)
                 
                 if result.get("success"):
                     imported += 1
@@ -569,13 +606,14 @@ def process_upload_sales_job(driver_id, csv_content, job_id, user):
 
 
 # ADDED BY AI: UPLOAD_SALES - Create Sales Invoice Document
-def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str) -> Dict[str, Any]:
+def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, vehicle_id: str = None) -> Dict[str, Any]:
     """
     Create Sales Invoice document in ERPNext.
     
     Args:
         transformed_data: Transformed invoice data
         driver_id: Driver ID to assign
+        vehicle_id: Vehicle ID to assign (optional)
     
     Returns:
         Dict with success status and grand_total or error
@@ -583,8 +621,8 @@ def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str) -
     try:
         invoice_no = transformed_data.get("invoice_no")
         
-        # Build invoice doc
-        doc = frappe.get_doc({
+        # Build invoice doc - ADDED BY AI: UPLOAD_SALES - Now includes vehicle
+        doc_data = {
             "doctype": "Sales Invoice",
             "naming_series": "SI-",
             "customer": transformed_data.get("customer_id"),
@@ -593,7 +631,13 @@ def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str) -
             "driver": driver_id,
             "is_return": 1 if transformed_data.get("is_return") == "1" else 0,
             "items": []
-        })
+        }
+        
+        # Add vehicle if provided
+        if vehicle_id:
+            doc_data["vehicle_for_delivery"] = vehicle_id
+        
+        doc = frappe.get_doc(doc_data)
         
         # Add items
         for item in transformed_data.get("items", []):

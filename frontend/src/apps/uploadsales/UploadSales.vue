@@ -36,12 +36,41 @@
         @file-uploaded="handleFileUpload"
       />
 
-      <!-- Driver Selection -->
+      <!-- File Info with Clear Button -->
+      <div v-if="csvContent && !showProgress && !showSummary" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-900">CSV file loaded</p>
+              <p class="text-sm text-gray-500">Ready to import {{ totalInvoices }} invoices</p>
+            </div>
+          </div>
+          <button
+            @click="clearFile"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Clear File
+          </button>
+        </div>
+      </div>
+
+      <!-- Driver & Vehicle Selection -->
       <DriverSelect
         v-if="csvContent && !showProgress && !showSummary"
-        v-model="selectedDriver"
+        v-model:driverValue="selectedDriver"
+        v-model:vehicleValue="selectedVehicle"
         :drivers="drivers"
-        :loading="loadingDrivers"
+        :vehicles="vehicles"
+        :loading-drivers="loadingDrivers"
+        :loading-vehicles="loadingVehicles"
       />
 
       <!-- Preview Table -->
@@ -96,8 +125,11 @@ import SummaryCard from './components/SummaryCard.vue'
 // State
 const csvContent = ref(null)
 const selectedDriver = ref(null)
+const selectedVehicle = ref(null)
 const drivers = ref([])
+const vehicles = ref([])
 const loadingDrivers = ref(false)
+const loadingVehicles = ref(false)
 const previewData = ref([])
 const totalInvoices = ref(0)
 const importing = ref(false)
@@ -114,9 +146,9 @@ const progress = ref({
 })
 const summary = ref(null)
 
-// Load drivers on mount
+// Load drivers and vehicles on mount
 onMounted(async () => {
-  await loadDrivers()
+  await Promise.all([loadDrivers(), loadVehicles()])
 })
 
 // Load drivers
@@ -131,6 +163,21 @@ async function loadDrivers() {
     console.error('Error loading drivers:', error)
   } finally {
     loadingDrivers.value = false
+  }
+}
+
+// ADDED BY AI: UPLOAD_SALES - Load vehicles
+async function loadVehicles() {
+  loadingVehicles.value = true
+  try {
+    const response = await call('custom_erp.custom_erp.api.uploadsales.get_vehicles')
+    if (response.success) {
+      vehicles.value = response.vehicles
+    }
+  } catch (error) {
+    console.error('Error loading vehicles:', error)
+  } finally {
+    loadingVehicles.value = false
   }
 }
 
@@ -158,6 +205,17 @@ async function handleFileUpload(file) {
   }
 }
 
+// ADDED BY AI: UPLOAD_SALES - Clear file and reset selection
+function clearFile() {
+  if (confirm('Clear current file and selections?')) {
+    csvContent.value = null
+    selectedDriver.value = null
+    selectedVehicle.value = null
+    previewData.value = []
+    totalInvoices.value = 0
+  }
+}
+
 // Start import
 async function startImport() {
   if (!selectedDriver.value) {
@@ -165,7 +223,13 @@ async function startImport() {
     return
   }
 
-  if (!confirm(`Import ${totalInvoices.value} invoices with driver ${selectedDriver.value}?`)) {
+  let confirmMsg = `Import ${totalInvoices.value} invoices with driver ${selectedDriver.value}`
+  if (selectedVehicle.value) {
+    confirmMsg += ` and vehicle ${selectedVehicle.value}`
+  }
+  confirmMsg += '?'
+
+  if (!confirm(confirmMsg)) {
     return
   }
 
@@ -173,8 +237,10 @@ async function startImport() {
   showProgress.value = true
 
   try {
+    // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
     const response = await call('custom_erp.custom_erp.api.uploadsales.enqueue_import_job', {
       driver_id: selectedDriver.value,
+      vehicle_id: selectedVehicle.value || '',
       csv_content: csvContent.value
     })
 
@@ -231,10 +297,11 @@ function subscribeToProgress() {
   })
 }
 
-// Reset upload
+// Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset
 function resetUpload() {
   csvContent.value = null
   selectedDriver.value = null
+  selectedVehicle.value = null
   previewData.value = []
   totalInvoices.value = 0
   importing.value = false

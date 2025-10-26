@@ -209,6 +209,7 @@ whitelisted_methods = [
 	"custom_erp.custom_erp.api.uploadsales.transform_and_preview",
 	"custom_erp.custom_erp.api.uploadsales.enqueue_import_job",
 	"custom_erp.custom_erp.api.uploadsales.get_drivers",
+	"custom_erp.custom_erp.api.uploadsales.get_vehicles",
 	"custom_erp.custom_erp.api.uploadsales.download_error_csv"
 ]
 

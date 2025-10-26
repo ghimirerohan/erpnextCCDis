@@ -8,6 +8,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    LoadingOverlay: typeof import('./src/components/LoadingOverlay.vue')['default']
+    PWAInstallPrompt: typeof import('./src/components/PWAInstallPrompt.vue')['default']
+    PWAUpdatePrompt: typeof import('./src/components/PWAUpdatePrompt.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

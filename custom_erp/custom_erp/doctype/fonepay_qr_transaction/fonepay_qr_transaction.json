@@ -1,0 +1,46 @@
+{
+  "doctype": "DocType",
+  "name": "Fonepay QR Transaction",
+  "module": "Custom Erp",
+  "custom": 1,
+  "is_single": 0,
+  "editable_grid": 0,
+  "track_changes": 1,
+  "track_seen": 1,
+  "engine": "InnoDB",
+  "fields": [
+    {"fieldname": "prn", "label": "PRN", "fieldtype": "Data", "reqd": 1, "unique": 1},
+    {"fieldname": "merchant_code", "label": "Merchant Code", "fieldtype": "Data"},
+    {"fieldname": "amount", "label": "Amount", "fieldtype": "Currency"},
+    {"fieldname": "currency", "label": "Currency", "fieldtype": "Data", "default": "NPR"},
+    {"fieldname": "customer", "label": "Customer", "fieldtype": "Link", "options": "Customer"},
+    {"fieldname": "sales_invoice", "label": "Sales Invoice", "fieldtype": "Link", "options": "Sales Invoice"},
+    {"fieldname": "username", "label": "Username", "fieldtype": "Data"},
+    {"fieldname": "data_validation", "label": "Data Validation (HMAC)", "fieldtype": "Data"},
+    {"fieldname": "qr_message", "label": "QR Message", "fieldtype": "Text"},
+    {"fieldname": "thirdparty_qr_websocket_url", "label": "Thirdparty QR Websocket URL", "fieldtype": "Data"},
+    {"fieldname": "fonepay_trace_id", "label": "Fonepay Trace ID", "fieldtype": "Data"},
+    {"fieldname": "response_json", "label": "Response JSON", "fieldtype": "Text"},
+    {"fieldname": "last_ws_message", "label": "Last WS Message", "fieldtype": "Text"},
+    {"fieldname": "status", "label": "Status", "fieldtype": "Select", "options": "CREATED\nVERIFIED\nSCANNED\nPENDING\nSUCCESS\nFAILED"},
+    {"fieldname": "processed", "label": "Processed", "fieldtype": "Check", "default": "0"},
+    {"fieldname": "payment_entry", "label": "Payment Entry", "fieldtype": "Link", "options": "Payment Entry"},
+    {"fieldname": "retries", "label": "Retries", "fieldtype": "Int"},
+    {"fieldname": "last_error", "label": "Last Error", "fieldtype": "Text"},
+    {"fieldname": "timeout_at", "label": "Timeout At", "fieldtype": "Datetime"},
+    {"fieldname": "env", "label": "Environment", "fieldtype": "Data"},
+    {"fieldname": "metadata", "label": "Metadata", "fieldtype": "Text"}
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "create": 1, "write": 1, "delete": 1},
+    {"role": "Accounts User", "read": 1},
+    {"role": "Accounts Manager", "read": 1}
+  ],
+  "indexes": [
+    ["prn"],
+    ["status"],
+    ["processed"]
+  ]
+}
+
+

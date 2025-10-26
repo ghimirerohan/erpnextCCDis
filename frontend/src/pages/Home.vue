@@ -41,11 +41,20 @@
                 </div>
               </div>
               <div v-else>
-                <div class="flex space-x-2 mb-3">
+                <div class="flex flex-wrap gap-2 mb-3">
+                  <button
+                    @click="selectMode = 'list'"
+                    :class="[
+                      'flex-1 min-w-[120px] px-3 py-2 text-sm font-medium rounded-md border transition-colors',
+                      selectMode === 'list' ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ]"
+                  >
+                    Customer List
+                  </button>
                   <button
                     @click="selectMode = 'qr'"
                     :class="[
-                      'px-3 py-2 text-sm font-medium rounded-md border transition-colors',
+                      'flex-1 min-w-[120px] px-3 py-2 text-sm font-medium rounded-md border transition-colors',
                       selectMode === 'qr' ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     ]"
                   >
@@ -54,7 +63,7 @@
                   <button
                     @click="selectMode = 'photo'"
                     :class="[
-                      'px-3 py-2 text-sm font-medium rounded-md border transition-colors',
+                      'flex-1 min-w-[120px] px-3 py-2 text-sm font-medium rounded-md border transition-colors',
                       selectMode === 'photo' ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     ]"
                   >
@@ -75,6 +84,19 @@
                   <input type="file" accept="image/*" capture="environment" @change="onPhotoSelected" />
                   <div v-if="extractLoading" class="mt-2 text-sm text-gray-600">Processing image...</div>
                   <Alert v-if="extractError" theme="red" class="mt-2">{{ extractError }}</Alert>
+                </div>
+                <div v-else-if="selectMode === 'list'" class="p-3 border border-gray-200 rounded-md">
+                  <Autocomplete
+                    v-model="selectedCustomerLabel"
+                    :options="customerOptions"
+                    :loading="customerListLoading"
+                    :debounce="300"
+                    placeholder="Search by customer name or code..."
+                    @update:query="handleCustomerQuery"
+                    @select="onCustomerSelected"
+                    :clearable="true"
+                  />
+                  <p v-if="!filters.customer" class="mt-2 text-sm text-gray-500">Start typing to search for a customer</p>
                 </div>
               </div>
             </div>
@@ -398,8 +420,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from "vue"
-import { createResource } from "frappe-ui"
+import { ref, reactive, onMounted, watch, computed } from "vue"
+import { createResource, Autocomplete } from "frappe-ui"
 import { session } from "../data/session"
 
 // Reactive data
@@ -417,14 +439,26 @@ const filters = reactive({
 
 // New customer selection flow state
 const selectionLocked = ref(false)
-const selectMode = ref('photo')
+const selectMode = ref('list')
 const extractLoading = ref(false)
 const extractError = ref("")
 const selectedCustomer = ref({ customer: "", customer_name: "", customer_code: "", invoice_no: "" })
 const qrSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window
 const qrVideo = ref(null)
 
-// No customer list resource needed; selection comes from QR/Photo extraction
+// Customer list selection state
+const selectedCustomerLabel = ref("")
+const customerListLoading = ref(false)
+const customerList = ref([])
+
+// Computed options for autocomplete
+const customerOptions = computed(() => {
+  return customerList.value.map(c => ({
+    label: c.customer_name || c.name,
+    value: c.name,
+    description: c.name
+  }))
+})
 
 const salesInvoicesResource = createResource({
   url: "custom_erp.custom_erp.sales_invoice.api.get_sales_invoices",
@@ -513,7 +547,9 @@ const resetSelection = () => {
   selectionLocked.value = false
   filters.customer = ""
   selectedCustomer.value = { customer: "", customer_name: "", customer_code: "", invoice_no: "" }
+  selectedCustomerLabel.value = ""
   extractError.value = ""
+  customerList.value = []
 }
 
 const onPhotoSelected = async (event) => {
@@ -605,6 +641,67 @@ async function findCustomerByField(field, value) {
     return { customer: list[0].name, customer_name: list[0].customer_name || list[0].name }
   }
   return null
+}
+
+// Customer list query handler
+const handleCustomerQuery = async (query) => {
+  if (!query || query.length < 2) {
+    customerList.value = []
+    return
+  }
+  
+  customerListLoading.value = true
+  try {
+    const params = new URLSearchParams()
+    params.set('fields', JSON.stringify(['name', 'customer_name', 'customer_code', 'mobile_no']))
+    params.set('filters', JSON.stringify([]))
+    params.set('or_filters', JSON.stringify([
+      ['customer_name', 'like', `%${query}%`],
+      ['name', 'like', `%${query}%`],
+      ['customer_code', 'like', `%${query}%`],
+      ['mobile_no', 'like', `%${query}%`]
+    ]))
+    params.set('limit_page_length', '20')
+    
+    const res = await fetch(`/api/resource/Customer?${params.toString()}`)
+    if (res.ok) {
+      const json = await res.json()
+      customerList.value = json?.data || []
+    }
+  } catch (e) {
+    console.error('Failed to fetch customers:', e)
+    customerList.value = []
+  } finally {
+    customerListLoading.value = false
+  }
+}
+
+// Customer list selection handler
+const onCustomerSelected = async (option) => {
+  if (!option || !option.value) return
+  
+  try {
+    // Fetch full customer details
+    const res = await fetch(`/api/resource/Customer/${encodeURIComponent(option.value)}`)
+    if (!res.ok) throw new Error('Failed to fetch customer details')
+    
+    const json = await res.json()
+    const customer = json?.data
+    
+    if (customer) {
+      filters.customer = customer.name
+      selectedCustomer.value = {
+        customer: customer.name,
+        customer_name: customer.customer_name || customer.name,
+        customer_code: customer.customer_code || customer.mobile_no || '',
+        invoice_no: ''
+      }
+      selectedCustomerLabel.value = customer.customer_name || customer.name
+      selectionLocked.value = true
+    }
+  } catch (e) {
+    error.value = 'Failed to load customer details: ' + (e.message || 'Unknown error')
+  }
 }
 
 // Watch for view mode changes
