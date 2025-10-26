@@ -279,8 +279,8 @@ async function startImport() {
     })
 
     if (response.success) {
-      // Subscribe to progress events with job_id
-      subscribeToProgress(response.job_id)
+      // Subscribe to progress events with import_name
+      subscribeToProgress(response.import_name)
     } else {
       alert('Error starting import: ' + (response.error || 'Unknown error'))
       showProgress.value = false
@@ -370,7 +370,8 @@ function updateProgress(data) {
       skipped: data.skipped_count || 0,
       errors: data.error_count || 0,
       amount: data.total_amount || 0,
-      errorCsvPath: data.error_csv_path || null
+      errorCsvPath: data.error_csv_path || null,
+      importLogUrl: data.import_log_url || null
     }
   }
 }

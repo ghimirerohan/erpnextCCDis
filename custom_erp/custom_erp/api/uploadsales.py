@@ -479,11 +479,11 @@ def get_vehicles():
         }
 
 
-# ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Using Frappe Data Import)
 @frappe.whitelist()
 def enqueue_import_job(driver_id, vehicle_id, csv_content):
     """
-    Enqueue background job to import sales invoices.
+    Create and start a Data Import using Frappe's built-in import system.
     
     Args:
         driver_id: Selected driver ID
@@ -491,33 +491,85 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         csv_content: CSV file content
     
     Returns:
-        Job ID for tracking
+        Import name for tracking
     """
     try:
-        job_id = frappe.generate_hash(length=10)
-        user = frappe.session.user
+        # Parse and transform CSV to Frappe import format
+        rows = parse_csv_rows(csv_content)
+        grouped = group_rows_by_invoice(rows)
         
-        # Enqueue the job
-        frappe.enqueue(
-            method="custom_erp.custom_erp.api.uploadsales.process_upload_sales_job",
-            queue="default",
-            timeout=3600,
-            job_name=f"upload_sales_{job_id}",
-            driver_id=driver_id,
-            vehicle_id=vehicle_id,
-            csv_content=csv_content,
-            job_id=job_id,
-            user=user
-        )
+        # Transform to import-ready format
+        import_data = []
+        error_count = 0
+        
+        for invoice_no, invoice_rows in grouped.items():
+            transformed, errors = transform_invoice_rows(invoice_rows, validate_lookups=True)
+            
+            if errors:
+                error_count += 1
+                continue
+            
+            # Convert to flat format for import
+            for item in transformed.get("items", []):
+                import_row = {
+                    "ID": invoice_no,
+                    "Series": "SI-",
+                    "Customer": transformed.get("customer_id"),
+                    "Posting Date": transformed.get("date"),
+                    "Is Return": "Yes" if transformed.get("is_return") == "1" else "No",
+                    "Update Stock": "1",
+                    "Driver": driver_id,
+                    "Vehicle For Delivery": vehicle_id or "",
+                    "Item Code": item.get("item_code"),
+                    "Quantity": item.get("qty"),
+                    "UOM": item.get("uom"),
+                    "Discount Amount": item.get("discount") or 0
+                }
+                import_data.append(import_row)
+        
+        if not import_data:
+            return {
+                "success": False,
+                "error": "No valid data to import"
+            }
+        
+        # Create CSV content for Data Import
+        import_csv = create_import_csv(import_data)
+        
+        # Create Data Import document
+        data_import = frappe.get_doc({
+            "doctype": "Data Import",
+            "reference_doctype": "Sales Invoice",
+            "import_type": "Insert New Records",
+            "submit_after_import": 0,
+            "mute_emails": 1
+        })
+        data_import.insert(ignore_permissions=True)
+        
+        # Save the import file
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": f"sales_import_{data_import.name}.csv",
+            "content": import_csv,
+            "is_private": 1,
+            "attached_to_doctype": "Data Import",
+            "attached_to_name": data_import.name
+        })
+        file_doc.save(ignore_permissions=True)
+        
+        # Start the import
+        data_import.import_file = file_doc.file_url
+        data_import.save(ignore_permissions=True)
+        data_import.start_import()
         
         return {
             "success": True,
-            "job_id": job_id,
-            "message": "Import job queued successfully"
+            "import_name": data_import.name,
+            "message": "Import started successfully"
         }
         
     except Exception as e:
-        frappe.log_error(f"Error enqueueing import job: {str(e)}", "Upload Sales Enqueue")
+        frappe.log_error(f"Error starting import: {str(e)}\n{traceback.format_exc()}", "Upload Sales Import")
         return {
             "success": False,
             "error": str(e)
@@ -761,46 +813,93 @@ def save_error_csv(error_rows: List[Dict], job_id: str) -> str:
         return None
 
 
-# ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Job Progress (for polling)
+# ADDED BY AI: UPLOAD_SALES - Create Import CSV
+def create_import_csv(import_data):
+    """Create CSV content for Frappe Data Import."""
+    if not import_data:
+        return ""
+    
+    output = io.StringIO()
+    fieldnames = list(import_data[0].keys())
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    
+    writer.writeheader()
+    writer.writerows(import_data)
+    
+    return output.getvalue()
+
+
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Import Progress (for polling)
 @frappe.whitelist()
 def get_job_progress(job_id):
     """
-    Get current progress of an upload job (for polling when WebSocket unavailable).
+    Get current progress of a Data Import.
     
     Args:
-        job_id: Job ID
+        job_id: Data Import name
     
     Returns:
         Dict with current progress data
     """
     try:
-        # Get progress from cache
-        cache_key = f"uploadsales_progress_{job_id}"
-        progress_data = frappe.cache().get_value(cache_key)
-        
-        if not progress_data:
-            # Job not found or not started
+        # Get the Data Import document
+        if not frappe.db.exists("Data Import", job_id):
             return {
                 "success": True,
                 "data": {
                     "processed": 0,
                     "total": 0,
-                    "current_message": "Initializing...",
+                    "current_message": "Import not found",
                     "imported_count": 0,
                     "skipped_count": 0,
                     "error_count": 0,
                     "total_amount": 0,
-                    "completed": False
+                    "completed": True
                 }
             }
         
+        data_import = frappe.get_doc("Data Import", job_id)
+        
+        # Calculate progress
+        total = data_import.total_rows or 0
+        success = data_import.success_count or 0
+        failed = data_import.failure_count or 0
+        processed = success + failed
+        
+        # Determine status message
+        if data_import.status == "Success":
+            message = "Import completed successfully"
+            completed = True
+        elif data_import.status == "Partial Success":
+            message = f"Import completed with {failed} errors"
+            completed = True
+        elif data_import.status == "Error":
+            message = "Import failed"
+            completed = True
+        elif data_import.status == "In Progress":
+            message = f"Importing... {processed}/{total}"
+            completed = False
+        else:
+            message = data_import.status or "Pending"
+            completed = False
+        
         return {
             "success": True,
-            "data": progress_data
+            "data": {
+                "processed": processed,
+                "total": total,
+                "current_message": message,
+                "imported_count": success,
+                "skipped_count": 0,
+                "error_count": failed,
+                "total_amount": 0,
+                "completed": completed,
+                "import_log_url": f"/app/data-import/{job_id}" if completed else None
+            }
         }
         
     except Exception as e:
-        frappe.log_error(f"Error getting job progress: {str(e)}", "Upload Sales Get Progress")
+        frappe.log_error(f"Error getting import progress: {str(e)}", "Upload Sales Get Progress")
         return {
             "success": False,
             "error": str(e)

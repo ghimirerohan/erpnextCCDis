@@ -58,6 +58,18 @@
       </button>
 
       <a
+        v-if="summary.importLogUrl"
+        :href="summary.importLogUrl"
+        target="_blank"
+        class="flex-1 inline-flex items-center justify-center px-6 py-3 border border-indigo-300 text-base font-medium rounded-lg shadow-sm text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        View Import Log
+      </a>
+
+      <a
         v-if="summary.errors > 0 && summary.errorCsvPath"
         :href="summary.errorCsvPath"
         download
@@ -121,7 +133,8 @@ defineProps({
       skipped: 0,
       errors: 0,
       amount: 0,
-      errorCsvPath: null
+      errorCsvPath: null,
+      importLogUrl: null
     })
   }
 })

@@ -18,7 +18,7 @@ var __async = (__this, __arguments, generator) => {
     step((generator = generator.apply(__this, __arguments)).next());
   });
 };
-import { s as session } from "./index-BMvFzPHH.js";
+import { s as session } from "./index-DA5oEbtt.js";
 import { m as commonjsGlobal, l as call } from "./ui-C-4uyU25.js";
 import { g as ref, o as openBlock, a as createElementBlock, ad as createStaticVNode, b as createBaseVNode, t as toDisplayString, N as withModifiers, n as normalizeClass, e as createCommentVNode, I as createTextVNode, F as Fragment, M as renderList, c as computed, E as normalizeStyle, k as onMounted, L as unref, y as createBlock } from "./vendor-DNPaXrxF.js";
 var papaparse_min = { exports: {} };
@@ -850,20 +850,21 @@ const _hoisted_12$1 = { class: "flex items-center justify-between" };
 const _hoisted_13$1 = { class: "text-3xl font-bold text-indigo-900 mt-2" };
 const _hoisted_14$1 = { class: "flex flex-col sm:flex-row gap-4" };
 const _hoisted_15$1 = ["href"];
-const _hoisted_16$1 = {
+const _hoisted_16$1 = ["href"];
+const _hoisted_17$1 = {
   key: 0,
   class: "mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
 };
-const _hoisted_17$1 = { class: "flex" };
-const _hoisted_18$1 = { class: "ml-3" };
-const _hoisted_19$1 = { class: "text-sm font-medium text-green-800" };
-const _hoisted_20 = {
+const _hoisted_18$1 = { class: "flex" };
+const _hoisted_19$1 = { class: "ml-3" };
+const _hoisted_20 = { class: "text-sm font-medium text-green-800" };
+const _hoisted_21 = {
   key: 1,
   class: "mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
 };
-const _hoisted_21 = { class: "flex" };
-const _hoisted_22 = { class: "ml-3" };
-const _hoisted_23 = { class: "text-sm font-medium text-red-800" };
+const _hoisted_22 = { class: "flex" };
+const _hoisted_23 = { class: "ml-3" };
+const _hoisted_24 = { class: "text-sm font-medium text-red-800" };
 const _sfc_main$1 = {
   __name: "SummaryCard",
   props: {
@@ -875,7 +876,8 @@ const _sfc_main$1 = {
         skipped: 0,
         errors: 0,
         amount: 0,
-        errorCsvPath: null
+        errorCsvPath: null,
+        importLogUrl: null
       })
     }
   },
@@ -890,7 +892,7 @@ const _sfc_main$1 = {
     }
     return (_ctx, _cache) => {
       return openBlock(), createElementBlock("section", _hoisted_1$1, [
-        _cache[13] || (_cache[13] = createStaticVNode('<div class="flex items-center mb-6"><div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h2 class="text-xl font-semibold text-gray-900">Import Complete</h2></div>', 1)),
+        _cache[14] || (_cache[14] = createStaticVNode('<div class="flex items-center mb-6"><div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h2 class="text-xl font-semibold text-gray-900">Import Complete</h2></div>', 1)),
         createBaseVNode("div", _hoisted_2$1, [
           createBaseVNode("div", _hoisted_3$1, [
             createBaseVNode("div", _hoisted_4$1, toDisplayString(__props.summary.total), 1),
@@ -952,12 +954,33 @@ const _sfc_main$1 = {
             ], -1),
             createTextVNode(" Upload Another File ")
           ])),
-          __props.summary.errors > 0 && __props.summary.errorCsvPath ? (openBlock(), createElementBlock("a", {
+          __props.summary.importLogUrl ? (openBlock(), createElementBlock("a", {
             key: 0,
+            href: __props.summary.importLogUrl,
+            target: "_blank",
+            class: "flex-1 inline-flex items-center justify-center px-6 py-3 border border-indigo-300 text-base font-medium rounded-lg shadow-sm text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+          }, _cache[8] || (_cache[8] = [
+            createBaseVNode("svg", {
+              class: "w-5 h-5 mr-2",
+              fill: "none",
+              stroke: "currentColor",
+              viewBox: "0 0 24 24"
+            }, [
+              createBaseVNode("path", {
+                "stroke-linecap": "round",
+                "stroke-linejoin": "round",
+                "stroke-width": "2",
+                d: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              })
+            ], -1),
+            createTextVNode(" View Import Log ")
+          ]), 8, _hoisted_15$1)) : createCommentVNode("", true),
+          __props.summary.errors > 0 && __props.summary.errorCsvPath ? (openBlock(), createElementBlock("a", {
+            key: 1,
             href: __props.summary.errorCsvPath,
             download: "",
             class: "flex-1 inline-flex items-center justify-center px-6 py-3 border border-red-300 text-base font-medium rounded-lg shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-          }, _cache[8] || (_cache[8] = [
+          }, _cache[9] || (_cache[9] = [
             createBaseVNode("svg", {
               class: "w-5 h-5 mr-2",
               fill: "none",
@@ -972,11 +995,11 @@ const _sfc_main$1 = {
               })
             ], -1),
             createTextVNode(" Download Error CSV ")
-          ]), 8, _hoisted_15$1)) : createCommentVNode("", true)
+          ]), 8, _hoisted_16$1)) : createCommentVNode("", true)
         ]),
-        __props.summary.imported > 0 ? (openBlock(), createElementBlock("div", _hoisted_16$1, [
-          createBaseVNode("div", _hoisted_17$1, [
-            _cache[10] || (_cache[10] = createBaseVNode("div", { class: "flex-shrink-0" }, [
+        __props.summary.imported > 0 ? (openBlock(), createElementBlock("div", _hoisted_17$1, [
+          createBaseVNode("div", _hoisted_18$1, [
+            _cache[11] || (_cache[11] = createBaseVNode("div", { class: "flex-shrink-0" }, [
               createBaseVNode("svg", {
                 class: "w-5 h-5 text-green-400",
                 fill: "currentColor",
@@ -989,15 +1012,15 @@ const _sfc_main$1 = {
                 })
               ])
             ], -1)),
-            createBaseVNode("div", _hoisted_18$1, [
-              createBaseVNode("p", _hoisted_19$1, " Successfully imported " + toDisplayString(__props.summary.imported) + " sales invoice" + toDisplayString(__props.summary.imported !== 1 ? "s" : "") + "! ", 1),
-              _cache[9] || (_cache[9] = createBaseVNode("p", { class: "text-sm text-green-700 mt-1" }, " All invoices are in draft status. You can review and submit them from the Sales Invoice list. ", -1))
+            createBaseVNode("div", _hoisted_19$1, [
+              createBaseVNode("p", _hoisted_20, " Successfully imported " + toDisplayString(__props.summary.imported) + " sales invoice" + toDisplayString(__props.summary.imported !== 1 ? "s" : "") + "! ", 1),
+              _cache[10] || (_cache[10] = createBaseVNode("p", { class: "text-sm text-green-700 mt-1" }, " All invoices are in draft status. You can review and submit them from the Sales Invoice list. ", -1))
             ])
           ])
         ])) : createCommentVNode("", true),
-        __props.summary.errors > 0 ? (openBlock(), createElementBlock("div", _hoisted_20, [
-          createBaseVNode("div", _hoisted_21, [
-            _cache[12] || (_cache[12] = createBaseVNode("div", { class: "flex-shrink-0" }, [
+        __props.summary.errors > 0 ? (openBlock(), createElementBlock("div", _hoisted_21, [
+          createBaseVNode("div", _hoisted_22, [
+            _cache[13] || (_cache[13] = createBaseVNode("div", { class: "flex-shrink-0" }, [
               createBaseVNode("svg", {
                 class: "w-5 h-5 text-red-400",
                 fill: "currentColor",
@@ -1010,9 +1033,9 @@ const _sfc_main$1 = {
                 })
               ])
             ], -1)),
-            createBaseVNode("div", _hoisted_22, [
-              createBaseVNode("p", _hoisted_23, toDisplayString(__props.summary.errors) + " invoice" + toDisplayString(__props.summary.errors !== 1 ? "s" : "") + " failed to import ", 1),
-              _cache[11] || (_cache[11] = createBaseVNode("p", { class: "text-sm text-red-700 mt-1" }, " Download the error CSV to see details and fix the issues. ", -1))
+            createBaseVNode("div", _hoisted_23, [
+              createBaseVNode("p", _hoisted_24, toDisplayString(__props.summary.errors) + " invoice" + toDisplayString(__props.summary.errors !== 1 ? "s" : "") + " failed to import ", 1),
+              _cache[12] || (_cache[12] = createBaseVNode("p", { class: "text-sm text-red-700 mt-1" }, " Download the error CSV to see details and fix the issues. ", -1))
             ])
           ])
         ])) : createCommentVNode("", true)
@@ -1164,7 +1187,7 @@ const _sfc_main = {
             csv_content: csvContent.value
           });
           if (response.success) {
-            subscribeToProgress();
+            subscribeToProgress(response.import_name);
           } else {
             alert("Error starting import: " + (response.error || "Unknown error"));
             showProgress.value = false;
@@ -1178,37 +1201,72 @@ const _sfc_main = {
         }
       });
     }
-    function subscribeToProgress() {
-      if (!window.frappe || !window.frappe.realtime) {
-        console.error("Frappe realtime not available");
-        return;
+    let progressInterval = null;
+    function subscribeToProgress(jobId) {
+      if (window.frappe && window.frappe.realtime) {
+        console.log("Using WebSocket for realtime updates");
+        window.frappe.realtime.on("uploadsales_progress", (data) => {
+          updateProgress(data);
+        });
+      } else {
+        console.log("WebSocket not available, using polling fallback");
       }
-      window.frappe.realtime.on("uploadsales_progress", (data) => {
-        progress.value = {
-          processed: data.processed || 0,
+      startProgressPolling(jobId);
+    }
+    function startProgressPolling(jobId) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      progressInterval = setInterval(() => __async(this, null, function* () {
+        try {
+          const response = yield call("custom_erp.custom_erp.api.uploadsales.get_job_progress", {
+            job_id: jobId
+          });
+          if (response && response.success) {
+            updateProgress(response.data);
+          }
+        } catch (error) {
+          console.error("Error polling progress:", error);
+        }
+      }), 500);
+    }
+    function updateProgress(data) {
+      if (!data) return;
+      progress.value = {
+        processed: data.processed || 0,
+        total: data.total || 0,
+        message: data.current_message || "",
+        imported: data.imported_count || 0,
+        skipped: data.skipped_count || 0,
+        errors: data.error_count || 0,
+        amount: data.total_amount || 0
+      };
+      if (data.completed) {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+        if (window.frappe && window.frappe.realtime) {
+          window.frappe.realtime.off("uploadsales_progress");
+        }
+        showProgress.value = false;
+        showSummary.value = true;
+        summary.value = {
           total: data.total || 0,
-          message: data.current_message || "",
           imported: data.imported_count || 0,
           skipped: data.skipped_count || 0,
           errors: data.error_count || 0,
-          amount: data.total_amount || 0
+          amount: data.total_amount || 0,
+          errorCsvPath: data.error_csv_path || null,
+          importLogUrl: data.import_log_url || null
         };
-        if (data.completed) {
-          showProgress.value = false;
-          showSummary.value = true;
-          summary.value = {
-            total: data.total || 0,
-            imported: data.imported_count || 0,
-            skipped: data.skipped_count || 0,
-            errors: data.error_count || 0,
-            amount: data.total_amount || 0,
-            errorCsvPath: data.error_csv_path || null
-          };
-          window.frappe.realtime.off("uploadsales_progress");
-        }
-      });
+      }
     }
     function resetUpload() {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
       csvContent.value = null;
       selectedDriver.value = null;
       selectedVehicle.value = null;
@@ -1416,4 +1474,4 @@ const _sfc_main = {
 export {
   _sfc_main as default
 };
-//# sourceMappingURL=UploadSales-BoR0Tu9E.js.map
+//# sourceMappingURL=UploadSales-DFlMDzPy.js.map
