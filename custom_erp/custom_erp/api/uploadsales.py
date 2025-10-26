@@ -518,14 +518,14 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                     "Posting Date": transformed.get("date"),
                     "Is Return": "Yes" if transformed.get("is_return") == "1" else "No",
                     "Update Stock": "1",
-                    "Driver": driver_id,
+                    "Driver For Vehicle": driver_id,  # Correct custom field name
                     "Item Code": item.get("item_code"),
                     "Quantity": item.get("qty"),
                     "UOM": item.get("uom"),
                     "Discount Amount": item.get("discount") or 0
                 }
-                # Only add vehicle if field exists
-                if vehicle_id and frappe.db.has_column("Sales Invoice", "vehicle_for_delivery"):
+                # Add vehicle using correct custom field name
+                if vehicle_id:
                     import_row["Vehicle For Delivery"] = vehicle_id
                     
                 import_data.append(import_row)
