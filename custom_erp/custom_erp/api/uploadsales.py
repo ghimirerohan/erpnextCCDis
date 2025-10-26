@@ -519,12 +519,15 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                     "Is Return": "Yes" if transformed.get("is_return") == "1" else "No",
                     "Update Stock": "1",
                     "Driver": driver_id,
-                    "Vehicle For Delivery": vehicle_id or "",
                     "Item Code": item.get("item_code"),
                     "Quantity": item.get("qty"),
                     "UOM": item.get("uom"),
                     "Discount Amount": item.get("discount") or 0
                 }
+                # Only add vehicle if field exists
+                if vehicle_id and frappe.db.has_column("Sales Invoice", "vehicle_for_delivery"):
+                    import_row["Vehicle For Delivery"] = vehicle_id
+                    
                 import_data.append(import_row)
         
         if not import_data:
@@ -560,7 +563,14 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         # Start the import
         data_import.import_file = file_doc.file_url
         data_import.save(ignore_permissions=True)
-        data_import.start_import()
+        
+        # Enqueue the import in background
+        frappe.enqueue(
+            method="custom_erp.custom_erp.api.uploadsales.run_data_import",
+            queue="default",
+            timeout=3600,
+            data_import_name=data_import.name
+        )
         
         return {
             "success": True,
@@ -574,6 +584,34 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
             "success": False,
             "error": str(e)
         }
+
+
+# ADDED BY AI: UPLOAD_SALES - Run Data Import in Background
+def run_data_import(data_import_name):
+    """
+    Run the Data Import in background.
+    """
+    try:
+        # Get the Data Import document
+        data_import = frappe.get_doc("Data Import", data_import_name)
+        
+        # Use the Importer class to run the import
+        from frappe.core.doctype.data_import.importer import Importer
+        importer = Importer(data_import.reference_doctype, data_import=data_import)
+        importer.import_data()
+        
+        frappe.db.commit()
+        
+    except Exception as e:
+        frappe.log_error(f"Error running data import: {str(e)}\n{traceback.format_exc()}", "Upload Sales Data Import")
+        # Update status to Error
+        try:
+            data_import = frappe.get_doc("Data Import", data_import_name)
+            data_import.status = "Error"
+            data_import.save(ignore_permissions=True)
+            frappe.db.commit()
+        except:
+            pass
 
 
 # ADDED BY AI: UPLOAD_SALES - Background Job: Process Upload
@@ -860,11 +898,20 @@ def get_job_progress(job_id):
         
         data_import = frappe.get_doc("Data Import", job_id)
         
-        # Calculate progress
-        total = data_import.total_rows or 0
-        success = data_import.success_count or 0
-        failed = data_import.failure_count or 0
-        processed = success + failed
+        # Get total from payload_count
+        total = data_import.payload_count or 0
+        
+        # Get logs to calculate success/failure
+        logs = frappe.get_all(
+            "Data Import Log",
+            filters={"data_import": job_id},
+            fields=["success"],
+            order_by="log_index"
+        )
+        
+        success = len([l for l in logs if l.success])
+        failed = len([l for l in logs if not l.success])
+        processed = len(logs)
         
         # Determine status message
         if data_import.status == "Success":
