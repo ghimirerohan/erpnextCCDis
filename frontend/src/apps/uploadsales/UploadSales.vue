@@ -271,12 +271,19 @@ async function startImport() {
   showProgress.value = true
 
   try {
+    console.log('=== STARTING IMPORT ===')
+    console.log('Driver ID:', selectedDriver.value)
+    console.log('Vehicle ID:', selectedVehicle.value)
+    console.log('CSV Content Length:', csvContent.value ? csvContent.value.length : 0)
+    
     // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
     const response = await call('custom_erp.custom_erp.api.uploadsales.enqueue_import_job', {
       driver_id: selectedDriver.value,
       vehicle_id: selectedVehicle.value || '',
       csv_content: csvContent.value
     })
+    
+    console.log('API Response:', response)
 
     if (response.success) {
       // Subscribe to progress events with import_name
@@ -286,7 +293,10 @@ async function startImport() {
       showProgress.value = false
     }
   } catch (error) {
-    console.error('Error starting import:', error)
+    console.error('=== IMPORT ERROR ===')
+    console.error('Error:', error)
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
     alert('Error starting import: ' + error.message)
     showProgress.value = false
   } finally {
