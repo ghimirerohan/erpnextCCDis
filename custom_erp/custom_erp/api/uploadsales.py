@@ -483,6 +483,7 @@ def get_vehicles():
 @frappe.whitelist()
 def test_api():
     """Simple test API to verify the endpoint is working."""
+    print("=== TEST API CALLED ===")
     frappe.log_error("=== TEST API CALLED ===", "Upload Sales Test")
     return {
         "success": True,
@@ -506,6 +507,7 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         Import name for tracking
     """
     try:
+        print("=== UPLOAD SALES IMPORT STARTED ===")
         frappe.log_error(f"=== UPLOAD SALES IMPORT STARTED ===", "Upload Sales Import")
         frappe.log_error(f"Driver ID: {driver_id}, Vehicle ID: {vehicle_id}", "Upload Sales Import")
         frappe.log_error(f"CSV Content Length: {len(csv_content) if csv_content else 0}", "Upload Sales Import")
