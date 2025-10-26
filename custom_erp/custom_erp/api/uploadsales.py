@@ -564,14 +564,13 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         data_import.import_file = file_doc.file_url
         data_import.save(ignore_permissions=True)
         
-        # Use Frappe's built-in import method
-        try:
-            data_import.start_import()
-        except Exception as e:
-            # If start_import doesn't work, try the Importer class directly
-            from frappe.core.doctype.data_import.importer import Importer
-            importer = Importer(data_import.reference_doctype, data_import=data_import)
-            importer.import_data()
+        # Enqueue the import in background
+        frappe.enqueue(
+            method="custom_erp.custom_erp.api.uploadsales.run_data_import",
+            queue="default",
+            timeout=3600,
+            data_import_name=data_import.name
+        )
         
         return {
             "success": True,
@@ -593,13 +592,19 @@ def run_data_import(data_import_name):
     Run the Data Import in background.
     """
     try:
+        frappe.log_error(f"Starting data import: {data_import_name}", "Upload Sales Data Import")
+        
         # Get the Data Import document
         data_import = frappe.get_doc("Data Import", data_import_name)
+        frappe.log_error(f"Data Import found: {data_import.name}, Status: {data_import.status}", "Upload Sales Data Import")
         
         # Use the Importer class to run the import
         from frappe.core.doctype.data_import.importer import Importer
         importer = Importer(data_import.reference_doctype, data_import=data_import)
+        frappe.log_error(f"Importer created, starting import_data()", "Upload Sales Data Import")
+        
         importer.import_data()
+        frappe.log_error(f"Import completed successfully", "Upload Sales Data Import")
         
         frappe.db.commit()
         
