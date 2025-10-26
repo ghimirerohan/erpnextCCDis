@@ -494,9 +494,15 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         Import name for tracking
     """
     try:
+        frappe.log_error(f"=== UPLOAD SALES IMPORT STARTED ===", "Upload Sales Import")
+        frappe.log_error(f"Driver ID: {driver_id}, Vehicle ID: {vehicle_id}", "Upload Sales Import")
+        frappe.log_error(f"CSV Content Length: {len(csv_content) if csv_content else 0}", "Upload Sales Import")
+        
         # Parse and transform CSV to Frappe import format
         rows = parse_csv_rows(csv_content)
         grouped = group_rows_by_invoice(rows)
+        
+        frappe.log_error(f"Parsed {len(rows)} rows into {len(grouped)} invoices", "Upload Sales Import")
         
         # Transform to import-ready format
         import_data = []
@@ -571,6 +577,10 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
             timeout=3600,
             data_import_name=data_import.name
         )
+        
+        frappe.log_error(f"=== UPLOAD SALES IMPORT COMPLETED ===", "Upload Sales Import")
+        frappe.log_error(f"Data Import created: {data_import.name}", "Upload Sales Import")
+        frappe.log_error(f"Background job enqueued successfully", "Upload Sales Import")
         
         return {
             "success": True,
