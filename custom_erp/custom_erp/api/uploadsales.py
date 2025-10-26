@@ -479,6 +479,18 @@ def get_vehicles():
         }
 
 
+# ADDED BY AI: UPLOAD_SALES - Test API Endpoint
+@frappe.whitelist()
+def test_api():
+    """Simple test API to verify the endpoint is working."""
+    frappe.log_error("=== TEST API CALLED ===", "Upload Sales Test")
+    return {
+        "success": True,
+        "message": "Test API is working",
+        "timestamp": frappe.utils.now()
+    }
+
+
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Using Frappe Data Import)
 @frappe.whitelist()
 def enqueue_import_job(driver_id, vehicle_id, csv_content):

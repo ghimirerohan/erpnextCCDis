@@ -276,6 +276,11 @@ async function startImport() {
     console.log('Vehicle ID:', selectedVehicle.value)
     console.log('CSV Content Length:', csvContent.value ? csvContent.value.length : 0)
     
+    // Test API first
+    console.log('Testing API connection...')
+    const testResponse = await call('custom_erp.custom_erp.api.uploadsales.test_api')
+    console.log('Test API Response:', testResponse)
+    
     // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
     const response = await call('custom_erp.custom_erp.api.uploadsales.enqueue_import_job', {
       driver_id: selectedDriver.value,
