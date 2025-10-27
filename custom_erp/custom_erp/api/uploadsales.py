@@ -1106,12 +1106,22 @@ def get_job_progress(job_id):
         logs = frappe.get_all(
             "Data Import Log",
             filters={"data_import": job_id},
-            fields=["success", "messages"],
+            fields=["success", "messages", "docname"],
             order_by="log_index"
         )
         
-        success = len([l for l in logs if l.success])
-        failed = len([l for l in logs if not l.success])
+        # Count unique successful documents (not individual log entries)
+        successful_docs = set()
+        failed_docs = set()
+        
+        for log in logs:
+            if log.success and log.docname:
+                successful_docs.add(log.docname)
+            elif not log.success and log.docname:
+                failed_docs.add(log.docname)
+        
+        success = len(successful_docs)
+        failed = len(failed_docs)
         processed = len(logs)
         
         # Get error details for frontend display
@@ -1119,6 +1129,17 @@ def get_job_progress(job_id):
         for i, log in enumerate(logs):
             if not log.success and log.messages:
                 error_details.append(f"Row {i+1}: {log.messages}")
+        
+        # Calculate actual total amount from created Sales Invoices
+        total_amount = 0
+        if successful_docs:
+            # Get the grand total from all successful Sales Invoices
+            sales_invoices = frappe.get_all(
+                "Sales Invoice",
+                filters={"name": ["in", list(successful_docs)]},
+                fields=["grand_total"]
+            )
+            total_amount = sum(float(inv.grand_total or 0) for inv in sales_invoices)
         
         # Determine status message
         if data_import.status == "Success":
@@ -1146,7 +1167,7 @@ def get_job_progress(job_id):
                 "imported_count": success,
                 "skipped_count": 0,
                 "error_count": failed,
-                "total_amount": 0,
+                "total_amount": total_amount,
                 "completed": completed,
                 "import_log_url": f"/app/data-import/{job_id}" if completed else None,
                 "error_details": error_details
