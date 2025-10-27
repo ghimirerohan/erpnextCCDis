@@ -580,10 +580,12 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                         "Tax Rate (Sales Taxes and Charges)": "13",
                         "Cost Center (Items)": "Main - RTAS",
                         "Income Account (Items)": "Sales - RTAS",
-                        "UOM (Items)": "CS"
+                        "UOM (Items)": "CS",
+                        "Driver For Vehicle": driver_id,  # Custom field
+                        "Vehicle For Delivery": vehicle_id or ""  # Custom field
                     }
                 else:
-                    # Subsequent item rows - blank cells for header data
+                    # Subsequent item rows - ALL parent table fields are blank, only item fields have values
                     import_row = {
                         "Is Return": "",  # Blank
                         "Date": "",       # Blank
@@ -593,24 +595,26 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                         "Quantity": item.get("qty"),
                         "Discount Amount": item.get("discount") or 0,
                         "Item Name": item.get("item_name"),
-                        "Currency": "",   # Blank
-                        "Update Stock": "", # Blank
-                        "Exchange Rate": "", # Blank
-                        "Price List Currency": "", # Blank
-                        "Price List Exchange Rate": "", # Blank
-                        "Update Outstanding for Self": "", # Blank
-                        "Update Billed Amount in Sales Order": "", # Blank
-                        "Update Billed Amount in Delivery Note": "", # Blank
-                        "Debit To": "",   # Blank
-                        "Price List": "", # Blank
-                        "Sales Taxes and Charges Template": "", # Blank
-                        "Account Head (Sales Taxes and Charges)": "", # Blank
-                        "Description (Sales Taxes and Charges)": "", # Blank
-                        "Type (Sales Taxes and Charges)": "", # Blank
-                        "Tax Rate (Sales Taxes and Charges)": "", # Blank
-                        "Cost Center (Items)": "Main - RTAS",  # Keep static values
-                        "Income Account (Items)": "Sales - RTAS",  # Keep static values
-                        "UOM (Items)": "CS"  # Keep static values
+                        "Currency": "",   # Blank - parent field
+                        "Update Stock": "", # Blank - parent field
+                        "Exchange Rate": "", # Blank - parent field
+                        "Price List Currency": "", # Blank - parent field
+                        "Price List Exchange Rate": "", # Blank - parent field
+                        "Update Outstanding for Self": "", # Blank - parent field
+                        "Update Billed Amount in Sales Order": "", # Blank - parent field
+                        "Update Billed Amount in Delivery Note": "", # Blank - parent field
+                        "Debit To": "",   # Blank - parent field
+                        "Price List": "", # Blank - parent field
+                        "Sales Taxes and Charges Template": "", # Blank - parent field
+                        "Account Head (Sales Taxes and Charges)": "", # Blank - parent field
+                        "Description (Sales Taxes and Charges)": "", # Blank - parent field
+                        "Type (Sales Taxes and Charges)": "", # Blank - parent field
+                        "Tax Rate (Sales Taxes and Charges)": "", # Blank - parent field
+                        "Cost Center (Items)": "Main - RTAS",  # Keep static values - item field
+                        "Income Account (Items)": "Sales - RTAS",  # Keep static values - item field
+                        "UOM (Items)": "CS",  # Keep static values - item field
+                        "Driver For Vehicle": "",  # Blank - custom field
+                        "Vehicle For Delivery": ""  # Blank - custom field
                     }
                     
                 import_data.append(import_row)
@@ -957,7 +961,7 @@ def create_import_csv(import_data):
     
     output = io.StringIO()
     
-    # Define the EXACT column headers as they appear in the output sheet
+    # Define the EXACT column headers as they appear in the output sheet + custom fields
     headers = [
         "Is Return (Credit Note)", "Date", "ID", "Customer", "Item (Items)", 
         "Quantity (Items)", "Distributed Discount Amount (Items)", "Item Name (Items)", 
@@ -967,14 +971,15 @@ def create_import_csv(import_data):
         "Debit To", "Price List", "Sales Taxes and Charges Template", 
         "Account Head (Sales Taxes and Charges)", "Description (Sales Taxes and Charges)", 
         "Type (Sales Taxes and Charges)", "Tax Rate (Sales Taxes and Charges)", 
-        "Cost Center (Items)", "Income Account (Items)", "UOM (Items)"
+        "Cost Center (Items)", "Income Account (Items)", "UOM (Items)",
+        "Driver For Vehicle", "Vehicle For Delivery"  # Custom fields
     ]
     
     writer = csv.writer(output)
     writer.writerow(headers)
     
     for row in import_data:
-        # Convert to the exact format matching the output sheet
+        # Convert to the exact format matching the output sheet + custom fields
         writer.writerow([
             row.get("Is Return", ""),  # Will be "-" or "1" based on SRV pattern
             row.get("Date", ""),
@@ -984,24 +989,26 @@ def create_import_csv(import_data):
             row.get("Quantity", ""),
             row.get("Discount Amount", ""),
             row.get("Item Name", ""),
-            "NPR",  # Static value
-            "1",    # Static value
-            "1",    # Static value
-            "NPR",  # Static value
-            "1",    # Static value
-            "0",    # Static value
-            "0",    # Static value
-            "1",    # Static value
-            "Debtors - RTAS",  # Static value
-            "Standard Selling",  # Static value
-            "Nepal Tax - RTAS",  # Static value
-            "VAT - RTAS",  # Static value
-            "VAT @ 13.0",  # Static value
-            "On Net Total",  # Static value
-            "13",   # Static value
-            "Main - RTAS",  # Static value
-            "Sales - RTAS",  # Static value
-            "CS"    # Static value
+            row.get("Currency", "NPR"),  # Static value or blank
+            row.get("Update Stock", "1"),    # Static value or blank
+            row.get("Exchange Rate", "1"),    # Static value or blank
+            row.get("Price List Currency", "NPR"),  # Static value or blank
+            row.get("Price List Exchange Rate", "1"),    # Static value or blank
+            row.get("Update Outstanding for Self", "0"),    # Static value or blank
+            row.get("Update Billed Amount in Sales Order", "0"),    # Static value or blank
+            row.get("Update Billed Amount in Delivery Note", "1"),    # Static value or blank
+            row.get("Debit To", "Debtors - RTAS"),  # Static value or blank
+            row.get("Price List", "Standard Selling"),  # Static value or blank
+            row.get("Sales Taxes and Charges Template", "Nepal Tax - RTAS"),  # Static value or blank
+            row.get("Account Head (Sales Taxes and Charges)", "VAT - RTAS"),  # Static value or blank
+            row.get("Description (Sales Taxes and Charges)", "VAT @ 13.0"),  # Static value or blank
+            row.get("Type (Sales Taxes and Charges)", "On Net Total"),  # Static value or blank
+            row.get("Tax Rate (Sales Taxes and Charges)", "13"),   # Static value or blank
+            row.get("Cost Center (Items)", "Main - RTAS"),  # Static value
+            row.get("Income Account (Items)", "Sales - RTAS"),  # Static value
+            row.get("UOM (Items)", "CS"),    # Static value
+            row.get("Driver For Vehicle", ""),  # Custom field
+            row.get("Vehicle For Delivery", "")  # Custom field
         ])
     
     return output.getvalue()

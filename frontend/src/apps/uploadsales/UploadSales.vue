@@ -123,10 +123,7 @@
       </div>
 
       <!-- Progress Panel -->
-      <ProgressPanel
-        v-if="showProgress"
-        :progress="progress"
-      />
+      <ProgressPanel v-if="showProgress" />
 
       <!-- Summary Card -->
       <SummaryCard
@@ -165,15 +162,6 @@ const validationErrors = ref([])
 const importing = ref(false)
 const showProgress = ref(false)
 const showSummary = ref(false)
-const progress = ref({
-  processed: 0,
-  total: 0,
-  message: '',
-  imported: 0,
-  skipped: 0,
-  errors: 0,
-  amount: 0
-})
 const summary = ref(null)
 
 // Load drivers and vehicles on mount
@@ -317,32 +305,13 @@ async function startImport() {
   }
 }
 
-// Subscribe to real-time progress
+// Subscribe to progress - simplified to just check completion
 let progressInterval = null
 
 function subscribeToProgress(jobId) {
-  // Try WebSocket first
-  if (window.frappe && window.frappe.realtime) {
-    console.log('Using WebSocket for realtime updates')
-    window.frappe.realtime.on('uploadsales_progress', (data) => {
-      updateProgress(data)
-    })
-  } else {
-    console.log('WebSocket not available, using polling fallback')
-  }
+  console.log('Starting simplified progress tracking for:', jobId)
   
-  // Always use polling as fallback/backup
-  startProgressPolling(jobId)
-}
-
-// ADDED BY AI: UPLOAD_SALES - Polling fallback for progress
-function startProgressPolling(jobId) {
-  // Clear any existing interval
-  if (progressInterval) {
-    clearInterval(progressInterval)
-  }
-  
-  // Poll every 500ms
+  // Poll every 2 seconds to check if import is complete
   progressInterval = setInterval(async () => {
     try {
       const response = await call('custom_erp.custom_erp.api.uploadsales.get_job_progress', {
@@ -350,55 +319,37 @@ function startProgressPolling(jobId) {
       })
       
       if (response && response.success) {
-        updateProgress(response.data)
+        const data = response.data
+        
+        // Check if completed
+        if (data.completed) {
+          // Stop polling
+          if (progressInterval) {
+            clearInterval(progressInterval)
+            progressInterval = null
+          }
+          
+          // Show summary
+          showProgress.value = false
+          showSummary.value = true
+          summary.value = {
+            total: data.total || 0,
+            imported: data.imported_count || 0,
+            skipped: data.skipped_count || 0,
+            errors: data.error_count || 0,
+            amount: data.total_amount || 0,
+            errorCsvPath: data.error_csv_path || null,
+            importLogUrl: data.import_log_url || null,
+            errorDetails: data.error_details || []
+          }
+        }
       }
     } catch (error) {
-      console.error('Error polling progress:', error)
+      console.error('Error checking progress:', error)
     }
-  }, 500)
+  }, 2000) // Check every 2 seconds
 }
 
-// ADDED BY AI: UPLOAD_SALES - Update progress from data
-function updateProgress(data) {
-  if (!data) return
-  
-  progress.value = {
-    processed: data.processed || 0,
-    total: data.total || 0,
-    message: data.current_message || '',
-    imported: data.imported_count || 0,
-    skipped: data.skipped_count || 0,
-    errors: data.error_count || 0,
-    amount: data.total_amount || 0
-  }
-
-  // Check if completed
-  if (data.completed) {
-    // Stop polling
-    if (progressInterval) {
-      clearInterval(progressInterval)
-      progressInterval = null
-    }
-    
-    // Unsubscribe from WebSocket if available
-    if (window.frappe && window.frappe.realtime) {
-      window.frappe.realtime.off('uploadsales_progress')
-    }
-    
-    showProgress.value = false
-    showSummary.value = true
-    summary.value = {
-      total: data.total || 0,
-      imported: data.imported_count || 0,
-      skipped: data.skipped_count || 0,
-      errors: data.error_count || 0,
-      amount: data.total_amount || 0,
-      errorCsvPath: data.error_csv_path || null,
-      importLogUrl: data.import_log_url || null,
-      errorDetails: data.error_details || []
-    }
-  }
-}
 
 // Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset and validation errors
 function resetUpload() {
