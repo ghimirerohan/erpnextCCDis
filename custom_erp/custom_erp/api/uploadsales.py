@@ -524,7 +524,7 @@ def debug_import_status(job_id):
         logs = frappe.get_all(
             "Data Import Log",
             filters={"data_import": job_id},
-            fields=["success", "row_index", "message"],
+            fields=["success", "message"],
             order_by="log_index"
         )
         
@@ -1106,7 +1106,7 @@ def get_job_progress(job_id):
         logs = frappe.get_all(
             "Data Import Log",
             filters={"data_import": job_id},
-            fields=["success", "row_index", "message"],
+            fields=["success", "message"],
             order_by="log_index"
         )
         
@@ -1116,9 +1116,9 @@ def get_job_progress(job_id):
         
         # Get error details for frontend display
         error_details = []
-        for log in logs:
+        for i, log in enumerate(logs):
             if not log.success and log.message:
-                error_details.append(f"Row {log.row_index}: {log.message}")
+                error_details.append(f"Row {i+1}: {log.message}")
         
         # Determine status message
         if data_import.status == "Success":
