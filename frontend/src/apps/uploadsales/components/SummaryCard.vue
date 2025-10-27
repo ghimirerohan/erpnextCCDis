@@ -116,6 +116,20 @@
           <p class="text-sm text-red-700 mt-1">
             Download the error CSV to see details and fix the issues.
           </p>
+          
+          <!-- Error Details -->
+          <div v-if="summary.errorDetails && summary.errorDetails.length > 0" class="mt-3">
+            <details class="text-sm">
+              <summary class="cursor-pointer text-red-800 font-medium hover:text-red-900">
+                View Error Details ({{ summary.errorDetails.length }} errors)
+              </summary>
+              <div class="mt-2 pl-4 border-l-2 border-red-300">
+                <div v-for="(error, index) in summary.errorDetails" :key="index" class="mb-2 text-red-700">
+                  {{ error }}
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </div>
@@ -134,7 +148,8 @@ defineProps({
       errors: 0,
       amount: 0,
       errorCsvPath: null,
-      importLogUrl: null
+      importLogUrl: null,
+      errorDetails: []
     })
   }
 })

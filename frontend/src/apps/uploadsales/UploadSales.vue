@@ -394,7 +394,8 @@ function updateProgress(data) {
       errors: data.error_count || 0,
       amount: data.total_amount || 0,
       errorCsvPath: data.error_csv_path || null,
-      importLogUrl: data.import_log_url || null
+      importLogUrl: data.import_log_url || null,
+      errorDetails: data.error_details || []
     }
   }
 }

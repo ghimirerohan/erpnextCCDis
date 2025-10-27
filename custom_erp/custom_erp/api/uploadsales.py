@@ -525,6 +525,13 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         frappe.log_error(f"Driver ID: {driver_id}, Vehicle ID: {vehicle_id}", "Upload Sales Import")
         frappe.log_error(f"CSV Content Length: {len(csv_content) if csv_content else 0}", "Upload Sales Import")
         
+        # Write to file for debugging
+        with open("/tmp/uploadsales_debug.log", "a") as f:
+            f.write(f"[{frappe.utils.now()}] UPLOAD SALES IMPORT STARTED\n")
+            f.write(f"[{frappe.utils.now()}] Driver ID: {driver_id}, Vehicle ID: {vehicle_id}\n")
+            f.write(f"[{frappe.utils.now()}] CSV Content Length: {len(csv_content) if csv_content else 0}\n")
+            f.flush()
+        
         # Parse and transform CSV to Frappe import format
         rows = parse_csv_rows(csv_content)
         grouped = group_rows_by_invoice(rows)
@@ -542,24 +549,69 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                 error_count += 1
                 continue
             
-            # Convert to flat format for import
-            for item in transformed.get("items", []):
-                import_row = {
-                    "ID": invoice_no,
-                    "Series": "SI-",
-                    "Customer": transformed.get("customer_id"),
-                    "Posting Date": transformed.get("date"),
-                    "Is Return": "Yes" if transformed.get("is_return") == "1" else "No",
-                    "Update Stock": "1",
-                    "Driver For Vehicle": driver_id,  # Correct custom field name
-                    "Item Code": item.get("item_code"),
-                    "Quantity": item.get("qty"),
-                    "UOM": item.get("uom"),
-                    "Discount Amount": item.get("discount") or 0
-                }
-                # Add vehicle using correct custom field name
-                if vehicle_id:
-                    import_row["Vehicle For Delivery"] = vehicle_id
+            # Convert to flat format for import - EXACTLY matching output sheet format
+            for i, item in enumerate(transformed.get("items", [])):
+                # First row has all header data, subsequent rows have blank cells for header data
+                if i == 0:
+                    # First item row - include all header data
+                    import_row = {
+                        "Is Return": "1" if transformed.get("is_return") == "1" else "-",  # "1" for SRV**, "-" for normal
+                        "Date": transformed.get("date"),
+                        "ID": invoice_no,
+                        "Customer": transformed.get("customer_id"),
+                        "Item Code": item.get("item_code"),
+                        "Quantity": item.get("qty"),
+                        "Discount Amount": item.get("discount") or 0,
+                        "Item Name": item.get("item_name"),
+                        "Currency": "NPR",
+                        "Update Stock": "1",
+                        "Exchange Rate": "1",
+                        "Price List Currency": "NPR",
+                        "Price List Exchange Rate": "1",
+                        "Update Outstanding for Self": "0",
+                        "Update Billed Amount in Sales Order": "0",
+                        "Update Billed Amount in Delivery Note": "1",
+                        "Debit To": "Debtors - RTAS",
+                        "Price List": "Standard Selling",
+                        "Sales Taxes and Charges Template": "Nepal Tax - RTAS",
+                        "Account Head (Sales Taxes and Charges)": "VAT - RTAS",
+                        "Description (Sales Taxes and Charges)": "VAT @ 13.0",
+                        "Type (Sales Taxes and Charges)": "On Net Total",
+                        "Tax Rate (Sales Taxes and Charges)": "13",
+                        "Cost Center (Items)": "Main - RTAS",
+                        "Income Account (Items)": "Sales - RTAS",
+                        "UOM (Items)": "CS"
+                    }
+                else:
+                    # Subsequent item rows - blank cells for header data
+                    import_row = {
+                        "Is Return": "",  # Blank
+                        "Date": "",       # Blank
+                        "ID": "",         # Blank
+                        "Customer": "",   # Blank
+                        "Item Code": item.get("item_code"),
+                        "Quantity": item.get("qty"),
+                        "Discount Amount": item.get("discount") or 0,
+                        "Item Name": item.get("item_name"),
+                        "Currency": "",   # Blank
+                        "Update Stock": "", # Blank
+                        "Exchange Rate": "", # Blank
+                        "Price List Currency": "", # Blank
+                        "Price List Exchange Rate": "", # Blank
+                        "Update Outstanding for Self": "", # Blank
+                        "Update Billed Amount in Sales Order": "", # Blank
+                        "Update Billed Amount in Delivery Note": "", # Blank
+                        "Debit To": "",   # Blank
+                        "Price List": "", # Blank
+                        "Sales Taxes and Charges Template": "", # Blank
+                        "Account Head (Sales Taxes and Charges)": "", # Blank
+                        "Description (Sales Taxes and Charges)": "", # Blank
+                        "Type (Sales Taxes and Charges)": "", # Blank
+                        "Tax Rate (Sales Taxes and Charges)": "", # Blank
+                        "Cost Center (Items)": "Main - RTAS",  # Keep static values
+                        "Income Account (Items)": "Sales - RTAS",  # Keep static values
+                        "UOM (Items)": "CS"  # Keep static values
+                    }
                     
                 import_data.append(import_row)
         
@@ -896,16 +948,61 @@ def save_error_csv(error_rows: List[Dict], job_id: str) -> str:
 
 # ADDED BY AI: UPLOAD_SALES - Create Import CSV
 def create_import_csv(import_data):
-    """Create CSV content for Frappe Data Import."""
+    """Create CSV content for Data Import matching the exact output format."""
     if not import_data:
         return ""
     
-    output = io.StringIO()
-    fieldnames = list(import_data[0].keys())
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    import io
+    import csv
     
-    writer.writeheader()
-    writer.writerows(import_data)
+    output = io.StringIO()
+    
+    # Define the EXACT column headers as they appear in the output sheet
+    headers = [
+        "Is Return (Credit Note)", "Date", "ID", "Customer", "Item (Items)", 
+        "Quantity (Items)", "Distributed Discount Amount (Items)", "Item Name (Items)", 
+        "Currency", "Update Stock", "Exchange Rate", "Price List Currency", 
+        "Price List Exchange Rate", "Update Outstanding for Self", 
+        "Update Billed Amount in Sales Order", "Update Billed Amount in Delivery Note", 
+        "Debit To", "Price List", "Sales Taxes and Charges Template", 
+        "Account Head (Sales Taxes and Charges)", "Description (Sales Taxes and Charges)", 
+        "Type (Sales Taxes and Charges)", "Tax Rate (Sales Taxes and Charges)", 
+        "Cost Center (Items)", "Income Account (Items)", "UOM (Items)"
+    ]
+    
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    
+    for row in import_data:
+        # Convert to the exact format matching the output sheet
+        writer.writerow([
+            row.get("Is Return", ""),  # Will be "-" or "1" based on SRV pattern
+            row.get("Date", ""),
+            row.get("ID", ""),
+            row.get("Customer", ""),
+            row.get("Item Code", ""),
+            row.get("Quantity", ""),
+            row.get("Discount Amount", ""),
+            row.get("Item Name", ""),
+            "NPR",  # Static value
+            "1",    # Static value
+            "1",    # Static value
+            "NPR",  # Static value
+            "1",    # Static value
+            "0",    # Static value
+            "0",    # Static value
+            "1",    # Static value
+            "Debtors - RTAS",  # Static value
+            "Standard Selling",  # Static value
+            "Nepal Tax - RTAS",  # Static value
+            "VAT - RTAS",  # Static value
+            "VAT @ 13.0",  # Static value
+            "On Net Total",  # Static value
+            "13",   # Static value
+            "Main - RTAS",  # Static value
+            "Sales - RTAS",  # Static value
+            "CS"    # Static value
+        ])
     
     return output.getvalue()
 
@@ -944,17 +1041,23 @@ def get_job_progress(job_id):
         # Get total from payload_count
         total = data_import.payload_count or 0
         
-        # Get logs to calculate success/failure
+        # Get logs to calculate success/failure and error details
         logs = frappe.get_all(
             "Data Import Log",
             filters={"data_import": job_id},
-            fields=["success"],
+            fields=["success", "row_index", "message"],
             order_by="log_index"
         )
         
         success = len([l for l in logs if l.success])
         failed = len([l for l in logs if not l.success])
         processed = len(logs)
+        
+        # Get error details for frontend display
+        error_details = []
+        for log in logs:
+            if not log.success and log.message:
+                error_details.append(f"Row {log.row_index}: {log.message}")
         
         # Determine status message
         if data_import.status == "Success":
@@ -984,7 +1087,8 @@ def get_job_progress(job_id):
                 "error_count": failed,
                 "total_amount": 0,
                 "completed": completed,
-                "import_log_url": f"/app/data-import/{job_id}" if completed else None
+                "import_log_url": f"/app/data-import/{job_id}" if completed else None,
+                "error_details": error_details
             }
         }
         
