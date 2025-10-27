@@ -212,9 +212,10 @@ whitelisted_methods = [
 	"custom_erp.custom_erp.api.uploadsales.get_vehicles",
 	"custom_erp.custom_erp.api.uploadsales.get_job_progress",
 	"custom_erp.custom_erp.api.uploadsales.run_data_import",
-	"custom_erp.custom_erp.api.uploadsales.test_api",
-	"custom_erp.custom_erp.api.uploadsales.test_api_v2",
-	"custom_erp.custom_erp.api.uploadsales.download_error_csv"
+        "custom_erp.custom_erp.api.uploadsales.test_api",
+        "custom_erp.custom_erp.api.uploadsales.test_api_v2",
+        "custom_erp.custom_erp.api.uploadsales.debug_import_status",
+        "custom_erp.custom_erp.api.uploadsales.download_error_csv"
 ]
 
 # --- Print Format Type ---

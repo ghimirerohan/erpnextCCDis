@@ -504,6 +504,60 @@ def test_api_v2():
         "timestamp": frappe.utils.now()
     }
 
+# ADDED BY AI: UPLOAD_SALES - Debug API to check Data Import status
+@frappe.whitelist()
+def debug_import_status(job_id):
+    """Debug API to check what's happening with Data Import status."""
+    try:
+        print(f"=== DEBUG IMPORT STATUS FOR: {job_id} ===")
+        
+        if not frappe.db.exists("Data Import", job_id):
+            return {
+                "success": False,
+                "error": "Data Import not found",
+                "job_id": job_id
+            }
+        
+        data_import = frappe.get_doc("Data Import", job_id)
+        
+        # Get logs
+        logs = frappe.get_all(
+            "Data Import Log",
+            filters={"data_import": job_id},
+            fields=["success", "row_index", "message"],
+            order_by="log_index"
+        )
+        
+        success = len([l for l in logs if l.success])
+        failed = len([l for l in logs if not l.success])
+        processed = len(logs)
+        
+        print(f"Data Import Status: {data_import.status}")
+        print(f"Payload Count: {data_import.payload_count}")
+        print(f"Logs Count: {len(logs)}")
+        print(f"Success Count: {success}")
+        print(f"Failed Count: {failed}")
+        
+        return {
+            "success": True,
+            "data": {
+                "status": data_import.status,
+                "payload_count": data_import.payload_count,
+                "logs_count": len(logs),
+                "success_count": success,
+                "failed_count": failed,
+                "processed": processed,
+                "completed": data_import.status in ["Success", "Partial Success", "Error"]
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error in debug_import_status: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Using Frappe Data Import)
 @frappe.whitelist()

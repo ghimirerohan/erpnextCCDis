@@ -130,6 +130,7 @@
         v-if="showSummary"
         :summary="summary"
         @start-new="resetUpload"
+        @redo-import="redoImport"
       />
     </main>
   </div>
@@ -314,15 +315,27 @@ function subscribeToProgress(jobId) {
   // Poll every 2 seconds to check if import is complete
   progressInterval = setInterval(async () => {
     try {
+      console.log('Checking progress for:', jobId)
+      
+      // First try debug API to see what's happening
+      const debugResponse = await call('custom_erp.custom_erp.api.uploadsales.debug_import_status', {
+        job_id: jobId
+      })
+      console.log('Debug response:', debugResponse)
+      
+      // Then get the main progress
       const response = await call('custom_erp.custom_erp.api.uploadsales.get_job_progress', {
         job_id: jobId
       })
+      console.log('Progress response:', response)
       
       if (response && response.success) {
         const data = response.data
         
         // Check if completed
         if (data.completed) {
+          console.log('Import completed! Showing summary...')
+          
           // Stop polling
           if (progressInterval) {
             clearInterval(progressInterval)
@@ -342,6 +355,8 @@ function subscribeToProgress(jobId) {
             importLogUrl: data.import_log_url || null,
             errorDetails: data.error_details || []
           }
+        } else {
+          console.log('Import still in progress...', data.current_message)
         }
       }
     } catch (error) {
@@ -369,16 +384,20 @@ function resetUpload() {
   importing.value = false
   showProgress.value = false
   showSummary.value = false
-  progress.value = {
-    processed: 0,
-    total: 0,
-    message: '',
-    imported: 0,
-    skipped: 0,
-    errors: 0,
-    amount: 0
-  }
   summary.value = null
+}
+
+// Redo import - ADDED BY AI: UPLOAD_SALES - Start import again with same data
+function redoImport() {
+  if (confirm('Start import again with the same data?')) {
+    // Reset progress and summary states
+    showProgress.value = false
+    showSummary.value = false
+    summary.value = null
+    
+    // Start import again
+    startImport()
+  }
 }
 </script>
 
