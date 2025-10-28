@@ -559,7 +559,95 @@ def debug_import_status(job_id):
         }
 
 
-# ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Using Frappe Data Import)
+# ADDED BY AI: UPLOAD_SALES - Get Final Summary
+def get_final_summary(job_id):
+    """
+    Get the final summary after import completion.
+    
+    Args:
+        job_id: Data Import name
+    
+    Returns:
+        Dict with final summary data
+    """
+    try:
+        # Get the Data Import document
+        if not frappe.db.exists("Data Import", job_id):
+            return {
+                "total": 0,
+                "imported_count": 0,
+                "skipped_count": 0,
+                "error_count": 0,
+                "total_amount": 0,
+                "error_details": []
+            }
+        
+        data_import = frappe.get_doc("Data Import", job_id)
+        
+        # Get total from payload_count
+        total = data_import.payload_count or 0
+        
+        # Get logs to calculate success/failure and error details
+        logs = frappe.get_all(
+            "Data Import Log",
+            filters={"data_import": job_id},
+            fields=["success", "messages", "docname"],
+            order_by="log_index"
+        )
+        
+        # Count unique successful documents (not individual log entries)
+        successful_docs = set()
+        failed_docs = set()
+        
+        for log in logs:
+            if log.success and log.docname:
+                successful_docs.add(log.docname)
+            elif not log.success and log.docname:
+                failed_docs.add(log.docname)
+        
+        success = len(successful_docs)
+        failed = len(failed_docs)
+        
+        # Calculate actual total amount from created Sales Invoices
+        total_amount = 0
+        if successful_docs:
+            # Get the grand total from all successful Sales Invoices
+            sales_invoices = frappe.get_all(
+                "Sales Invoice",
+                filters={"name": ["in", list(successful_docs)]},
+                fields=["grand_total"]
+            )
+            total_amount = sum(float(inv.grand_total or 0) for inv in sales_invoices)
+        
+        # Get error details for frontend display
+        error_details = []
+        for i, log in enumerate(logs):
+            if not log.success and log.messages:
+                error_details.append(f"Row {i+1}: {log.messages}")
+        
+        return {
+            "total": total,
+            "imported_count": success,
+            "skipped_count": 0,
+            "error_count": failed,
+            "total_amount": total_amount,
+            "error_details": error_details,
+            "import_log_url": f"/app/data-import/{job_id}"
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error getting final summary: {str(e)}", "Upload Sales Final Summary")
+        return {
+            "total": 0,
+            "imported_count": 0,
+            "skipped_count": 0,
+            "error_count": 0,
+            "total_amount": 0,
+            "error_details": []
+        }
+
+
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Synchronous)
 @frappe.whitelist()
 def enqueue_import_job(driver_id, vehicle_id, csv_content):
     """
@@ -707,23 +795,34 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         data_import.import_file = file_doc.file_url
         data_import.save(ignore_permissions=True)
         
-        # Enqueue the import in background
-        frappe.enqueue(
-            method="custom_erp.custom_erp.api.uploadsales.run_data_import",
-            queue="default",
-            timeout=3600,
-            data_import_name=data_import.name
-        )
+        # Run the import synchronously and wait for completion
+        frappe.log_error(f"Starting synchronous import for: {data_import.name}", "Upload Sales Import")
         
-        frappe.log_error(f"=== UPLOAD SALES IMPORT COMPLETED ===", "Upload Sales Import")
-        frappe.log_error(f"Data Import created: {data_import.name}", "Upload Sales Import")
-        frappe.log_error(f"Background job enqueued successfully", "Upload Sales Import")
-        
-        return {
-            "success": True,
-            "import_name": data_import.name,
-            "message": "Import started successfully"
-        }
+        try:
+            # Import the data directly
+            from frappe.core.doctype.data_import.importer import Importer
+            importer = Importer("Sales Invoice", data_import.name)
+            importer.import_data()
+            
+            frappe.log_error(f"=== UPLOAD SALES IMPORT COMPLETED ===", "Upload Sales Import")
+            frappe.log_error(f"Data Import completed: {data_import.name}", "Upload Sales Import")
+            
+            # Get final summary immediately
+            final_summary = get_final_summary(data_import.name)
+            
+            return {
+                "success": True,
+                "import_name": data_import.name,
+                "message": "Import completed successfully",
+                "summary": final_summary
+            }
+            
+        except Exception as e:
+            frappe.log_error(f"Error during import: {str(e)}\n{traceback.format_exc()}", "Upload Sales Import")
+            return {
+                "success": False,
+                "error": str(e)
+            }
         
     except Exception as e:
         frappe.log_error(f"Error starting import: {str(e)}\n{traceback.format_exc()}", "Upload Sales Import")

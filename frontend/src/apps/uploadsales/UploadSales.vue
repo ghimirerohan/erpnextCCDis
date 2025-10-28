@@ -288,8 +288,21 @@ async function startImport() {
     console.log('API Response:', response)
 
     if (response.success) {
-      // Subscribe to progress events with import_name
-      subscribeToProgress(response.import_name)
+      console.log('Import completed successfully!')
+      
+      // Show summary directly from response
+      showProgress.value = false
+      showSummary.value = true
+      summary.value = {
+        total: response.summary.total || 0,
+        imported: response.summary.imported_count || 0,
+        skipped: response.summary.skipped_count || 0,
+        errors: response.summary.error_count || 0,
+        amount: response.summary.total_amount || 0,
+        errorCsvPath: null, // Not needed for synchronous
+        importLogUrl: response.summary.import_log_url || null,
+        errorDetails: response.summary.error_details || []
+      }
     } else {
       alert('Error starting import: ' + (response.error || 'Unknown error'))
       showProgress.value = false
@@ -306,74 +319,8 @@ async function startImport() {
   }
 }
 
-// Subscribe to progress - simplified to just check completion
-let progressInterval = null
-
-function subscribeToProgress(jobId) {
-  console.log('Starting simplified progress tracking for:', jobId)
-  
-  // Poll every 2 seconds to check if import is complete
-  progressInterval = setInterval(async () => {
-    try {
-      console.log('Checking progress for:', jobId)
-      
-      // First try debug API to see what's happening
-      const debugResponse = await call('custom_erp.custom_erp.api.uploadsales.debug_import_status', {
-        job_id: jobId
-      })
-      console.log('Debug response:', debugResponse)
-      
-      // Then get the main progress
-      const response = await call('custom_erp.custom_erp.api.uploadsales.get_job_progress', {
-        job_id: jobId
-      })
-      console.log('Progress response:', response)
-      
-      if (response && response.success) {
-        const data = response.data
-        
-        // Check if completed
-        if (data.completed) {
-          console.log('Import completed! Showing summary...')
-          
-          // Stop polling
-          if (progressInterval) {
-            clearInterval(progressInterval)
-            progressInterval = null
-          }
-          
-          // Show summary
-          showProgress.value = false
-          showSummary.value = true
-          summary.value = {
-            total: data.total || 0,
-            imported: data.imported_count || 0,
-            skipped: data.skipped_count || 0,
-            errors: data.error_count || 0,
-            amount: data.total_amount || 0,
-            errorCsvPath: data.error_csv_path || null,
-            importLogUrl: data.import_log_url || null,
-            errorDetails: data.error_details || []
-          }
-        } else {
-          console.log('Import still in progress...', data.current_message)
-        }
-      }
-    } catch (error) {
-      console.error('Error checking progress:', error)
-    }
-  }, 2000) // Check every 2 seconds
-}
-
-
 // Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset and validation errors
 function resetUpload() {
-  // Stop polling if active
-  if (progressInterval) {
-    clearInterval(progressInterval)
-    progressInterval = null
-  }
-  
   csvContent.value = null
   selectedDriver.value = null
   selectedVehicle.value = null
