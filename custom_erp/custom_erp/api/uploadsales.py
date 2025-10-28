@@ -801,7 +801,7 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         try:
             # Import the data directly
             from frappe.core.doctype.data_import.importer import Importer
-            importer = Importer("Sales Invoice", data_import.name)
+            importer = Importer("Sales Invoice", data_import)
             importer.import_data()
             
             frappe.log_error(f"=== UPLOAD SALES IMPORT COMPLETED ===", "Upload Sales Import")
