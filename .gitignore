@@ -71,6 +71,16 @@ frontend/dist-ssr/
 frontend/.vite/
 frontend/.cache/
 frontend/coverage/
+frontend/node_modules/
+frontend/package-lock.json
+
+# Built frontend assets (should be built on server during installation)
+custom_erp/public/frontend/
+custom_erp/public/jsapp/
+
+# Source maps with hardcoded absolute paths
+*.js.map
+!frontend/src/**/*.map
 
 # OS generated files
 .DS_Store

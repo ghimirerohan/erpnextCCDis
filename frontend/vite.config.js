@@ -243,6 +243,14 @@ export default defineConfig({
 					vendor: ['vue', 'vue-router'],
 					ui: ['frappe-ui'],
 				},
+				// Use relative paths in source maps to avoid hardcoded absolute paths
+				// This ensures source maps work on any server regardless of absolute path
+				sourcemapPathTransform: (relativeSourcePath) => {
+					// Normalize any absolute paths to relative paths
+					// Remove any workspace/development or similar prefixes
+					const normalized = relativeSourcePath.replace(/^.*\/custom_erp\/frontend\//, '../')
+					return normalized.replace(/^\/.*\/custom_erp\/frontend\//, '../')
+				},
 			},
 		},
 	},
