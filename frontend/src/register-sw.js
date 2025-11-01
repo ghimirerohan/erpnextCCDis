@@ -7,11 +7,16 @@ export async function registerScopedSW() {
 
   // Detect current app from pathname
   const segs = window.location.pathname.split('/').filter(Boolean);
-  let app = 'qrpay';
+  let app = 'home';
   if (segs.length >= 2 && segs[0] === 'jsapp') {
-    app = segs[1];
-  } else if (segs.length >= 1) {
+    app = segs[1] || 'home';
+  } else if (segs.length >= 1 && segs[0] !== '') {
     app = segs[0];
+  }
+  
+  // Normalize app name
+  if (!app || app === 'jsapp' || app === '') {
+    app = 'home';
   }
 
   const swFilename = `sw-${app}.js`;

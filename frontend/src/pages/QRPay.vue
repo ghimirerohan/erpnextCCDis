@@ -2,22 +2,22 @@
   <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
     <!-- Header -->
     <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center py-6">
-          <div class="flex items-center space-x-4">
-            <div class="flex items-center justify-center w-12 h-12 bg-blue-600 rounded-lg">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-5 sm:py-6">
+          <div class="flex items-center space-x-3 sm:space-x-4">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-lg flex-shrink-0">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
             </div>
-            <div>
-              <h1 class="text-2xl font-bold text-gray-900">QRPay</h1>
-              <p class="text-sm text-gray-600">Dynamic Fonepay QR Generator • {{ session.user }}</p>
+            <div class="min-w-0 flex-1">
+              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">QRPay</h1>
+              <p class="text-xs sm:text-sm text-gray-600 truncate">Dynamic Fonepay QR Generator • {{ session.user }}</p>
             </div>
           </div>
           <button
             @click="session.logout.submit()"
-            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-md shadow-sm text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex-shrink-0"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -28,10 +28,102 @@
       </div>
     </header>
 
-    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <!-- Dashboard Summary (User Greeting, BS Date, Today's Stats) -->
+      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 lg:gap-8">
+          <div class="space-y-1 flex-shrink-0 lg:min-w-[200px]">
+            <div class="text-sm text-gray-500">Welcome</div>
+            <div class="text-2xl lg:text-3xl font-bold text-gray-900">{{ greetingName }}</div>
+            <div class="text-sm text-gray-600">Today (BS): <span class="font-medium">{{ bsToday || adToday }}</span></div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 flex-1 lg:max-w-3xl lg:mx-auto">
+            <div class="p-4 rounded-lg bg-blue-50 border border-blue-200 min-h-[90px] flex flex-col justify-between">
+              <div class="text-xs uppercase text-blue-600 tracking-wide leading-tight mb-2">Today's QR Total</div>
+              <div class="text-xl font-bold text-blue-700 mt-auto">Rs. {{ formatAmount(dashboard.successTotal) }}</div>
+            </div>
+            <div class="p-4 rounded-lg bg-amber-50 border border-amber-200 min-h-[90px] flex flex-col justify-between">
+              <div class="text-xs uppercase text-amber-700 tracking-wide leading-tight mb-2">Unprocessed Logs</div>
+              <div class="text-xl font-bold text-amber-800 mt-auto">{{ dashboard.unprocessedCount }}</div>
+            </div>
+            <div class="p-4 rounded-lg bg-emerald-50 border border-emerald-200 min-h-[90px] flex flex-col justify-between">
+              <div class="text-xs uppercase text-emerald-700 tracking-wide leading-tight mb-2">Success</div>
+              <div class="text-xl font-bold text-emerald-800 mt-auto">{{ dashboard.successCount }}</div>
+            </div>
+            <div class="p-4 rounded-lg bg-rose-50 border border-rose-200 min-h-[90px] flex flex-col justify-between">
+              <div class="text-xs uppercase text-rose-700 tracking-wide leading-tight mb-2">Failed</div>
+              <div class="text-xl font-bold text-rose-800 mt-auto">{{ dashboard.failedCount }}</div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+            <button
+              @click="refreshDashboardAndList"
+              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 active:scale-95 transition"
+              :disabled="refreshingDashboard"
+            >
+              <svg v-if="refreshingDashboard" class="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"/></svg>
+              <svg v-else class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
+            <button
+              v-if="dashboard.unprocessedCount > 0"
+              @click="processTodayUnprocessed"
+              class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              :disabled="processingUnprocessed"
+            >
+              <svg v-if="processingUnprocessed" class="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"/></svg>
+              <svg v-else class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+              Process Unprocessed
+            </button>
+            <button
+              @click="toggleTxnList"
+              class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50"
+            >
+              <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/></svg>
+              View Last 5 Transactions
+            </button>
+          </div>
+        </div>
+
+        <!-- Last Transactions List -->
+        <div v-if="showTxn" class="mt-6 border-t border-gray-200 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex gap-2">
+              <button @click="setTxnFilter('all')" :class="txnFilterBtnClass('all')">All</button>
+              <button @click="setTxnFilter('success')" :class="txnFilterBtnClass('success')">Success</button>
+              <button @click="setTxnFilter('failed')" :class="txnFilterBtnClass('failed')">Failed</button>
+            </div>
+            <div v-if="loadingTxn" class="text-sm text-gray-500">Loading...</div>
+          </div>
+          <ul class="divide-y divide-gray-100">
+            <li v-for="t in lastTxns" :key="t.name" class="py-3 flex items-center justify-between">
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-gray-900 truncate">{{ t.customer_name || t.customer || '—' }}</div>
+                <div class="text-xs text-gray-500">{{ t.time }}</div>
+              </div>
+              <div class="flex items-center gap-6">
+                <div class="text-right">
+                  <div class="text-sm font-semibold">Rs. {{ formatAmount(t.amount) }}</div>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium"
+                  :class="{
+                    'bg-emerald-50 text-emerald-700': t.status==='SUCCESS',
+                    'bg-rose-50 text-rose-700': t.status==='FAILED',
+                    'bg-gray-50 text-gray-700': t.status!=='SUCCESS' && t.status!=='FAILED',
+                  }"
+                >{{ t.status }}</span>
+              </div>
+            </li>
+            <li v-if="!lastTxns.length && !loadingTxn" class="py-6 text-center text-sm text-gray-500">No transactions found for today.</li>
+          </ul>
+        </div>
+      </section>
+
       <!-- Customer Selection -->
-      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-        <div class="flex items-center mb-6">
+      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
+        <div class="flex items-center mb-6 sm:mb-8">
           <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3">
             <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -39,17 +131,19 @@
           </div>
           <h2 class="text-xl font-semibold text-gray-900">Customer</h2>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-3">Select Customer</label>
-            <Autocomplete
-              v-model="selectedCustomerValue"
-              :options="customerOptions"
-              :loading="loadingCustomers"
-              placeholder="Search by customer name or code"
-              class="w-full"
-            />
-            <p v-if="!selectedCustomer" class="mt-2 text-sm text-gray-500">Start typing to search every customer by name or code. All customers are available.</p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          <div class="customer-select-wrapper">
+            <label class="block text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Customer</label>
+            <div class="relative">
+              <Autocomplete
+                v-model="selectedCustomerValue"
+                :options="customerOptions"
+                :loading="loadingCustomers"
+                placeholder="Search by customer name or code"
+                class="customer-autocomplete w-full"
+              />
+            </div>
+            <p v-if="!selectedCustomer" class="mt-2 text-xs sm:text-sm text-gray-500">Start typing to search. All customers are available by name or code.</p>
           </div>
           <div v-if="selectedCustomer" class="space-y-3">
             <label class="block text-sm font-semibold text-gray-700">Customer Details</label>
@@ -72,8 +166,8 @@
       </section>
 
       <!-- Payment Details -->
-      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-        <div class="flex items-center mb-6">
+      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
+        <div class="flex items-center mb-6 sm:mb-8">
           <div class="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg mr-3">
             <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
@@ -90,7 +184,7 @@
               step="0.01"
               min="0"
               placeholder="Enter amount to collect"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              class="w-full px-4 py-3 h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
             />
           </div>
           <div>
@@ -99,16 +193,16 @@
               v-model="remarks"
               type="text"
               placeholder="Defaults to: Customer Name - NPR Amount (Date & Time)"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              class="w-full px-4 py-3 h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
             />
           </div>
         </div>
       </section>
 
       <!-- Generate Button -->
-      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+      <section class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8 text-center">
         <button
-          @click="generateQR"
+          @click="showConfirmationDialog = true"
           :disabled="!canGenerate || generating"
           :class="[
             'inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200',
@@ -128,8 +222,91 @@
         </button>
       </section>
 
+      <!-- Confirmation Dialog -->
+      <div v-if="showConfirmationDialog" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="confirmation-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" aria-hidden="true" @click="showConfirmationDialog = false"></div>
+          
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+          
+          <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 pt-6 pb-4">
+              <div class="flex items-center justify-center mb-4">
+                <div class="flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-lg">
+                  <svg class="h-10 w-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+              </div>
+              <h3 class="text-2xl font-bold text-white text-center" id="confirmation-title">
+                Confirm QR Code Generation
+              </h3>
+            </div>
+            
+            <!-- Content -->
+            <div class="bg-white px-6 pt-6 pb-4">
+              <p class="text-sm text-gray-600 mb-6 text-center">Please review the customer details before generating the QR code:</p>
+              
+              <div class="bg-gray-50 rounded-lg p-5 space-y-4 border border-gray-200">
+                <!-- Customer Name (Bold, Mandatory) -->
+                <div class="flex justify-between items-start">
+                  <span class="text-sm font-medium text-gray-700">Customer Name:</span>
+                  <span class="text-sm font-bold text-gray-900 text-right">{{ selectedCustomer?.customer_name || 'N/A' }}</span>
+                </div>
+                
+                <!-- Code (Bold, Mandatory) -->
+                <div class="flex justify-between items-start">
+                  <span class="text-sm font-medium text-gray-700">Code:</span>
+                  <span class="text-sm font-bold text-gray-900 text-right">{{ selectedCustomer?.name || 'N/A' }}</span>
+                </div>
+                
+                <!-- Phone Number (Optional) -->
+                <div v-if="selectedCustomer?.mobile_no" class="flex justify-between items-start">
+                  <span class="text-sm font-medium text-gray-700">Phone Number:</span>
+                  <span class="text-sm text-gray-900 text-right">{{ selectedCustomer.mobile_no }}</span>
+                </div>
+                
+                <!-- PAN/TAX ID (Optional) -->
+                <div v-if="selectedCustomer?.tax_id" class="flex justify-between items-start">
+                  <span class="text-sm font-medium text-gray-700">PAN/TAX ID:</span>
+                  <span class="text-sm text-gray-900 text-right">{{ selectedCustomer.tax_id }}</span>
+                </div>
+                
+                <!-- Amount (Bold, Mandatory) -->
+                <div class="flex justify-between items-start pt-3 border-t border-gray-300">
+                  <span class="text-base font-semibold text-gray-900">Amount:</span>
+                  <span class="text-lg font-bold text-blue-600 text-right">NPR {{ formatAmount(paymentAmount) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse gap-3">
+              <button 
+                type="button"
+                @click="confirmGenerateQR"
+                class="w-full inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto transition-all duration-200"
+              >
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Yes, Generate QR
+              </button>
+              <button 
+                type="button"
+                @click="showConfirmationDialog = false"
+                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-6 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Payment Success Card - Shows ABOVE QR section -->
-      <section v-if="qrStatus === 'SUCCESS' && paymentEntry" class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg border-2 border-green-300 p-8 animate-pulse-slow">
+      <section v-if="qrStatus === 'SUCCESS' && paymentEntry" class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg border-2 border-green-300 p-6 sm:p-8 animate-pulse-slow">
         <div class="text-center space-y-4">
           <div class="flex items-center justify-center w-20 h-20 bg-green-500 rounded-full mx-auto shadow-lg">
             <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +335,7 @@
       </section>
 
       <!-- QR & Status -->
-      <section v-if="qrData" class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 space-y-6">
+      <section v-if="qrData" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8 space-y-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div class="flex-1 text-center">
             <h3 class="text-xl font-semibold text-gray-900 mb-6">QR Code</h3>
@@ -238,7 +415,7 @@
       </section>
 
       <!-- Live Status Logs -->
-      <section v-if="statusLogs.length" class="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+      <section v-if="statusLogs.length" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Live Status Updates</h3>
         <ul class="space-y-3 max-h-72 overflow-y-auto pr-1">
           <li v-for="log in statusLogs" :key="log.id" class="border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
@@ -324,7 +501,7 @@
       </div>
 
       <!-- ADDED BY AI: FONEPAY LIVE SOCKET - Error Dialog -->
-      <section v-if="showErrorDialog" class="bg-white rounded-xl shadow-lg border border-red-200 p-8">
+      <section v-if="showErrorDialog" class="bg-white rounded-xl shadow-lg border border-red-200 p-6 sm:p-8">
         <div class="text-center space-y-4">
           <div class="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto">
             <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,6 +530,28 @@
 
     <!-- ADDED BY AI: FONEPAY LIVE SOCKET - Loading Overlay -->
     <LoadingOverlay v-if="showLoadingOverlay" />
+
+    <!-- No Internet Dialog -->
+    <div v-if="showOfflineDialog" class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+      <div class="flex items-center justify-center min-h-screen px-4 text-center">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75" aria-hidden="true" @click="showOfflineDialog = false"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+          <div class="px-6 pt-6 pb-4">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+              <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 19c-3.866 0-7-3.134-7-7 0-1.657.57-3.178 1.52-4.382m1.53-1.53A6.978 6.978 0 0112 5c3.866 0 7 3.134 7 7 0 1.657-.57 3.178-1.52 4.382" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Internet Connection</h3>
+            <p class="text-sm text-gray-600">Please check/connect to the internet first and try again.</p>
+          </div>
+          <div class="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse">
+            <button type="button" @click="showOfflineDialog = false" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -376,17 +575,35 @@ const websocketUrl = ref('')
 const merchantWebsocketUrl = ref('')
 const statusLogs = ref([])
 
+// Dashboard state
+const dashboard = ref({ successTotal: 0, unprocessedCount: 0, successCount: 0, failedCount: 0 })
+const greetingName = ref(session.user)
+const bsToday = ref('')
+const adToday = new Date().toISOString().slice(0, 10)
+const processingUnprocessed = ref(false)
+const showTxn = ref(false)
+const lastTxns = ref([])
+const txnFilter = ref('all')
+const loadingTxn = ref(false)
+const refreshingDashboard = ref(false)
+
 // ADDED BY AI: FONEPAY LIVE SOCKET - New state for loading overlay and dialogs
 const showLoadingOverlay = ref(false)
 const showSuccessDialog = ref(false)
 const showErrorDialog = ref(false)
 const paymentMessage = ref('')
+const showOfflineDialog = ref(false)
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
+const showConfirmationDialog = ref(false)
 
 const customerSearchResource = createResource({
   url: 'custom_erp.custom_erp.api.fonepay.search_customers',
   auto: false,
 })
 const qrCreateResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.create_dynamic_qr', auto: false })
+const dashboardResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.get_user_today_summary', auto: false })
+const processTodayResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.process_user_unprocessed_today', auto: false })
+const listTodayTxnsResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.list_user_transactions_today', auto: false })
 
 let realtimeHandler = null
 const merchantSocket = ref(null)
@@ -434,6 +651,7 @@ watch(selectedCustomerValue, (newValue) => {
       address_display: option.address_display,
       mobile_no: option.mobile_no,
       email_id: option.email_id,
+      tax_id: option.tax_id,
     }
     console.log('Set selectedCustomer:', selectedCustomer.value)
     pushStatusLog('info', `Selected customer ${selectedCustomer.value.customer_name} (${selectedCustomer.value.name})`)
@@ -458,6 +676,11 @@ const loadCustomers = async (query = '') => {
   }
 }
 
+const confirmGenerateQR = () => {
+  showConfirmationDialog.value = false
+  generateQR()
+}
+
 const generateQR = async () => {
   if (!canGenerate.value || generating.value) {
     return
@@ -480,8 +703,8 @@ const generateQR = async () => {
     const response = await qrCreateResource.fetch({
       amount,
       customer: selectedCustomer.value.name,
-      remarks1: remarksValue,
-      remarks2: '',
+      remarks1: session.user ,
+      remarks2: remarksValue,
     })
 
     if (!response?.qr_message) {
@@ -511,8 +734,12 @@ const generateQR = async () => {
     await connectMerchantSocketRobust(response.merchant_websocket_url || response.websocket_url)
   } catch (error) {
     console.error('Error generating QR', error)
-    pushStatusLog('error', `Failed to generate QR code: ${error.message || error}`)
-    alert(`Failed to generate QR code: ${error.message || error}`)
+    if (isNetworkError(error)) {
+      handleOfflineError()
+    } else {
+      pushStatusLog('error', `Failed to generate QR code: ${error.message || error}`)
+      alert(`Failed to generate QR code: ${error.message || error}`)
+    }
   } finally {
     generating.value = false
   }
@@ -777,12 +1004,14 @@ const handleWebSocketPaymentUpdate = async (data) => {
           
           // Show success UI
           removeQrAndShowSuccess()
+          await refreshDashboardAndList()
         } else {
           console.error('❌ [PAYMENT-UPDATE] Backend verification failed!')
           qrStatus.value = 'FAILED'
           paymentMessage.value = 'Verification failed: ' + (verify?.message || 'Unknown error')
           pushStatusLog('error', '❌ Backend verification failed: ' + paymentMessage.value)
           showFailedDialog()
+          await refreshDashboardAndList()
         }
       } catch (error) {
         console.error('❌ [PAYMENT-UPDATE] Verification error:', error)
@@ -802,6 +1031,7 @@ const handleWebSocketPaymentUpdate = async (data) => {
       paymentMessage.value = data.responseMessage || data.message || 'Payment failed.'
       pushStatusLog('error', '❌ Payment failed: ' + paymentMessage.value)
       showFailedDialog()
+      await refreshDashboardAndList()
     }
     // HANDLE QR SCANNED
     else if (isScanned) {
@@ -1014,7 +1244,8 @@ const connectMerchantSocket = (url) => {
 // [END OF OLD FUNCTION]
 
 const subscribeToUpdates = (txName) => {
-  if (!(window.frappe && frappe.realtime)) {
+  const rt = getFrappeRealtime()
+  if (!rt) {
     pushStatusLog('warning', 'Realtime channel is unavailable in this session.')
     return
   }
@@ -1025,7 +1256,7 @@ const subscribeToUpdates = (txName) => {
     }
     processRealtimeUpdate(data)
   }
-  frappe.realtime.on('fonepay_update', realtimeHandler)
+  rt.on('fonepay_update', realtimeHandler)
 }
 
 const processRealtimeUpdate = (data) => {
@@ -1056,12 +1287,24 @@ const processRealtimeUpdate = (data) => {
   
   if (data.status === 'SUCCESS' || (data.transactionStatus && String(data.transactionStatus).toUpperCase() === 'SUCCESS')) {
     pushStatusLog('success', 'Payment successful! Payment Entry has been created and submitted.')
+    // Keep dashboard in sync when realtime confirms success
+    try { refreshDashboardAndList() } catch {}
+  }
+}
+
+// Safe accessor for Frappe realtime
+const getFrappeRealtime = () => {
+  try {
+    return (typeof window !== 'undefined' && window.frappe && window.frappe.realtime) ? window.frappe.realtime : null
+  } catch {
+    return null
   }
 }
 
 const clearRealtime = () => {
-  if (window.frappe && frappe.realtime && realtimeHandler) {
-    frappe.realtime.off('fonepay_update', realtimeHandler)
+  const rt = getFrappeRealtime()
+  if (rt && realtimeHandler) {
+    rt.off('fonepay_update', realtimeHandler)
   }
   realtimeHandler = null
 }
@@ -1117,6 +1360,7 @@ const manuallyProcessPayment = async () => {
       paymentMessage.value = 'Payment processed successfully.'
       pushStatusLog('success', 'Payment Entry created: ' + paymentEntry.value)
       removeQrAndShowSuccess()
+      await refreshDashboardAndList()
     } else if (verify && verify.status === 'VERIFIED_NOT_PAID') {
       qrStatus.value = 'SCANNED'
       pushStatusLog('info', 'QR code has been scanned/verified but payment not yet completed.')
@@ -1135,6 +1379,7 @@ const manuallyProcessPayment = async () => {
       paymentMessage.value = verify.message || '❌ Payment Failed. The payment was declined or cancelled by the customer. You may need to generate a new QR code.'
       // Show failed dialog for actual failures
       showFailedDialog()
+      await refreshDashboardAndList()
     } else if (verify && verify.status === 'ERROR') {
       qrStatus.value = 'ERROR'
       pushStatusLog('error', 'Payment verification error: ' + (verify.message || 'Unknown error'))
@@ -1147,8 +1392,12 @@ const manuallyProcessPayment = async () => {
     }
   } catch (error) {
     console.error('❌ Manual processing error:', error)
-    pushStatusLog('error', 'Error processing payment: ' + (error.message || JSON.stringify(error)))
-    alert('Error processing payment: ' + (error.message || JSON.stringify(error)))
+    if (isNetworkError(error)) {
+      handleOfflineError()
+    } else {
+      pushStatusLog('error', 'Error processing payment: ' + (error.message || JSON.stringify(error)))
+      alert('Error processing payment: ' + (error.message || JSON.stringify(error)))
+    }
   } finally {
     showLoadingOverlay.value = false
   }
@@ -1293,15 +1542,139 @@ const formatLogTime = (ts) => {
   return new Date(ts).toLocaleString()
 }
 
+const isNetworkError = (error) => {
+  const msg = String(error && (error.message || error)).toLowerCase()
+  if (!isOnline.value) return true
+  return msg.includes('network') || msg.includes('failed to fetch') || msg.includes('net::') || msg.includes('econn') || msg.includes('enotfound') || msg.includes('err_connection')
+}
+
+const handleOfflineError = (message = 'No internet connection. Please check/connect to the internet and try again.') => {
+  showOfflineDialog.value = true
+  pushStatusLog('error', message)
+}
+
+
+// ===== Dashboard helpers =====
+const loadDashboard = async () => {
+  try {
+    const res = await dashboardResource.fetch()
+    greetingName.value = res?.full_name || session.user
+    dashboard.value = {
+      successTotal: Number(res?.success_total_amount || 0),
+      unprocessedCount: Number(res?.unprocessed_count || 0),
+      successCount: Number(res?.success_count || 0),
+      failedCount: Number(res?.failed_count || 0),
+    }
+  } catch (e) {
+    console.error('Failed to load dashboard', e)
+  }
+}
+
+const refreshDashboardAndList = async () => {
+  if (refreshingDashboard.value) return
+  refreshingDashboard.value = true
+  try {
+    await loadDashboard()
+    if (showTxn.value) {
+      await fetchLastTxns()
+    }
+  } finally {
+    refreshingDashboard.value = false
+  }
+}
+
+const processTodayUnprocessed = async () => {
+  if (processingUnprocessed.value) return
+  processingUnprocessed.value = true
+  try {
+    const res = await processTodayResource.fetch()
+    dashboard.value.successTotal = Number(res?.success_total_amount || 0)
+    dashboard.value.unprocessedCount = Number(res?.unprocessed_count || 0)
+    dashboard.value.successCount = Number(res?.success_count || 0)
+    dashboard.value.failedCount = Number(res?.failed_count || 0)
+    const added = Number(res?.new_success_added || 0)
+    if (added > 0) {
+      pushStatusLog('success', `Processed unprocessed logs. Added Rs. ${formatAmount(added)} to today's total.`)
+    } else {
+      pushStatusLog('info', 'Processed unprocessed logs. No new successful payments found.')
+    }
+    if (showTxn.value) await fetchLastTxns()
+  } catch (e) {
+    console.error('Failed to process unprocessed', e)
+    pushStatusLog('error', 'Failed to process unprocessed logs')
+  } finally {
+    processingUnprocessed.value = false
+  }
+}
+
+const toggleTxnList = async () => {
+  showTxn.value = !showTxn.value
+  if (showTxn.value) {
+    await fetchLastTxns()
+  }
+}
+
+const setTxnFilter = async (val) => {
+  if (txnFilter.value === val) return
+  txnFilter.value = val
+  await fetchLastTxns()
+}
+
+const fetchLastTxns = async () => {
+  loadingTxn.value = true
+  try {
+    const res = await listTodayTxnsResource.fetch({ filter_status: txnFilter.value, limit: 5 })
+    lastTxns.value = res?.transactions || []
+  } catch (e) {
+    console.error('Failed to fetch last transactions', e)
+  } finally {
+    loadingTxn.value = false
+  }
+}
+
+const txnFilterBtnClass = (val) => [
+  'px-3 py-1 rounded-md text-sm font-medium',
+  txnFilter.value === val ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+]
+
+const tryLoadNepaliScriptAndSetBSToday = async () => {
+  try {
+    if (typeof window !== 'undefined' && !window.NepaliFunctions) {
+      const s = document.createElement('script')
+      s.src = '/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js'
+      document.head.appendChild(s)
+      await new Promise((resolve) => { s.onload = resolve; s.onerror = resolve })
+    }
+    if (typeof window !== 'undefined' && window.NepaliFunctions) {
+      const d = new Date()
+      const bs = window.NepaliFunctions.AD2BS({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() })
+      bsToday.value = `${bs.year}-${String(bs.month).padStart(2,'0')}-${String(bs.day).padStart(2,'0')}`
+    }
+  } catch (e) {
+    console.warn('Nepali date script failed to load', e)
+  }
+}
+
 
 onMounted(async () => {
-  await loadCustomers()
+  await Promise.all([loadCustomers(), loadDashboard()])
   pushStatusLog('info', 'Ready to generate Fonepay QR codes for customers.')
+  // Listen to connectivity changes
+  try {
+    window.addEventListener('online', () => { isOnline.value = true })
+    window.addEventListener('offline', () => { isOnline.value = false })
+  } catch {}
+  // Try to load Nepali date script and compute BS date
+  tryLoadNepaliScriptAndSetBSToday()
 })
 
 onUnmounted(() => {
   clearRealtime()
   closeMerchantSocket()
+  try {
+    window.removeEventListener('online', () => {})
+    window.removeEventListener('offline', () => {})
+  } catch {}
 })
 </script>
 
@@ -1353,4 +1726,86 @@ onUnmounted(() => {
 section {
   animation: fadeIn 0.25s ease-out;
 }
+
+/* Customer Selection Field UX Improvements */
+.customer-select-wrapper {
+  position: relative;
+}
+
+.customer-autocomplete :deep(input),
+.customer-autocomplete :deep(.frappe-autocomplete-input) {
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  transition: all 0.2s;
+}
+
+.customer-autocomplete :deep(input:focus),
+.customer-autocomplete :deep(.frappe-autocomplete-input:focus) {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Prevent layout shift when keyboard appears */
+@media (max-width: 768px) {
+  .customer-select-wrapper {
+    scroll-padding-top: 100px;
+  }
+  
+  /* Fix autocomplete dropdown positioning on mobile */
+  .customer-autocomplete :deep(.autocomplete-dropdown),
+  .customer-autocomplete :deep(.frappe-autocomplete-dropdown) {
+    position: fixed !important;
+    max-height: 50vh;
+    overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  /* Add backdrop when dropdown is open */
+  .customer-autocomplete :deep(.autocomplete-dropdown):not(:empty)::before,
+  .customer-autocomplete :deep(.frappe-autocomplete-dropdown):not(:empty)::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: -1;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Ensure proper touch targets */
+  button, input, select, .customer-autocomplete {
+    min-height: 44px;
+  }
+}
+
+/* Desktop/Laptop optimizations */
+@media (min-width: 1024px) {
+  /* Better spacing for desktop */
+  main {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+  
+  /* Improve card layouts on large screens */
+  section {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Better grid spacing */
+  .grid {
+    gap: 1.5rem;
+  }
+}
+
+/* Large desktop optimizations - max-width handled by container class */
 </style>

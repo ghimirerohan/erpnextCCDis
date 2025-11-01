@@ -33,6 +33,11 @@ const routes = [
     path: "/uploadsales",
     component: () => import("@/apps/uploadsales/UploadSales.vue"),
   },
+  {
+    name: "PayDashboard",
+    path: "/pay-dashboard",
+    component: () => import("@/pages/PayDashboard.vue"),
+  },
 ]
 
 const router = createRouter({

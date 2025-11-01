@@ -45,23 +45,83 @@ bench install-app custom_erp
 
 ### Manual Installation
 
+**⚠️ IMPORTANT: Always build the frontend BEFORE installing the app**
+
 1. Clone the repository
-2. Install backend dependencies:
+2. **Build the frontend first** (required before installation):
    ```bash
-   cd frappe-bench/apps/custom_erp
+   cd frappe-bench/apps/custom_erp/frontend
+   npm install
+   npm run build
+   ```
+   
+   This step is critical as it generates all the necessary PWA assets, service workers, and frontend bundles that the app requires at runtime.
+
+3. Install backend dependencies:
+   ```bash
+   cd ../custom_erp
    pip install -r requirements.txt
    ```
 
-3. Install frontend dependencies:
+4. Install the app:
    ```bash
-   cd frontend
-   npm install
+   bench --site [your-site-name] install-app custom_erp
    ```
 
-4. Build the frontend:
-   ```bash
-   npm run build
-   ```
+### Configuration
+
+#### Fonepay Credentials Setup
+
+To use Fonepay payment integration, add the following configuration to your site's `site_config.json` file:
+
+**Location:** `frappe-bench/sites/[your-site-name]/site_config.json`
+
+```json
+{
+  "fonepay": {
+    "merchant_code": "YOUR_MERCHANT_CODE",
+    "secret_key": "YOUR_SECRET_KEY",
+    "username": "YOUR_USERNAME@fonepay.com",
+    "password": "YOUR_PASSWORD",
+    "env": "live",
+    "ws_worker": "inprocess",
+    "ws_timeout_seconds": 300,
+    "scheduled_batch_size": 50,
+    "scheduled_sleep_between": 0.2
+  }
+}
+```
+
+**Configuration Parameters:**
+
+- `merchant_code`: Your Fonepay merchant code
+- `secret_key`: Your Fonepay secret key for HMAC signing
+- `username`: Your Fonepay merchant username (format: `username@fonepay.com`)
+- `password`: Your Fonepay merchant password
+- `env`: Environment mode - use `"live"` for production or `"dev"` for development/testing
+- `ws_worker`: WebSocket worker type - `"inprocess"` for single-process, or `"celery"` for distributed
+- `ws_timeout_seconds`: WebSocket connection timeout (default: 300 seconds)
+- `scheduled_batch_size`: Batch size for scheduled payment processing (default: 50)
+- `scheduled_sleep_between`: Sleep interval between batches in seconds (default: 0.2)
+
+**Example (Production):**
+```json
+{
+  "fonepay": {
+    "merchant_code": "2005260033",
+    "secret_key": "your-secret-key-here",
+    "username": "yourusername@fonepay.com",
+    "password": "YourSecurePassword",
+    "env": "live",
+    "ws_worker": "inprocess",
+    "ws_timeout_seconds": 300,
+    "scheduled_batch_size": 50,
+    "scheduled_sleep_between": 0.2
+  }
+}
+```
+
+**Security Note:** Keep your `site_config.json` file secure and never commit it to version control. The `.gitignore` should exclude `site_config.json` files.
 
 ## Frontend App Installation
 

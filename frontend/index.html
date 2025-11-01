@@ -24,20 +24,32 @@
     <!-- Apple Splash Screens -->
     <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
     
-    <!-- ADDED BY AI: MULTI_PWA - Dynamic manifest loader -->
+    <!-- Dynamic manifest loader - sets manifest based on current route -->
     <script>
     (function () {
       const segs = location.pathname.split('/').filter(Boolean);
-      let app = 'qrpay';
-      if (segs.length >= 2 && segs[0] === 'jsapp') app = segs[1];
-      else if (segs.length >= 1) app = segs[0];
+      let app = 'home';
+      if (segs.length >= 2 && segs[0] === 'jsapp') {
+        app = segs[1];
+      } else if (segs.length >= 1 && segs[0] !== '') {
+        app = segs[0];
+      }
+      
       const manifestMap = {
+        '': '/manifest-home.json',
+        'home': '/manifest-home.json',
         'qrpay': '/manifest-qrpay.json',
         'qrpay-admin': '/manifest-qrpay-admin.json',
-        'scanner': '/manifest-scanner.json'
+        'scanner': '/manifest-scanner.json',
+        'pay-dashboard': '/manifest-pay-dashboard.json',
+        'uploadsales': '/manifest-uploadsales.json'
       };
-      const manifest = manifestMap[app] || '/manifest-qrpay.json';
-      document.write('<link rel="manifest" href="' + manifest + '">');
+      
+      const manifest = manifestMap[app] || '/manifest-home.json';
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifest;
+      document.head.appendChild(link);
     })();
     </script>
     

@@ -1,9 +1,11 @@
 {
   "name": "QRPay",
   "short_name": "QRPay",
+  "description": "Dynamic Fonepay QR Code Generator",
   "start_url": "/jsapp/qrpay/",
   "scope": "/jsapp/qrpay/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
   "icons": [
@@ -19,6 +21,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["business", "finance"]
 }
 

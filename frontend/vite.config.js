@@ -6,6 +6,36 @@ import { defineConfig } from "vite"
 // ADDED BY AI: MULTI_PWA - Import fs-extra for file operations
 import fs from "fs-extra"
 
+// ADDED BY AI: AUTO-DETECT ROUTES - Function to dynamically extract routes from router.js
+function getRoutesFromRouter() {
+	const routerPath = path.resolve(process.cwd(), 'src/router.js');
+	const routerContent = fs.readFileSync(routerPath, 'utf-8');
+	
+	// Extract route paths using regex
+	const routeMatches = routerContent.match(/path:\s*["']([^"']+)["']/g) || [];
+	const routes = routeMatches.map(match => {
+		const pathMatch = match.match(/path:\s*["']([^"']+)["']/);
+		return pathMatch ? pathMatch[1] : null;
+	}).filter(Boolean);
+	
+	// Filter out routes that shouldn't be PWAs (login, account routes, etc.)
+	const excludedRoutes = ['/account/login', '/'];
+	const validRoutes = routes
+		.filter(route => !excludedRoutes.includes(route))
+		.map(route => route.replace(/^\//, '')) // Remove leading slash
+		.filter(route => route.length > 0) // Filter out empty routes
+		.filter((route, index, self) => self.indexOf(route) === index); // Remove duplicates
+	
+	return validRoutes;
+}
+
+// Get all routes dynamically
+const allRoutes = getRoutesFromRouter();
+const allPwaRoutes = allRoutes.concat(['home']);
+
+// Log detected routes at config load (for debugging)
+console.log(`\n🔍 Auto-detected ${allPwaRoutes.length} PWA routes: ${allPwaRoutes.join(', ')}\n`);
+
 // https://vitejs.dev/config/
 export default defineConfig({
 	plugins: [
@@ -20,8 +50,8 @@ export default defineConfig({
 			},
 		}),
 		vue(),
-		// ADDED BY AI: MULTI_PWA - Three separate PWA plugin instances for each sub-app
-		...['qrpay', 'qrpay-admin', 'scanner'].map((name) =>
+		// ADDED BY AI: MULTI_PWA - Dynamic PWA plugin instances for ALL routes detected from router
+		...(allPwaRoutes.map((name) => // Auto-generated for all routes + home
 			VitePWA({
 				registerType: 'prompt',
 				manifest: false, // Using separate JSON manifest files
@@ -95,23 +125,24 @@ export default defineConfig({
 					type: 'module'
 				}
 			})
-		),
+		)),
 		// ADDED BY AI: MULTI_PWA - Custom plugin to duplicate build output to sub-app folders
 		{
 			name: 'pwa-jsapp-dup',
 			enforce: 'post',
 			closeBundle: async () => {
-				// Wait for PWA service workers to be generated
-				const waitForFile = async (filePath, maxWait = 5000) => {
+				// Wait for PWA service workers to be generated (increased timeout for slower builds)
+				const waitForFile = async (filePath, maxWait = 15000) => {
 					const start = Date.now();
 					while (!fs.existsSync(filePath)) {
 						if (Date.now() - start > maxWait) return false;
-						await new Promise(resolve => setTimeout(resolve, 100));
+						await new Promise(resolve => setTimeout(resolve, 200));
 					}
 					return true;
 				};
 				
-				const subapps = ['qrpay', 'qrpay-admin', 'scanner'];
+				// AUTO-DETECT: Get all routes dynamically (including home)
+				const subapps = getRoutesFromRouter().concat(['home']);
 				// frappe-ui plugin overrides outDir to frontend
 				const outDir = path.resolve(process.cwd(), '../custom_erp/public/frontend');
 				
@@ -120,12 +151,28 @@ export default defineConfig({
 					return;
 				}
 				
-				console.log('\n📦 Duplicating PWA assets to sub-app folders...\n');
+				console.log(`\n📦 Duplicating PWA assets to sub-app folders for ${subapps.length} routes...\n`);
+				console.log(`   Detected routes: ${subapps.join(', ')}\n`);
 				
 				// Create jsapp directory structure within frontend
 				const jsappDir = path.join(outDir, 'jsapp');
 				await fs.ensureDir(jsappDir);
 				
+				// Copy workbox files once (they're shared across all apps)
+				const workboxFiles = await fs.readdir(outDir).catch(() => []);
+				for (const file of workboxFiles) {
+					if (file.startsWith('workbox-') && file.endsWith('.js')) {
+						const workboxDest = path.join(jsappDir, file);
+						if (!fs.existsSync(workboxDest)) {
+							await fs.copyFile(
+								path.join(outDir, file),
+								workboxDest
+							);
+						}
+					}
+				}
+				
+				// Process each route/app
 				for (const app of subapps) {
 					const appDir = path.join(jsappDir, app);
 					await fs.ensureDir(appDir);
@@ -147,33 +194,39 @@ export default defineConfig({
 						console.warn(`⚠️  Service worker timeout: ${swSrc}`);
 					}
 					
-					// Copy workbox files if they exist
-					const workboxFiles = await fs.readdir(outDir);
-					for (const file of workboxFiles) {
-						if (file.startsWith('workbox-') && file.endsWith('.js')) {
-							await fs.copyFile(
-								path.join(outDir, file),
-								path.join(jsappDir, file)
-							);
-						}
-					}
-				}
-				
-				// Copy manifest files
-				for (const app of subapps) {
+					// Copy manifest files if they exist
 					const manifestSrc = path.join(outDir, `manifest-${app}.json`);
 					if (fs.existsSync(manifestSrc)) {
 						await fs.copyFile(manifestSrc, path.join(jsappDir, `manifest-${app}.json`));
+						await fs.copyFile(manifestSrc, path.join(appDir, `manifest-${app}.json`));
 					}
 					
-					// Copy icon directories
+					// Copy icon directories if they exist
 					const iconSrc = path.join(outDir, `${app}-icons`);
-					if (fs.existsSync(iconSrc)) {
-						await fs.copy(iconSrc, path.join(jsappDir, `${app}-icons`));
+					if (fs.existsSync(iconSrc) && fs.statSync(iconSrc).isDirectory()) {
+						const iconDest = path.join(jsappDir, `${app}-icons`);
+						await fs.copy(iconSrc, iconDest, { overwrite: true });
+					}
+					
+					// Copy all assets directory to each app folder (for complete standalone PWAs)
+					const assetsSrc = path.join(outDir, 'assets');
+					if (fs.existsSync(assetsSrc) && fs.statSync(assetsSrc).isDirectory()) {
+						const assetsDest = path.join(appDir, 'assets');
+						await fs.copy(assetsSrc, assetsDest, { overwrite: true });
 					}
 				}
 				
-				console.log('\n✨ PWA assets duplicated to frontend/jsapp/ structure!\n');
+				// Copy registerSW.js to jsapp root and all sub-apps
+				const registerSWSrc = path.join(outDir, 'registerSW.js');
+				if (fs.existsSync(registerSWSrc)) {
+					await fs.copyFile(registerSWSrc, path.join(jsappDir, 'registerSW.js'));
+					for (const app of subapps) {
+						const appDir = path.join(jsappDir, app);
+						await fs.copyFile(registerSWSrc, path.join(appDir, 'registerSW.js'));
+					}
+				}
+				
+				console.log(`\n✨ PWA assets duplicated to frontend/jsapp/ structure for ${subapps.length} routes!\n`);
 			}
 		},
 	],

@@ -1,9 +1,11 @@
 {
   "name": "Scanner",
   "short_name": "Scanner",
+  "description": "QR Code and Barcode Scanner",
   "start_url": "/jsapp/scanner/",
   "scope": "/jsapp/scanner/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#7c3aed",
   "icons": [
@@ -19,6 +21,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["business", "utilities"]
 }
 

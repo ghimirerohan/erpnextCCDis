@@ -8,10 +8,10 @@
       </div>
       <div class="flex-1">
         <h3 class="text-sm font-semibold text-gray-900 mb-1">
-          Install Frappe ERP
+          Install {{ appName }}
         </h3>
         <p class="text-sm text-gray-600 mb-3">
-          Install our app for quick access and better experience
+          Install {{ appName }} as an app for quick access and better experience
         </p>
         <div class="flex gap-2">
           <button
@@ -41,10 +41,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const showInstallPrompt = ref(false)
 const deferredPrompt = ref(null)
+
+// Get app name based on current route
+const appName = computed(() => {
+  const nameMap = {
+    'Home': 'Custom ERP',
+    'QRPay': 'QRPay',
+    'QRPayAdmin': 'QRPay Admin',
+    'Scanner': 'Scanner',
+    'PayDashboard': 'Pay Dashboard',
+    'UploadSales': 'Upload Sales',
+  }
+  return nameMap[route.name] || 'App'
+})
 
 onMounted(() => {
   // Listen for the beforeinstallprompt event

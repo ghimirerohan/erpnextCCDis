@@ -187,11 +187,33 @@
       </div>
     </div>
   </div>
+  
+  <!-- No Internet Dialog -->
+  <div v-if="showOfflineDialog" class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 text-center">
+      <div class="fixed inset-0 bg-gray-900 bg-opacity-75" aria-hidden="true" @click="showOfflineDialog = false"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+        <div class="px-6 pt-6 pb-4">
+          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+            <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 19c-3.866 0-7-3.134-7-7 0-1.657.57-3.178 1.52-4.382m1.53-1.53A6.978 6.978 0 0112 5c3.866 0 7 3.134 7 7 0 1.657-.57 3.178-1.52 4.382" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">No Internet Connection</h3>
+          <p class="text-sm text-gray-600">Please check/connect to the internet first and try again.</p>
+        </div>
+        <div class="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse">
+          <button type="button" @click="showOfflineDialog = false" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { createResource } from 'frappe-ui'
+import { createResource, call as $call } from 'frappe-ui'
 import { session } from '@/data/session'
 
 // State
@@ -201,6 +223,8 @@ const loading = ref(false)
 const processing = ref(false)
 const showResults = ref(false)
 const processingResults = ref({ count: 0, results: [] })
+const showOfflineDialog = ref(false)
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
 // Resources
 const transactionResource = createResource({
@@ -231,8 +255,12 @@ const loadTransactions = async () => {
     const res = await transactionResource.fetch()
     transactions.value = res || []
   } catch (error) {
-    console.error('Error loading transactions:', error)
-    alert('Failed to load transactions: ' + error.message)
+    if (isNetworkError(error)) {
+      handleOfflineError()
+    } else {
+      console.error('Error loading transactions:', error)
+      alert('Failed to load transactions: ' + error.message)
+    }
   } finally {
     loading.value = false
   }
@@ -252,48 +280,84 @@ const toggleAll = () => {
 
 const processSelected = async () => {
   if (selectedTransactions.value.length === 0) return
-  
+  // If offline, do not call backend; report NO INTERNET per-tx
+  if (!isOnline.value) {
+    handleOfflineError()
+    processingResults.value = {
+      count: 0,
+      results: selectedTransactions.value.map(tx => ({ tx, status: 'NO INTERNET' }))
+    }
+    showResults.value = true
+    return
+  }
+
   processing.value = true
   try {
-    const res = await frappe.call({
-      method: 'custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs',
-      args: { 
-        tx_names: selectedTransactions.value.join(','), 
-        limit: selectedTransactions.value.length 
-      }
+    const res = await $call('custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs', {
+      tx_names: selectedTransactions.value.join(','),
+      limit: selectedTransactions.value.length
     })
     
-    if (res.message) {
-      processingResults.value = res.message
+    if (res) {
+      processingResults.value = res
       showResults.value = true
       selectedTransactions.value = []
       await loadTransactions()
     }
   } catch (error) {
-    console.error('Error processing transactions:', error)
-    alert('Failed to process transactions: ' + error.message)
+    if (isNetworkError(error)) {
+      handleOfflineError()
+      // Explicit result summary: NO INTERNET
+      processingResults.value = {
+        count: 0,
+        results: selectedTransactions.value.length
+          ? selectedTransactions.value.map(tx => ({ tx, status: 'NO INTERNET' }))
+          : [{ tx: 'Selection', status: 'NO INTERNET' }]
+      }
+      showResults.value = true
+    } else {
+      console.error('Error processing transactions:', error)
+      alert('Failed to process transactions: ' + error.message)
+    }
   } finally {
     processing.value = false
   }
 }
 
 const processAll = async () => {
+  // If offline, do not call backend; report NO INTERNET for each visible tx
+  if (!isOnline.value) {
+    handleOfflineError()
+    processingResults.value = {
+      count: 0,
+      results: (transactions.value || []).map(t => ({ tx: t.name, status: 'NO INTERNET' }))
+    }
+    showResults.value = true
+    return
+  }
   processing.value = true
   try {
-    const res = await frappe.call({
-      method: 'custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs',
-      args: { limit: 500 }
-    })
+    const res = await $call('custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs', { limit: 500 })
     
-    if (res.message) {
-      processingResults.value = res.message
+    if (res) {
+      processingResults.value = res
       showResults.value = true
       selectedTransactions.value = []
       await loadTransactions()
     }
   } catch (error) {
-    console.error('Error processing all transactions:', error)
-    alert('Failed to process all transactions: ' + error.message)
+    if (isNetworkError(error)) {
+      handleOfflineError()
+      // Explicit result summary: NO INTERNET for Process All
+      processingResults.value = {
+        count: 0,
+        results: [{ tx: 'ALL', status: 'NO INTERNET' }]
+      }
+      showResults.value = true
+    } else {
+      console.error('Error processing all transactions:', error)
+      alert('Failed to process all transactions: ' + error.message)
+    }
   } finally {
     processing.value = false
   }
@@ -347,6 +411,7 @@ const getResultClass = (status) => {
   if (status === 'SUCCESS') return 'bg-green-50 text-green-800'
   if (status === 'FAILED') return 'bg-red-50 text-red-800'
   if (status === 'ERROR') return 'bg-red-50 text-red-800'
+  if (status === 'NO INTERNET') return 'bg-red-50 text-red-800'
   return 'bg-gray-50 text-gray-800'
 }
 
@@ -374,9 +439,23 @@ const formatAmount = (amount) => {
   })
 }
 
+const isNetworkError = (error) => {
+  const msg = String(error && (error.message || error)).toLowerCase()
+  if (!isOnline.value) return true
+  return msg.includes('network') || msg.includes('failed to fetch') || msg.includes('net::') || msg.includes('econn') || msg.includes('enotfound') || msg.includes('err_connection')
+}
+
+const handleOfflineError = (message = 'No internet connection. Please check/connect to the internet and try again.') => {
+  showOfflineDialog.value = true
+}
+
 // Lifecycle
 onMounted(() => {
   loadTransactions()
+  try {
+    window.addEventListener('online', () => { isOnline.value = true })
+    window.addEventListener('offline', () => { isOnline.value = false })
+  } catch {}
 })
 </script>
 

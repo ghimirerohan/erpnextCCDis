@@ -1,9 +1,11 @@
 {
   "name": "QRPay Admin",
   "short_name": "QRPayAdmin",
+  "description": "QRPay Administration and Transaction Management",
   "start_url": "/jsapp/qrpay-admin/",
   "scope": "/jsapp/qrpay-admin/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "icons": [
@@ -19,6 +21,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["business", "admin"]
 }
 

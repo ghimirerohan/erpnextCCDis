@@ -1,0 +1,27 @@
+
+/* Custom styles for QRPay Admin */
+.overflow-x-auto[data-v-7b2d2de3] {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+.overflow-x-auto[data-v-7b2d2de3]::-webkit-scrollbar {
+  height: 8px;
+}
+.overflow-x-auto[data-v-7b2d2de3]::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+.overflow-x-auto[data-v-7b2d2de3]::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+.overflow-x-auto[data-v-7b2d2de3]::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+.overflow-x-auto[data-v-7b2d2de3] {
+    font-size: 0.875rem;
+}
+}

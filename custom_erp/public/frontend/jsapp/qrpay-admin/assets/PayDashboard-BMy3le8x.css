@@ -1,0 +1,79 @@
+
+/* Ensure mobile-friendly touch targets */
+button[data-v-9fc4a308], select[data-v-9fc4a308] {
+  min-height: 44px;
+}
+
+/* Customer Selection Field UX Improvements */
+.customer-select-wrapper[data-v-9fc4a308] {
+  position: relative;
+}
+.customer-autocomplete[data-v-9fc4a308] input,
+.customer-autocomplete[data-v-9fc4a308] .frappe-autocomplete-input {
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important; /* Prevents zoom on iOS */
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  transition: all 0.2s;
+}
+.customer-autocomplete[data-v-9fc4a308] input:focus,
+.customer-autocomplete[data-v-9fc4a308] .frappe-autocomplete-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Prevent layout shift when keyboard appears */
+@media (max-width: 768px) {
+.customer-select-wrapper[data-v-9fc4a308] {
+    scroll-padding-top: 100px;
+}
+  
+  /* Fix autocomplete dropdown positioning on mobile */
+.customer-autocomplete[data-v-9fc4a308] .autocomplete-dropdown,
+  .customer-autocomplete[data-v-9fc4a308] .frappe-autocomplete-dropdown {
+    position: fixed !important;
+    max-height: 50vh;
+    overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+}
+@media (max-width: 640px) {
+  /* Optimize spacing for mobile */
+section[data-v-9fc4a308] {
+    padding: 1rem !important;
+}
+  
+  /* Prevent horizontal scroll */
+body[data-v-9fc4a308] {
+    overflow-x: hidden;
+}
+  
+  /* Better spacing for cards */
+.bg-white[data-v-9fc4a308] {
+    padding: 1rem !important;
+}
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+section[data-v-9fc4a308] {
+    padding: 1.5rem;
+}
+}
+
+/* Desktop/Laptop optimizations */
+@media (min-width: 1024px) {
+  /* Better spacing for desktop */
+section[data-v-9fc4a308] {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+  
+  /* Improve card layouts */
+.bg-white[data-v-9fc4a308] {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+}
