@@ -983,14 +983,14 @@ def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, v
             "customer": transformed_data.get("customer_id"),
             "posting_date": transformed_data.get("date"),
             "update_stock": 1,
-            "driver": driver_id,
+            "custom_driver_for_vehicle": driver_id,  # Custom field for Driver
             "is_return": 1 if transformed_data.get("is_return") == "1" else 0,
             "items": []
         }
         
-        # Add vehicle if provided
+        # Add vehicle if provided (using custom field name)
         if vehicle_id:
-            doc_data["vehicle_for_delivery"] = vehicle_id
+            doc_data["custom_vehicle_for_delivery"] = vehicle_id  # Custom field for Vehicle
         
         doc = frappe.get_doc(doc_data)
         

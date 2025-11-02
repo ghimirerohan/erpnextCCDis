@@ -34,39 +34,109 @@ A comprehensive ERP application built with Frappe Framework and Vue.js, featurin
 
 ## Installation
 
-### Using bench get-app (Recommended)
+### Automatic Installation (Recommended)
 
-To install this app in any Frappe bench environment:
+The installation process is **fully automated**. The frontend will be built automatically during installation.
+
+#### For Frappe Manager Users
+
+If you're using [Frappe Manager](https://github.com/rtCamp/Frappe-Manager) to manage your Frappe instances:
+
+```bash
+# In your Frappe Manager environment
+fm shell [your-site-name]
+bench get-app custom_erp https://github.com/ghimirerohan/erpnextCCDis.git
+bench install-app custom_erp
+```
+
+The installation hook will automatically:
+- ✅ Check HRMS dependencies (Driver & Vehicle doctypes)
+- ✅ Build the frontend with all PWA assets
+- ✅ Verify custom fields installation
+- ✅ Verify frontend build output
+
+**Requirements:**
+- Node.js and npm must be available in your container/environment
+- HRMS app should be installed for Driver/Vehicle fields to work
+
+#### Standard Bench Installation
 
 ```bash
 bench get-app custom_erp https://github.com/ghimirerohan/erpnextCCDis.git
 bench install-app custom_erp
 ```
 
-### Manual Installation
+The installation is fully automatic - no manual steps required!
 
-**⚠️ IMPORTANT: Always build the frontend BEFORE installing the app**
+### Manual Installation (Fallback)
+
+If automatic installation fails, you can manually build the frontend:
 
 1. Clone the repository
-2. **Build the frontend first** (required before installation):
+2. Build the frontend:
    ```bash
    cd frappe-bench/apps/custom_erp/frontend
-   npm install
+   npm ci --no-audit --no-fund --prefer-offline
    npm run build
    ```
-   
-   This step is critical as it generates all the necessary PWA assets, service workers, and frontend bundles that the app requires at runtime.
-
 3. Install backend dependencies:
    ```bash
    cd ../custom_erp
    pip install -r requirements.txt
    ```
-
 4. Install the app:
    ```bash
    bench --site [your-site-name] install-app custom_erp
    ```
+
+### Post-Installation Verification
+
+After installation, verify everything is working:
+
+```bash
+# Check custom fields were created
+bench --site [your-site-name] console
+>>> import frappe
+>>> frappe.db.exists("Custom Field", {"dt": "Sales Invoice", "fieldname": "custom_driver_for_vehicle"})
+True
+>>> frappe.db.exists("Custom Field", {"dt": "Sales Invoice", "fieldname": "custom_vehicle_for_delivery"})
+True
+
+# Check frontend build
+>>> import os
+>>> os.path.exists("apps/custom_erp/custom_erp/public/frontend/index.html")
+True
+```
+
+### Troubleshooting Installation
+
+#### Frontend Build Fails
+
+**Error:** `Node.js not found` or `npm not found`
+- **Solution:** Install Node.js (v16 or higher) in your environment
+- **For Docker/Frappe Manager:** Ensure Node.js is available in the container
+
+**Error:** `Frontend build timed out`
+- **Solution:** This usually indicates resource constraints. Increase memory/CPU allocation or build manually
+
+**Error:** `Frontend build failed with errors`
+- **Solution:** Check the error output. Common issues:
+  - Missing dependencies: Run `npm ci` manually
+  - Permission issues: Check file permissions
+  - Disk space: Ensure sufficient disk space
+
+#### Custom Fields Not Created
+
+**Issue:** Driver/Vehicle fields not visible in Sales Invoice
+- **Check:** Verify HRMS is installed (Driver and Vehicle doctypes exist)
+- **Fix:** Install HRMS app if missing: `bench get-app hrms`
+- **Re-run:** `bench --site [site-name] migrate`
+
+#### HRMS Dependency Warnings
+
+**Warning:** `Driver doctype not found` or `Vehicle doctype not found`
+- **Impact:** Custom fields will be created but won't work until HRMS is installed
+- **Solution:** Install HRMS app before using Driver/Vehicle features
 
 ### Configuration
 
@@ -122,6 +192,62 @@ To use Fonepay payment integration, add the following configuration to your site
 ```
 
 **Security Note:** Keep your `site_config.json` file secure and never commit it to version control. The `.gitignore` should exclude `site_config.json` files.
+
+#### CSRF Configuration for Production
+
+**Important for Production Deployments:** When deploying to production, you may need to configure CSRF settings based on your deployment architecture.
+
+**Understanding CSRF in Frappe:**
+- Frappe Framework includes CSRF (Cross-Site Request Forgery) protection by default
+- All API endpoints marked with `@frappe.whitelist()` are automatically protected
+- Frontend apps making API calls must include CSRF tokens in requests
+
+**Configuration Options:**
+
+1. **Standard Configuration (Recommended for Most Cases):**
+   - All API endpoints in this app are properly whitelisted
+   - Frappe UI automatically handles CSRF tokens
+   - No additional configuration needed
+
+2. **Production with `ignore_csrf` (Use with Caution):**
+   
+   In some production scenarios (e.g., reverse proxy, load balancer, or specific network configurations), you may encounter CSRF issues. If necessary, you can disable CSRF checking:
+   
+   **Location:** `frappe-bench/sites/[your-site-name]/site_config.json`
+   
+   ```json
+   {
+     "ignore_csrf": 1
+   }
+   ```
+   
+   **⚠️ Security Warning:** Only use `ignore_csrf: 1` if:
+   - You have other security measures in place (WAF, API gateway, etc.)
+   - You fully understand the security implications
+   - You're behind a trusted network/proxy
+   - Alternative solutions don't work
+   
+   **Better Alternatives:**
+   - Configure your reverse proxy/load balancer properly
+   - Ensure CSRF tokens are properly forwarded
+   - Use proper CORS configuration
+   - Consider using API keys for external integrations
+
+3. **Verifying CSRF Configuration:**
+   
+   Check if CSRF is being enforced:
+   ```bash
+   bench --site [your-site-name] console
+   >>> import frappe
+   >>> frappe.conf.get("ignore_csrf")
+   # Returns 1 if CSRF is disabled, 0 or None if enabled
+   ```
+   
+   All whitelisted methods in this app:
+   - ✅ All Fonepay API endpoints (`custom_erp.custom_erp.api.fonepay.*`)
+   - ✅ All UploadSales API endpoints (`custom_erp.custom_erp.api.uploadsales.*`)
+   
+   These endpoints work with or without `ignore_csrf` setting, as they're properly decorated with `@frappe.whitelist()`.
 
 ## Frontend App Installation
 
