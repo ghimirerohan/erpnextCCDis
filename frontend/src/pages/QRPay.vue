@@ -132,19 +132,11 @@
           <h2 class="text-xl font-semibold text-gray-900">Customer</h2>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          <div class="customer-select-wrapper">
-            <label class="block text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Customer</label>
-            <div class="relative">
-              <Autocomplete
-                v-model="selectedCustomerValue"
-                :options="customerOptions"
-                :loading="loadingCustomers"
-                placeholder="Search by customer name or code"
-                class="customer-autocomplete w-full"
-              />
-            </div>
-            <p v-if="!selectedCustomer" class="mt-2 text-xs sm:text-sm text-gray-500">Start typing to search. All customers are available by name or code.</p>
-          </div>
+          <CustomerSearch
+            v-model="selectedCustomerValue"
+            label="Customer"
+            @select="handleCustomerSelect"
+          />
           <div v-if="selectedCustomer" class="space-y-3">
             <label class="block text-sm font-semibold text-gray-700">Customer Details</label>
             <div class="p-5 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg space-y-2">
@@ -334,85 +326,114 @@
         </div>
       </section>
 
-      <!-- QR & Status -->
-      <section v-if="qrData" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8 space-y-6">
-        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-          <div class="flex-1 text-center">
-            <h3 class="text-xl font-semibold text-gray-900 mb-6">QR Code</h3>
-            <div id="qr-code" class="flex justify-center"></div>
-          </div>
-          <div class="flex-1 space-y-4">
-            <div class="bg-gray-50 rounded-lg p-6 space-y-3">
-              <div class="text-center">
-                <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Payment Status</div>
-                <div class="text-2xl font-bold" :class="statusColorClass">{{ qrStatus || 'CREATED' }}</div>
-              </div>
-              <div class="border-t border-gray-200 pt-3 space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">Amount:</span>
-                  <span class="font-semibold">NPR {{ formatAmount(paymentAmount) }}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">Customer:</span>
-                  <span class="font-semibold truncate ml-2">{{ selectedCustomer?.customer_name }}</span>
-                </div>
-                <div v-if="paymentEntry" class="flex justify-between text-sm">
-                  <span class="text-gray-600">Payment Entry:</span>
-                  <a :href="`/app/payment-entry/${paymentEntry}`" class="text-blue-600 hover:text-blue-700 underline font-semibold" target="_blank" rel="noopener">{{ paymentEntry }}</a>
-                </div>
+      <!-- QR & Status Dialog -->
+      <div v-if="qrData" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="qr-dialog-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <!-- Background overlay -->
+          <div class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
+          
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+          
+          <!-- Dialog content -->
+          <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <!-- Header -->
+            <div class="bg-blue-500 px-6 pt-6 pb-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-bold text-white" id="qr-dialog-title">QR Code Payment</h3>
+                <button
+                  @click="regenerateQR"
+                  class="bg-white text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white rounded-full p-2 transition-all duration-200 shadow-md"
+                  aria-label="Close"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
               </div>
             </div>
-            <!-- Payment Status Message -->
-            <div v-if="paymentMessage && (qrStatus === 'PENDING' || qrStatus === 'SCANNED' || qrStatus === 'ERROR' || qrStatus === 'FAILED')" 
-                 class="p-4 rounded-lg border"
-                 :class="{
-                   'bg-orange-50 border-orange-200': qrStatus === 'PENDING',
-                   'bg-yellow-50 border-yellow-200': qrStatus === 'SCANNED',
-                   'bg-red-50 border-red-200': qrStatus === 'ERROR' || qrStatus === 'FAILED'
-                 }">
-              <div class="flex items-start">
-                <svg v-if="qrStatus === 'PENDING'" class="w-5 h-5 text-orange-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <svg v-else-if="qrStatus === 'SCANNED'" class="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <svg v-else class="w-5 h-5 text-red-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                </svg>
-                <div class="flex-1">
-                  <p class="text-sm font-medium" :class="{
-                    'text-orange-800': qrStatus === 'PENDING',
-                    'text-yellow-800': qrStatus === 'SCANNED',
-                    'text-red-800': qrStatus === 'ERROR' || qrStatus === 'FAILED'
-                  }">{{ paymentMessage }}</p>
+            
+            <!-- Dialog body -->
+            <div class="bg-white px-6 sm:p-8 space-y-6">
+              <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                <div class="flex-1 text-center">
+                  <h3 class="text-xl font-semibold text-gray-900 mb-6">QR Code</h3>
+                  <div id="qr-code" class="flex justify-center"></div>
+                </div>
+                <div class="flex-1 space-y-4">
+                  <div class="bg-gray-50 rounded-lg p-6 space-y-3">
+                    <div class="text-center">
+                      <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Payment Status</div>
+                      <div class="text-2xl font-bold" :class="statusColorClass">{{ qrStatus || 'CREATED' }}</div>
+                    </div>
+                    <div class="border-t border-gray-200 pt-3 space-y-2">
+                      <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Amount:</span>
+                        <span class="font-semibold text-gray-900">NPR {{ formatAmount(paymentAmount) }}</span>
+                      </div>
+                      <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Customer:</span>
+                        <span class="font-semibold text-gray-900 truncate ml-2">{{ selectedCustomer?.customer_name }}</span>
+                      </div>
+                      <div v-if="paymentEntry" class="flex justify-between text-sm">
+                        <span class="text-gray-600">Payment Entry:</span>
+                        <a :href="`/app/payment-entry/${paymentEntry}`" class="text-blue-600 hover:text-blue-700 underline font-semibold" target="_blank" rel="noopener">{{ paymentEntry }}</a>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Payment Status Message -->
+                  <div v-if="paymentMessage && (qrStatus === 'PENDING' || qrStatus === 'SCANNED' || qrStatus === 'ERROR' || qrStatus === 'FAILED')" 
+                       class="p-4 rounded-lg border"
+                       :class="{
+                         'bg-orange-50 border-orange-200': qrStatus === 'PENDING',
+                         'bg-yellow-50 border-yellow-200': qrStatus === 'SCANNED',
+                         'bg-red-50 border-red-200': qrStatus === 'ERROR' || qrStatus === 'FAILED'
+                       }">
+                    <div class="flex items-start">
+                      <svg v-if="qrStatus === 'PENDING'" class="w-5 h-5 text-orange-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <svg v-else-if="qrStatus === 'SCANNED'" class="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <svg v-else class="w-5 h-5 text-red-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                      </svg>
+                      <div class="flex-1">
+                        <p class="text-sm font-medium" :class="{
+                          'text-orange-800': qrStatus === 'PENDING',
+                          'text-yellow-800': qrStatus === 'SCANNED',
+                          'text-red-800': qrStatus === 'ERROR' || qrStatus === 'FAILED'
+                        }">{{ paymentMessage }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex gap-4 pt-2 pb-2">
+                    <button
+                      @click="manuallyProcessPayment"
+                      class="flex-1 inline-flex items-center justify-center px-5 py-2.5 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                      :disabled="!currentTxName || qrStatus === 'SUCCESS'"
+                    >
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      Process Payment
+                    </button>
+                    <button
+                      @click="regenerateQR"
+                      class="flex-1 inline-flex items-center justify-center px-5 py-2.5 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                    >
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                      Reset
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="flex gap-3">
-              <button
-                @click="manuallyProcessPayment"
-                class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                :disabled="!currentTxName || qrStatus === 'SUCCESS'"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                Process Payment
-              </button>
-              <button
-                @click="regenerateQR"
-                class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                Reset
-              </button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- Live Status Logs -->
       <section v-if="statusLogs.length" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sm:p-8">
@@ -557,14 +578,13 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { Autocomplete, createResource, call as $call } from 'frappe-ui'
+import { createResource, call as $call } from 'frappe-ui'
 import { session } from '@/data/session'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
+import CustomerSearch from '@/components/CustomerSearch.vue'
 
 const selectedCustomer = ref(null)
 const selectedCustomerValue = ref(null)
-const customerOptions = ref([])
-const loadingCustomers = ref(false)
 const paymentAmount = ref('')
 const remarks = ref('')
 const generating = ref(false)
@@ -596,10 +616,6 @@ const showOfflineDialog = ref(false)
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 const showConfirmationDialog = ref(false)
 
-const customerSearchResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.search_customers',
-  auto: false,
-})
 const qrCreateResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.create_dynamic_qr', auto: false })
 const dashboardResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.get_user_today_summary', auto: false })
 const processTodayResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.process_user_unprocessed_today', auto: false })
@@ -622,59 +638,30 @@ const canGenerate = computed(() => {
 })
 const statusColorClass = computed(() => getStatusColor(qrStatus.value))
 
+// Handle customer selection from CustomerSearch component
+const handleCustomerSelect = (customerData) => {
+  selectedCustomer.value = {
+    name: customerData.value || customerData.name,
+    customer_name: customerData.customer_name,
+    customer_group: customerData.customer_group,
+    territory: customerData.territory,
+    customer_primary_address: customerData.customer_primary_address,
+    address_display: customerData.address_display,
+    mobile_no: customerData.mobile_no,
+    email_id: customerData.email_id,
+    tax_id: customerData.tax_id,
+  }
+  pushStatusLog('info', `Selected customer ${selectedCustomer.value.customer_name} (${selectedCustomer.value.name})`)
+}
+
 // Watch for changes to selectedCustomerValue and update selectedCustomer
 watch(selectedCustomerValue, (newValue) => {
-  console.log('selectedCustomerValue changed:', newValue)
   if (!newValue) {
     selectedCustomer.value = null
     return
   }
-  // Frappe UI Autocomplete passes the entire object, not just the value
-  // Check if newValue is an object or a primitive
-  let option = null
-  if (typeof newValue === 'object' && newValue !== null) {
-    // newValue is the option object itself
-    option = newValue
-  } else {
-    // newValue is a string/primitive, find the option
-    option = customerOptions.value.find(opt => opt.value === newValue)
-  }
-  
-  console.log('Found option:', option)
-  if (option) {
-    selectedCustomer.value = {
-      name: option.value || option.name,
-      customer_name: option.customer_name,
-      customer_group: option.customer_group,
-      territory: option.territory,
-      customer_primary_address: option.customer_primary_address,
-      address_display: option.address_display,
-      mobile_no: option.mobile_no,
-      email_id: option.email_id,
-      tax_id: option.tax_id,
-    }
-    console.log('Set selectedCustomer:', selectedCustomer.value)
-    pushStatusLog('info', `Selected customer ${selectedCustomer.value.customer_name} (${selectedCustomer.value.name})`)
-  }
+  // selectedCustomer will be set via handleCustomerSelect when user selects
 })
-
-const loadCustomers = async (query = '') => {
-  loadingCustomers.value = true
-  try {
-    // Load all customers with high limit to ensure none are excluded
-    const response = await customerSearchResource.fetch({ query, limit: 10000 })
-    const payload = response?.customers || response?.message?.customers || []
-    customerOptions.value = payload.map((customer) => ({
-      label: `${customer.customer_name} (${customer.name})`,
-      value: customer.name,
-      ...customer,
-    }))
-  } catch (error) {
-    console.error('Error loading customers', error)
-  } finally {
-    loadingCustomers.value = false
-  }
-}
 
 const confirmGenerateQR = () => {
   showConfirmationDialog.value = false
@@ -1657,7 +1644,7 @@ const tryLoadNepaliScriptAndSetBSToday = async () => {
 
 
 onMounted(async () => {
-  await Promise.all([loadCustomers(), loadDashboard()])
+  await loadDashboard()
   pushStatusLog('info', 'Ready to generate Fonepay QR codes for customers.')
   // Listen to connectivity changes
   try {
@@ -1727,63 +1714,10 @@ section {
   animation: fadeIn 0.25s ease-out;
 }
 
-/* Customer Selection Field UX Improvements */
-.customer-select-wrapper {
-  position: relative;
-}
-
-.customer-autocomplete :deep(input),
-.customer-autocomplete :deep(.frappe-autocomplete-input) {
-  min-height: 44px !important;
-  height: 44px !important;
-  padding: 12px 16px !important;
-  font-size: 16px !important; /* Prevents zoom on iOS */
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  transition: all 0.2s;
-}
-
-.customer-autocomplete :deep(input:focus),
-.customer-autocomplete :deep(.frappe-autocomplete-input:focus) {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Prevent layout shift when keyboard appears */
-@media (max-width: 768px) {
-  .customer-select-wrapper {
-    scroll-padding-top: 100px;
-  }
-  
-  /* Fix autocomplete dropdown positioning on mobile */
-  .customer-autocomplete :deep(.autocomplete-dropdown),
-  .customer-autocomplete :deep(.frappe-autocomplete-dropdown) {
-    position: fixed !important;
-    max-height: 50vh;
-    overflow-y: auto;
-    z-index: 9999;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-  
-  /* Add backdrop when dropdown is open */
-  .customer-autocomplete :deep(.autocomplete-dropdown):not(:empty)::before,
-  .customer-autocomplete :deep(.frappe-autocomplete-dropdown):not(:empty)::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.1);
-    z-index: -1;
-  }
-}
-
 /* Mobile optimizations */
 @media (max-width: 640px) {
   /* Ensure proper touch targets */
-  button, input, select, .customer-autocomplete {
+  button, input, select {
     min-height: 44px;
   }
 }

@@ -15,6 +15,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="application-name" content="Frappe ERP" />
     
+    <!-- Android Chrome PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    
     <!-- Apple iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -25,14 +29,23 @@
     <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
     
     <!-- Dynamic manifest loader - sets manifest based on current route -->
+    <!-- CRITICAL: This must run synchronously before page load for Android Chrome -->
     <script>
     (function () {
+      // Detect app from pathname immediately
       const segs = location.pathname.split('/').filter(Boolean);
       let app = 'home';
+      
+      // Handle /jsapp/{app}/ paths
       if (segs.length >= 2 && segs[0] === 'jsapp') {
-        app = segs[1];
+        app = segs[1] || 'home';
       } else if (segs.length >= 1 && segs[0] !== '') {
         app = segs[0];
+      }
+      
+      // Normalize app name
+      if (!app || app === 'jsapp' || app === '') {
+        app = 'home';
       }
       
       const manifestMap = {
@@ -45,11 +58,23 @@
         'uploadsales': '/manifest-uploadsales.json'
       };
       
-      const manifest = manifestMap[app] || '/manifest-home.json';
+      const manifestPath = manifestMap[app] || '/manifest-home.json';
+      
+      // Create manifest link synchronously (critical for Android Chrome)
       const link = document.createElement('link');
       link.rel = 'manifest';
-      link.href = manifest;
-      document.head.appendChild(link);
+      link.href = manifestPath;
+      
+      // Insert before any other scripts to ensure early loading
+      const firstScript = document.getElementsByTagName('script')[0];
+      if (firstScript && firstScript.parentNode) {
+        firstScript.parentNode.insertBefore(link, firstScript);
+      } else {
+        document.head.appendChild(link);
+      }
+      
+      // Log for debugging
+      console.log('📱 PWA Manifest set:', manifestPath, 'for app:', app);
     })();
     </script>
     

@@ -1,6 +1,8 @@
 import { createApp } from "vue"
 // ADDED BY AI: MULTI_PWA - Import scoped service worker registration
 import { registerScopedSW } from "./register-sw"
+// ADDED BY AI: PWA Installability - Check and debug PWA installability
+import { checkPWAInstallability } from "./pwa-installability"
 
 import App from "./App.vue"
 import router from "./router"
@@ -76,4 +78,29 @@ for (const key in globalComponents) {
 app.mount("#app")
 
 // ADDED BY AI: MULTI_PWA - Register scoped service worker
-registerScopedSW()
+registerScopedSW().then((registration) => {
+  if (registration) {
+    // If service worker is registered but not controlling, reload after a delay
+    if (!navigator.serviceWorker.controller && registration.active) {
+      console.log('🔄 Service Worker registered but not controlling. Reloading in 2 seconds...');
+      setTimeout(() => {
+        // Only reload if still not controlling (first visit)
+        if (!navigator.serviceWorker.controller) {
+          window.location.reload();
+        }
+      }, 2000);
+    }
+  }
+  
+  // Check PWA installability after service worker registration
+  // Delay slightly to ensure manifest is loaded
+  setTimeout(() => {
+    checkPWAInstallability();
+  }, 1500);
+}).catch(err => {
+  console.error('❌ Service Worker registration failed:', err);
+  // Still check installability even if SW fails
+  setTimeout(() => {
+    checkPWAInstallability();
+  }, 1000);
+})
