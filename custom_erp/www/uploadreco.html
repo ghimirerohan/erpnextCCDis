@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/uploadreco/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Upload Reconciliation - Payment Reco Import</title>
+    <meta name="description" content="Upload and process daily payment reconciliation data from CSV files" />
+    <meta name="application-name" content="Upload Reconciliation" />
+    <meta name="theme-color" content="#059669" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest-uploadreco.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/uploadreco/assets/uploadreco-DUZSbHPp.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/uploadreco/assets/vendor-gxi5vya3.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/uploadreco/assets/ui-iK3zC9wK.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/uploadreco/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/uploadreco/assets/index-6hapQZD4.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

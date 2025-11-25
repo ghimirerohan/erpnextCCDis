@@ -1,0 +1,52 @@
+============================================
+CUSTOM ERP - BUILD INSTRUCTIONS
+============================================
+
+TESTED APPS (All Working ✅):
+-----------------------------
+1. /qrpay - QR Payment Generator
+2. /pay-dashboard - Transaction Analytics  
+3. /home - Sales Invoice Dashboard
+4. /scanner - Document Scanner
+5. /uploadsales - Bulk Sales Import
+6. /qrpay-admin - Transaction Manager
+7. /uploadreco - Upload Reconciliation
+8. /dailyrecoentry - Daily Reco Entry
+9. /testlogin - Test Login
+
+BUILD COMMAND:
+--------------
+From frappe-bench directory:
+  bench build --app custom_erp
+
+Or from app directory:
+  cd apps/custom_erp && yarn build
+
+TESTING:
+--------
+URL: http://development.localhost:8000/{appname}
+Login: Administrator / admin
+
+Examples:
+- http://development.localhost:8000/qrpay
+- http://development.localhost:8000/pay-dashboard
+- http://development.localhost:8000/home
+
+HOW IT WORKS:
+-------------
+1. Each app builds separately with vite-single-app.config.js
+2. Assets output to: custom_erp/public/frontend/{appName}/
+3. HTML copied to: custom_erp/www/{appName}.html
+4. Base path: /assets/custom_erp/frontend/{appName}/
+
+BUILD TIME:
+-----------
+~20-30 seconds per app = ~3-4 minutes total for all 9 apps
+
+FILES:
+------
+- build-apps.js - Individual app build orchestrator
+- vite-single-app.config.js - Single app Vite config
+- package.json - Build script configuration
+
+============================================

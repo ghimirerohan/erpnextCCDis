@@ -27,44 +27,4 @@
     </div>
 </div>
 
-<script>
-frappe.call({
-    method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.get_fixed_valuation_rate_status',
-    callback: function(r) {
-        if (r.message && r.message.enabled) {
-            document.getElementById('enable_fixed_valuation_rate').checked = true;
-        } else {
-            document.getElementById('enable_fixed_valuation_rate').checked = false;
-        }
-    }
-});
-
-function saveSettings() {
-    const enabled = document.getElementById('enable_fixed_valuation_rate').checked;
-    
-    if (enabled) {
-        frappe.call({
-            method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.enable_fixed_valuation_rate',
-            callback: function(r) {
-                if (r.message && r.message.success) {
-                    frappe.msgprint('Fixed Valuation Rate feature enabled successfully!');
-                } else {
-                    frappe.msgprint('Error enabling feature: ' + (r.message ? r.message.message : 'Unknown error'));
-                }
-            }
-        });
-    } else {
-        frappe.call({
-            method: 'custom_erp.custom_erp.stock_valuation.stock_ledger_override.disable_fixed_valuation_rate',
-            callback: function(r) {
-                if (r.message && r.message.success) {
-                    frappe.msgprint('Fixed Valuation Rate feature disabled successfully!');
-                } else {
-                    frappe.msgprint('Error disabling feature: ' + (r.message ? r.message.message : 'Unknown error'));
-                }
-            }
-        });
-    }
-}
-</script>
 {% endblock %}

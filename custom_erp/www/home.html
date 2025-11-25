@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/home/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Sales Invoice Dashboard - Invoice Management</title>
+    <meta name="description" content="Sales invoice dashboard for viewing and managing customer invoices" />
+    <meta name="application-name" content="Invoice Dashboard" />
+    <meta name="theme-color" content="#3b82f6" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/assets/custom_erp/frontend/home/manifest-home.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/home/assets/home-B9vMfMgL.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/home/assets/vendor-gxi5vya3.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/home/assets/ui-BvdYSQR1.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/home/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/home/assets/index-Dt1KpOb0.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

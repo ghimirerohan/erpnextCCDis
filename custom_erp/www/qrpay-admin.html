@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/qrpay-admin/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>QRPay Admin - Payment Transaction Manager</title>
+    <meta name="description" content="Manage and process unprocessed Fonepay payment transactions" />
+    <meta name="application-name" content="QRPay Admin" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/assets/custom_erp/frontend/qrpay-admin/manifest-qrpay-admin.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/qrpay-admin/assets/qrpay-admin-C4zBmKkI.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/qrpay-admin/assets/vendor-430UWDKT.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/qrpay-admin/assets/ui-Bi1ZX7C2.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/qrpay-admin/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/qrpay-admin/assets/index-DMD3W57t.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

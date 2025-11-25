@@ -74,7 +74,7 @@ fixtures = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-doctype_js = {"Purchase Invoice": "public/js/invoice_scanner.js"}
+
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -215,7 +215,17 @@ whitelisted_methods = [
         "custom_erp.custom_erp.api.uploadsales.test_api",
         "custom_erp.custom_erp.api.uploadsales.test_api_v2",
         "custom_erp.custom_erp.api.uploadsales.debug_import_status",
-        "custom_erp.custom_erp.api.uploadsales.download_error_csv"
+        "custom_erp.custom_erp.api.uploadsales.download_error_csv",
+	# ADDED BY AI: DAILY_PAYMENT_RECO - Payment Reconciliation API methods
+	"custom_erp.custom_erp.api.payment_reco.parse_and_validate_csv",
+	"custom_erp.custom_erp.api.payment_reco.get_drivers_list",
+	"custom_erp.custom_erp.api.payment_reco.create_payment_recos",
+	"custom_erp.custom_erp.api.payment_reco.get_all_active_recos",
+	"custom_erp.custom_erp.api.payment_reco.get_driver_reco_data",
+	"custom_erp.custom_erp.api.payment_reco.update_payment_entry",
+	"custom_erp.custom_erp.api.payment_reco.generate_qr_no_payment_entry",
+	"custom_erp.custom_erp.api.payment_reco.compress_and_attach_image",
+	"custom_erp.custom_erp.api.payment_reco.create_cheque_taageta"
 ]
 
 # --- Print Format Type ---
@@ -290,6 +300,7 @@ doc_events = {
 
 # Request Events
 # ----------------
+# Temporarily disabled to debug
 # before_request = ["custom_erp.utils.before_request"]
 # after_request = ["custom_erp.utils.after_request"]
 
@@ -298,32 +309,23 @@ doc_events = {
 
 # Include Nepali Date Picker library and custom date controls
 app_include_js = [
-    "/assets/custom_erp/lib/sajan.nepaliFunctions.min.js",
-    "/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js",
-    "/assets/custom_erp/js/nepali_date_adapter.js?v=5",
-    "/assets/custom_erp/js/nepali_date_patch.js?v=5",
     "/assets/custom_erp/js/invoice_scanner.js"
 ]
 
-app_include_css = [
-    "/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.css",
-    "/assets/custom_erp/css/nepali_date_overrides.css"
-]
-
-# Include in web forms as well for portal/website date inputs
-web_include_js = app_include_js
-web_include_css = app_include_css
+app_include_css = []
 
 # Boot session hook to add Nepali calendar setting to frappe.boot
-boot_session = "custom_erp.boot.get_boot_settings"
+# boot_session = "custom_erp.boot.get_boot_settings"
 
 # Ensure our monkey patches are applied at session start and after migration
 on_session_creation = [
-	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides"
+	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides",
+	# "custom_erp.patches.website_auth_override.override_website_auth"  # Disabled - render_page doesn't exist
 ]
 
 after_migrate = [
-	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides"
+	"custom_erp.custom_erp.stock_valuation.stock_ledger_override.force_apply_overrides",
+	# "custom_erp.patches.website_auth_override.override_website_auth"  # Disabled - render_page doesn't exist
 ]
 
 # Job Events
@@ -379,10 +381,25 @@ override_doctype_class = {
 	"Repost Item Valuation": "custom_erp.custom_erp.stock_reconciliation.repost_item_valuation_override.RepostItemValuationOverride"
 }
 
-# Route Vue SPA under /jsapp and nested paths to the same page
+# Route each app at root level
 website_route_rules = [
-    # {"from_route": "/jsapp/qrpay", "to_route": "qrpay"},
-    # {"from_route": "/jsapp/qrpay-admin", "to_route": "qrpay-admin"},
-    {"from_route": "/jsapp/<path:app_path>", "to_route": "jsapp"},
+    {"from_route": "/qrpay", "to_route": "qrpay"},
+    {"from_route": "/qrpay/login", "to_route": "qrpay"},
+    {"from_route": "/qrpay-admin", "to_route": "qrpay-admin"},
+    {"from_route": "/qrpay-admin/login", "to_route": "qrpay-admin"},
+    {"from_route": "/scanner", "to_route": "scanner"},
+    {"from_route": "/scanner/login", "to_route": "scanner"},
+    {"from_route": "/pay-dashboard", "to_route": "pay-dashboard"},
+    {"from_route": "/pay-dashboard/login", "to_route": "pay-dashboard"},
+    {"from_route": "/uploadsales", "to_route": "uploadsales"},
+    {"from_route": "/uploadsales/login", "to_route": "uploadsales"},
+    {"from_route": "/uploadreco", "to_route": "uploadreco"},
+    {"from_route": "/uploadreco/login", "to_route": "uploadreco"},
+    {"from_route": "/dailyrecoentry", "to_route": "dailyrecoentry"},
+    {"from_route": "/dailyrecoentry/login", "to_route": "dailyrecoentry"},
+    {"from_route": "/home", "to_route": "home"},
+    {"from_route": "/home/login", "to_route": "home"},
+    {"from_route": "/testlogin", "to_route": "testlogin"},
+    {"from_route": "/testlogin/login", "to_route": "testlogin"},
 ]
 

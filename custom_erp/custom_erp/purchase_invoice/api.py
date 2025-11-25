@@ -422,7 +422,7 @@ def extract_invoice(image_data: Optional[str] = None, file_url: Optional[str] = 
         return {"success": False, "error": "Provide image_data or file_url"}
 
     # Build prompt and call Gemini (v1beta generateContent)
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     params = {"key": api_key}
     system_prompt = (
         "You will receive an image of a supplier invoice (often Purchase Invoice). "

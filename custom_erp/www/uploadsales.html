@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/uploadsales/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Upload Sales - Bulk Sales Data Import</title>
+    <meta name="description" content="Bulk import sales invoices from CSV files with driver and vehicle assignment" />
+    <meta name="application-name" content="Upload Sales" />
+    <meta name="theme-color" content="#059669" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/assets/custom_erp/frontend/uploadsales/manifest-uploadsales.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/uploadsales/assets/uploadsales-BNYyXOzS.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/uploadsales/assets/vendor-gxi5vya3.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/uploadsales/assets/ui-tX_uZZi_.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/uploadsales/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/uploadsales/assets/index-BZYKWNUC.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

@@ -1,0 +1,121 @@
+{
+  "doctype": "DocType",
+  "name": "Daily Sales Payment Reco",
+  "module": "Custom Erp",
+  "custom": 1,
+  "is_single": 0,
+  "editable_grid": 0,
+  "track_changes": 1,
+  "track_seen": 1,
+  "engine": "InnoDB",
+  "fields": [
+    {
+      "fieldname": "driver",
+      "label": "Driver",
+      "fieldtype": "Link",
+      "options": "Driver"
+    },
+    {
+      "fieldname": "loadsheet_number",
+      "label": "Loadsheet Number",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "initial_total_amount",
+      "label": "Initial Total Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "additional_amount",
+      "label": "Additional Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "net_total_amount",
+      "label": "Net Total Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "return_amount",
+      "label": "Return Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "qr_amount",
+      "label": "QR Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "cheque_amount",
+      "label": "Cheque Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "cash_amount",
+      "label": "Cash Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "credit_amount",
+      "label": "Credit Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "expense_amount",
+      "label": "Expense Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "remaining_amount",
+      "label": "Remaining Amount",
+      "fieldtype": "Currency"
+    },
+    {
+      "fieldname": "settled",
+      "label": "Settled",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "settled_at",
+      "label": "Settled At",
+      "fieldtype": "Datetime"
+    },
+    {
+      "fieldname": "daily_sales_payment_reco_line",
+      "label": "Daily Sales Payment Reco Line",
+      "fieldtype": "Table",
+      "options": "Daily Sales Payment Reco Line",
+      "reqd": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "create": 1,
+      "write": 1,
+      "delete": 1
+    },
+    {
+      "role": "Accounts User",
+      "read": 1,
+      "create": 1,
+      "write": 1
+    },
+    {
+      "role": "Accounts Manager",
+      "read": 1,
+      "create": 1,
+      "write": 1,
+      "delete": 1
+    }
+  ],
+  "indexes": [
+    ["driver"],
+    ["loadsheet_number"],
+    ["settled"],
+    ["settled_at"]
+  ]
+}
+

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/pay-dashboard/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Payment Dashboard - Transaction Analytics</title>
+    <meta name="description" content="View analytics and statistics for Fonepay QR payment transactions" />
+    <meta name="application-name" content="Payment Dashboard" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/assets/custom_erp/frontend/pay-dashboard/manifest-pay-dashboard.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/pay-dashboard/assets/pay-dashboard-DoXtclrN.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/pay-dashboard/assets/vendor-gxi5vya3.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/pay-dashboard/assets/ui-9BDlw6dq.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/pay-dashboard/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/pay-dashboard/assets/index-Bg8rkaYY.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/testlogin/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Test Login - User Display App</title>
+    <meta name="description" content="Test app to display logged in user's full name" />
+    <meta name="application-name" content="Test Login" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest-testlogin.json" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/testlogin/assets/testlogin-gjl306a7.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/testlogin/assets/vendor-gxi5vya3.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/testlogin/assets/ui-D9wD1NbC.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/testlogin/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/testlogin/assets/index-D9t0zVs8.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // Store app name for future use (root-level paths)
+      (function() {
+        const currentPath = window.location.pathname;
+        const match = currentPath.match(/^\/([^\/]+)/);
+        if (match) {
+          const appName = match[1];
+          // Store app name for future use
+          sessionStorage.setItem('lastApp', appName);
+          localStorage.setItem('lastApp', appName);
+        }
+      })();
+    </script>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>
+

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Daily Reco Entry - Payment Reconciliation</title>
+    <meta name="description" content="Daily payment reconciliation entry and management for drivers" />
+    <meta name="application-name" content="Daily Reco Entry" />
+    <meta name="theme-color" content="#059669" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest-dailyrecoentry.json" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // Store app name for future use (root-level paths)
+      (function() {
+        const currentPath = window.location.pathname;
+        const match = currentPath.match(/^\/([^\/]+)/);
+        if (match) {
+          const appName = match[1];
+          // Store app name for future use
+          sessionStorage.setItem('lastApp', appName);
+          localStorage.setItem('lastApp', appName);
+        }
+      })();
+    </script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
