@@ -1,24 +1,24 @@
 {
-  "id": "/jsapp/scanner",
+  "id": "/scanner/",
   "name": "Scanner",
   "short_name": "Scanner",
-  "description": "QR Code and Barcode Scanner",
-  "start_url": "/jsapp/scanner/",
-  "scope": "/jsapp/scanner/",
+  "description": "Invoice and Document Scanner",
+  "start_url": "/scanner/",
+  "scope": "/scanner/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#7c3aed",
   "icons": [
     {
-      "src": "/scanner-icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "/assets/custom_erp/icons/scanner/icon-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/scanner-icons/icon-512.png",
-      "sizes": "512x512",
+      "src": "/assets/custom_erp/icons/scanner/icon-512x512.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     }
@@ -26,4 +26,3 @@
   "categories": ["business", "utilities"],
   "prefer_related_applications": false
 }
-

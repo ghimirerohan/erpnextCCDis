@@ -17,24 +17,6 @@ def override_app_auth():
 		path = frappe.local.request.path
 		app_names = ['qrpay', 'qrpay-admin', 'scanner', 'pay-dashboard', 'uploadsales', 'uploadreco', 'dailyrecoentry', 'home', 'testlogin']
 		
-		# CRITICAL: Block ALL /jsapp/ routes first
-		if path and path.startswith('/jsapp/'):
-			jsapp_parts = path.replace('/jsapp/', '').strip('/').split('/')
-			if jsapp_parts and jsapp_parts[0] in app_names:
-				app_name = jsapp_parts[0]
-				rest_path = '/' + '/'.join(jsapp_parts[1:]) if len(jsapp_parts) > 1 else ''
-				new_path = f'/{app_name}{rest_path}'
-				frappe.logger().info(f"[custom_erp] app_auth_override: Blocking /jsapp/ route, redirecting {path} to {new_path}")
-				frappe.local.response["type"] = "redirect"
-				frappe.local.response["location"] = new_path
-				frappe.local.response["http_status_code"] = 301
-				raise frappe.Redirect(new_path)
-			elif path == '/jsapp' or path == '/jsapp/':
-				frappe.local.response["type"] = "redirect"
-				frappe.local.response["location"] = '/home/'
-				frappe.local.response["http_status_code"] = 301
-				raise frappe.Redirect('/home/')
-		
 		# Check if this is one of our app paths
 		path_parts = [p for p in path.strip('/').split('/') if p]
 		
@@ -59,11 +41,10 @@ def override_app_auth():
 				frappe.local.response["type"] = "redirect"
 				frappe.local.response["location"] = app_login_path
 				frappe.local.response["http_status_code"] = 302
-				raise frappe.Redirect(app_login_path)
+				raise frappe.Redirect(302)
 		
 		# For all other paths, use original behavior
 		return original_get_context(context)
 	
 	# Replace the function
 	app_module.get_context = custom_get_context
-

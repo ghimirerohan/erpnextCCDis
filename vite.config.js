@@ -95,51 +95,8 @@ export default defineConfig({
 		{
 			name: 'multi-app-dev',
 			configureServer(server) {
-				// CRITICAL: Redirect /jsapp/ routes to root-level paths FIRST
 				server.middlewares.use((req, res, next) => {
 					const url = req.url || '/'
-					
-					// Block ALL /jsapp/ routes - redirect to root-level equivalent
-					const urlPath = url.split('?')[0] // Remove query string for matching
-					if (urlPath === '/jsapp' || urlPath === '/jsapp/' || url.startsWith('/jsapp/')) {
-						if (urlPath === '/jsapp' || urlPath === '/jsapp/') {
-							// Redirect /jsapp to /home
-							console.log(`[Vite] Redirecting /jsapp to /home/`)
-							res.writeHead(301, { 'Location': '/home/' })
-							res.end()
-							return
-						} else if (urlPath === '/jsapp/account/login' || urlPath.startsWith('/jsapp/account/login')) {
-							// Handle /jsapp/account/login - redirect to app-specific login based on referrer or default to home
-							const referer = req.headers.referer || ''
-							let appName = 'home'
-							
-							// Try to extract app name from referrer
-							if (referer) {
-								const refMatch = referer.match(/\/\/([^\/]+)\/([^\/]+)/)
-								if (refMatch && refMatch[2] && apps.includes(refMatch[2])) {
-									appName = refMatch[2]
-								}
-							}
-							
-							console.log(`[Vite] Redirecting /jsapp/account/login to /${appName}/login`)
-							res.writeHead(301, { 'Location': `/${appName}/login` })
-							res.end()
-							return
-						} else {
-							// Handle /jsapp/{app}/... paths
-							const jsappParts = url.replace('/jsapp/', '').split('?')[0].split('/').filter(Boolean)
-							if (jsappParts.length > 0 && apps.includes(jsappParts[0])) {
-								const appName = jsappParts[0]
-								const rest = jsappParts.slice(1).join('/')
-								const query = url.includes('?') ? url.split('?')[1] : ''
-								const newPath = `/${appName}${rest ? '/' + rest : ''}${query ? '?' + query : ''}`
-								console.log(`[Vite] Redirecting /jsapp/ route: ${url} -> ${newPath}`)
-								res.writeHead(301, { 'Location': newPath })
-								res.end()
-								return
-							}
-						}
-					}
 					
 					// Check if this is a request for one of our app paths
 					const pathMatch = url.match(/^\/([^\/\?]+)/)

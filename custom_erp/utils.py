@@ -10,26 +10,6 @@ def before_request():
 		# List of known app names
 		app_names = ['qrpay', 'qrpay-admin', 'scanner', 'pay-dashboard', 'uploadsales', 'uploadreco', 'dailyrecoentry', 'home', 'testlogin']
 		
-		# CRITICAL: Block ALL /jsapp/ routes - redirect to root-level equivalent
-		if path and path.startswith('/jsapp/'):
-			# Extract the app name from /jsapp/{app}/...
-			jsapp_parts = path.replace('/jsapp/', '').strip('/').split('/')
-			if jsapp_parts and jsapp_parts[0] in app_names:
-				app_name = jsapp_parts[0]
-				# Reconstruct path without /jsapp/
-				rest_path = '/' + '/'.join(jsapp_parts[1:]) if len(jsapp_parts) > 1 else ''
-				new_path = f'/{app_name}{rest_path}'
-			frappe.logger().info(f"[custom_erp] before_request: Blocking /jsapp/ route, redirecting {path} to {new_path}")
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = new_path
-			raise frappe.Redirect(301)
-			elif path == '/jsapp' or path == '/jsapp/':
-			# Redirect /jsapp to /home
-			frappe.logger().info(f"[custom_erp] before_request: Blocking /jsapp/, redirecting to /home/")
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = '/home/'
-			raise frappe.Redirect(301)
-		
 		# Intercept /account/login redirects - convert to app-specific login
 		if path and '/account/login' in path:
 			# Try to get app name from referrer
@@ -38,7 +18,10 @@ def before_request():
 			
 			# Check referrer for app name (root-level paths)
 			if referrer:
-				ref_parts = [p for p in referrer.strip('/').split('/') if p]
+				# Extract path from referrer URL
+				from urllib.parse import urlparse
+				ref_path = urlparse(referrer).path
+				ref_parts = [p for p in ref_path.strip('/').split('/') if p]
 				if ref_parts and ref_parts[0] in app_names:
 					app_name = ref_parts[0]
 			
@@ -48,11 +31,11 @@ def before_request():
 				if app_cookie and app_cookie in app_names:
 					app_name = app_cookie
 			
-		app_login_path = f'/{app_name}/login'
-		frappe.logger().info(f"[custom_erp] before_request: Redirecting from {path} to {app_login_path}")
-		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = app_login_path
-		raise frappe.Redirect(302)
+			app_login_path = f'/{app_name}/login'
+			frappe.logger().info(f"[custom_erp] before_request: Redirecting from {path} to {app_login_path}")
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = app_login_path
+			raise frappe.Redirect(302)
 		
 		# Extract app name from root-level path
 		path_parts = [p for p in path.strip('/').split('/') if p]
@@ -63,11 +46,11 @@ def before_request():
 		
 		app_name = path_parts[0]
 		
-	# Handle trailing slash - redirect /appname to /appname/
-	if path == f'/{app_name}':
-		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = f'/{app_name}/'
-		raise frappe.Redirect(302)
+		# Handle trailing slash - redirect /appname to /appname/
+		if path == f'/{app_name}':
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = f'/{app_name}/'
+			raise frappe.Redirect(302)
 		
 		# CRITICAL: If on login page, allow access and prevent any redirects
 		normalized_path = path.rstrip('/') if path != '/' else path
@@ -84,12 +67,13 @@ def before_request():
 			# Store app name in cookie before redirecting
 			frappe.local.response.set_cookie('last_app', app_name, max_age=3600, path='/')
 			
-		# Redirect to this app's login page
-		app_login_path = f'/{app_name}/login'
-		frappe.logger().info(f"[custom_erp] before_request: Redirecting Guest from {path} to: {app_login_path}")
-		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = app_login_path
-		raise frappe.Redirect(302)
+			# Redirect to this app's login page
+			app_login_path = f'/{app_name}/login'
+			frappe.logger().info(f"[custom_erp] before_request: Redirecting Guest from {path} to: {app_login_path}")
+			frappe.local.response["type"] = "redirect"
+			frappe.local.response["location"] = app_login_path
+			raise frappe.Redirect(302)
+			
 	except frappe.Redirect:
 		# Re-raise redirects
 		raise

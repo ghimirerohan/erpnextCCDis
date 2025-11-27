@@ -40,18 +40,14 @@ setAuthErrorCallback(() => {
 
 setNavigationCallbacks({
   onLoginSuccess: (defaultRoute) => {
-    // CRITICAL: Ignore any /jsapp/ paths from server - always use app's own routes
+    // Use intended route if available, otherwise go to app root
     let targetRoute = intendedRoute || "/"
     
-    // If defaultRoute is provided and it's NOT a /jsapp/ path and it's within our app scope
-    if (defaultRoute && !defaultRoute.includes('/jsapp/') && defaultRoute.startsWith('/qrpay')) {
+    // If defaultRoute is provided and it's within our app scope
+    if (defaultRoute && defaultRoute.startsWith('/qrpay')) {
       // Extract relative path from /qrpay/...
       targetRoute = defaultRoute.replace('/qrpay', '') || "/"
-    } else if (defaultRoute && !defaultRoute.includes('/jsapp/') && defaultRoute === '/') {
-      // Server gave us root, use app root
-      targetRoute = "/"
     }
-    // Otherwise ignore defaultRoute if it contains /jsapp/ or is outside our scope
     
     intendedRoute = null
     router.replace(targetRoute)

@@ -63,23 +63,24 @@ def verify_frontend_build():
     try:
         app_dir = Path(__file__).parent.parent
         frontend_build_dir = app_dir / "custom_erp" / "public" / "frontend"
-        jsapp_dir = frontend_build_dir / "jsapp" if frontend_build_dir.exists() else None
         
         if not frontend_build_dir.exists():
             print("⚠️  WARNING: Frontend build directory not found.")
             return False
         
-        # Check for key files
-        index_html = frontend_build_dir / "index.html"
-        if not index_html.exists():
-            print("⚠️  WARNING: Frontend index.html not found.")
-            return False
+        # Check for app directories (qrpay, pay-dashboard, etc.)
+        app_names = ['qrpay', 'pay-dashboard', 'home', 'scanner', 'uploadsales', 'uploadreco', 'dailyrecoentry', 'qrpay-admin', 'testlogin']
+        found_apps = []
+        for app_name in app_names:
+            app_path = frontend_build_dir / app_name
+            if app_path.exists():
+                found_apps.append(app_name)
         
-        # Check for jsapp structure
-        if jsapp_dir and jsapp_dir.exists():
-            print(f"✅ Frontend build verified: {len(list(jsapp_dir.iterdir()))} sub-apps found.")
+        if found_apps:
+            print(f"✅ Frontend build verified: {len(found_apps)} apps found ({', '.join(found_apps)})")
         else:
-            print("⚠️  WARNING: jsapp directory structure not found.")
+            print("⚠️  WARNING: No app directories found in frontend build.")
+            return False
         
         return True
         
@@ -90,7 +91,7 @@ def verify_frontend_build():
 
 def after_install():
     """
-    Build frontend after custom_erp installation to make /jsapp accessible immediately.
+    Build frontend after custom_erp installation to make apps accessible immediately.
     Enhanced with dependency checks, error handling, and verification.
     """
     print("\n" + "="*60)
@@ -205,6 +206,6 @@ def after_install():
     print(f"Frontend Build: {'✅ Success' if frontend_verified else '⚠️  Issues detected'}")
     print(f"Custom Fields: {'✅ Success' if fields_verified else '⚠️  Issues detected'}")
     print()
-    print("The /jsapp route should now be accessible at your site.")
+    print("The Vue apps should now be accessible at your site (e.g., /qrpay, /pay-dashboard).")
     print("Frontend apps (qrpay, uploadsales, etc.) are available as standalone PWAs.")
     print("="*60 + "\n")

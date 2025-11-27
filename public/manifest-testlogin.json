@@ -1,28 +1,28 @@
 {
-  "id": "/qrpay/",
-  "name": "QRPay",
-  "short_name": "QRPay",
-  "description": "Dynamic Fonepay QR Code Generator",
-  "start_url": "/qrpay/",
-  "scope": "/qrpay/",
+  "id": "/testlogin/",
+  "name": "Test Login",
+  "short_name": "Test Login",
+  "description": "Test app to display logged in user's full name",
+  "start_url": "/testlogin/",
+  "scope": "/testlogin/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
   "icons": [
     {
-      "src": "/assets/custom_erp/icons/qrpay/icon-512x512.png",
+      "src": "/assets/custom_erp/icons/testlogin/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/custom_erp/icons/qrpay/icon-512x512.png",
+      "src": "/assets/custom_erp/icons/testlogin/icon-512x512.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "finance"],
+  "categories": ["utilities"],
   "prefer_related_applications": false
 }

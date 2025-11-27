@@ -21,7 +21,8 @@ export async function registerScopedSW() {
   const swFilename = `sw-${app}.js`;
   // Service worker scope and URL for root-level apps
   const scope = `/${app}/`;
-  const swUrl = `/${app}/${swFilename}`;
+  // Service worker is stored in the assets directory
+  const swUrl = `/assets/custom_erp/frontend/${app}/${swFilename}`;
 
   console.log(`🔧 Registering SW for app: ${app}, scope: ${scope}`);
 

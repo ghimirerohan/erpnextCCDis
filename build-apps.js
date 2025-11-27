@@ -23,11 +23,34 @@ const apps = [
 
 const publicFrontendDir = path.resolve(__dirname, 'custom_erp/public/frontend');
 const wwwDir = path.resolve(__dirname, 'custom_erp/www');
+const publicDir = path.resolve(__dirname, 'public');
 
 console.log('🚀 Building all apps individually...\n');
 
 // Clean output directory
 await fs.emptyDir(publicFrontendDir);
+
+// Copy shared assets first (icons, favicon, etc.)
+const iconsDir = path.join(publicDir, 'icons');
+const destIconsDir = path.join(publicFrontendDir, 'icons');
+if (fs.existsSync(iconsDir)) {
+    await fs.copy(iconsDir, destIconsDir);
+    console.log('✅ Copied icons directory');
+}
+
+// Copy favicon
+const faviconSrc = path.join(publicDir, 'favicon.png');
+if (fs.existsSync(faviconSrc)) {
+    await fs.copy(faviconSrc, path.join(publicFrontendDir, 'favicon.png'));
+    console.log('✅ Copied favicon.png');
+}
+
+// Copy apple-touch-icon
+const appleTouchSrc = path.join(publicDir, 'apple-touch-icon.png');
+if (fs.existsSync(appleTouchSrc)) {
+    await fs.copy(appleTouchSrc, path.join(publicFrontendDir, 'apple-touch-icon.png'));
+    console.log('✅ Copied apple-touch-icon.png');
+}
 
 // Build each app with its own base path
 for (const appName of apps) {
@@ -70,15 +93,63 @@ for (const appName of apps) {
             
             // Copy manifest to app directory if exists
             const manifestName = `manifest-${appName}.json`;
-            const manifestSrc = path.join(__dirname, 'public', manifestName);
+            const manifestSrc = path.join(publicDir, manifestName);
             const manifestDest = path.join(publicFrontendDir, appName, manifestName);
             if (fs.existsSync(manifestSrc)) {
                 await fs.copy(manifestSrc, manifestDest);
                 console.log(`   ✅ Copied ${manifestName}`);
             }
             
-            // Fix manifest path in HTML (make it relative to base)
-            content = content.replace(`href="${basePath}manifest-${appName}.json"`, `href="${basePath}manifest-${appName}.json"`);
+            // Update manifest path in HTML to point to the app's own manifest
+            content = content.replace(
+                /href="[^"]*manifest[^"]*\.json"/g,
+                `href="${basePath}manifest-${appName}.json"`
+            );
+            
+            // Also fix the link tag for manifest
+            if (!content.includes(`${basePath}manifest-${appName}.json`)) {
+                content = content.replace(
+                    '</head>',
+                    `    <link rel="manifest" href="${basePath}manifest-${appName}.json" />\n  </head>`
+                );
+            }
+            
+            // Create a simple service worker for this app
+            const swContent = `
+// Service Worker for ${appName}
+const CACHE_NAME = '${appName}-v1';
+const APP_SCOPE = '/${appName}/';
+
+// Install event
+self.addEventListener('install', (event) => {
+  console.log('[SW ${appName}] Installing...');
+  self.skipWaiting();
+});
+
+// Activate event
+self.addEventListener('activate', (event) => {
+  console.log('[SW ${appName}] Activating...');
+  event.waitUntil(clients.claim());
+});
+
+// Fetch event - network first, then cache
+self.addEventListener('fetch', (event) => {
+  // Only handle requests for this app's scope
+  if (!event.request.url.includes(APP_SCOPE) && 
+      !event.request.url.includes('/api/') && 
+      !event.request.url.includes('/assets/')) {
+    return;
+  }
+  
+  event.respondWith(
+    fetch(event.request)
+      .catch(() => caches.match(event.request))
+  );
+});
+`;
+            const swPath = path.join(publicFrontendDir, appName, `sw-${appName}.js`);
+            await fs.writeFile(swPath, swContent);
+            console.log(`   ✅ Created sw-${appName}.js`);
             
             // Write to www directory
             await fs.writeFile(wwwHtmlPath, content);
@@ -92,4 +163,3 @@ for (const appName of apps) {
 }
 
 console.log('\n✨ All apps built successfully!\n');
-
