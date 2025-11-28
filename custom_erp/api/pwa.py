@@ -4,12 +4,14 @@ with proper headers for Android Chrome PWA installation
 """
 import frappe
 import os
-import json
+
 
 @frappe.whitelist(allow_guest=True)
 def get_service_worker(app_name):
     """
-    Serve service worker for a specific app with correct headers
+    Serve service worker for a specific app with correct headers.
+    Critical for Android Chrome PWA installation - the SW needs
+    Service-Worker-Allowed header to control a broader scope.
     
     Args:
         app_name: Name of the app (e.g., 'qrpay', 'pay-dashboard')
@@ -32,19 +34,23 @@ def get_service_worker(app_name):
     with open(sw_path, 'r') as f:
         sw_content = f.read()
     
-    # Set response headers
-    frappe.local.response['type'] = 'text/javascript'
-    frappe.local.response.headers['Service-Worker-Allowed'] = f'/{app_name}/'
-    frappe.local.response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    frappe.local.response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+    # Set headers first using response_headers dict
+    frappe.local.response_headers['Content-Type'] = 'application/javascript; charset=utf-8'
+    frappe.local.response_headers['Service-Worker-Allowed'] = f'/{app_name}/'
+    frappe.local.response_headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     
-    return sw_content
+    # Set response type and content for download/raw response
+    frappe.response['filename'] = 'sw.js'
+    frappe.response['filecontent'] = sw_content.encode('utf-8')
+    frappe.response['content_type'] = 'application/javascript; charset=utf-8'
+    frappe.response['type'] = 'download'
+    frappe.response['display_content_as'] = 'inline'
 
 
 @frappe.whitelist(allow_guest=True)
 def get_manifest(app_name):
     """
-    Serve manifest for a specific app
+    Serve manifest for a specific app with proper Content-Type.
     
     Args:
         app_name: Name of the app (e.g., 'qrpay', 'pay-dashboard')
@@ -67,10 +73,13 @@ def get_manifest(app_name):
     with open(manifest_path, 'r') as f:
         manifest_content = f.read()
     
-    # Set response headers
-    frappe.local.response['type'] = 'application/json'
-    frappe.local.response.headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
-    frappe.local.response.headers['Cache-Control'] = 'no-cache'
+    # Set headers first using response_headers dict
+    frappe.local.response_headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
+    frappe.local.response_headers['Cache-Control'] = 'no-cache'
     
-    return json.loads(manifest_content)
-
+    # Set response type and content for download/raw response
+    frappe.response['filename'] = 'manifest.json'
+    frappe.response['filecontent'] = manifest_content.encode('utf-8')
+    frappe.response['content_type'] = 'application/manifest+json; charset=utf-8'
+    frappe.response['type'] = 'download'
+    frappe.response['display_content_as'] = 'inline'

@@ -300,8 +300,8 @@ doc_events = {
 
 # Request Events
 # ----------------
-# ENABLED: Required for PWA service worker and manifest serving with proper headers
-before_request = ["custom_erp.utils.before_request"]
+# DISABLED: Causing redirect errors - apps work via website_route_rules
+# before_request = ["custom_erp.utils.before_request"]
 # after_request = ["custom_erp.utils.after_request"]
 
 # API Endpoints
@@ -382,7 +382,7 @@ override_doctype_class = {
 }
 
 # Route each app at root level
-# PWA routes: sw.js and manifest.json are served via before_request hook
+# PWA routes: sw.js and manifest.json are served via API endpoints (custom_erp.custom_erp.api.pwa)
 website_route_rules = [
     # QRPay
     {"from_route": "/qrpay", "to_route": "qrpay"},

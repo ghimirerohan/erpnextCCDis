@@ -1,5 +1,5 @@
 // Service Worker Registration for Android Chrome PWA
-// Critical: SW must be served from the same scope or higher
+// Critical: SW must be served with Service-Worker-Allowed header
 
 export async function registerScopedSW() {
     if (!('serviceWorker' in navigator)) {
@@ -11,9 +11,9 @@ export async function registerScopedSW() {
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const appName = pathParts[0] || 'home';
     
-    // Service worker URL - served from app's root via Frappe route
-    // This ensures the SW can control the entire app scope
-    const swUrl = `/${appName}/sw.js`;
+    // Service worker URL - served via Frappe API with proper headers
+    // The API sets Service-Worker-Allowed header to allow controlling the app scope
+    const swUrl = `/api/method/custom_erp.custom_erp.api.pwa.get_service_worker?app_name=${appName}`;
     const scope = `/${appName}/`;
 
     console.log(`🔧 PWA Setup for: ${appName}`);

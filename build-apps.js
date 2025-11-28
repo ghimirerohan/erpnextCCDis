@@ -197,17 +197,18 @@ for (const appName of apps) {
             await fs.writeJson(manifestPath, manifest, { spaces: 2 });
             console.log(`   ✅ Created manifest.json for ${appName}`);
             
-            // Update manifest path in HTML - use simple manifest.json in same directory
+            // Update manifest path in HTML - use API endpoint for proper Content-Type
+            const manifestApiUrl = `/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=${appName}`;
             content = content.replace(
                 /<link[^>]*rel="manifest"[^>]*>/gi,
-                `<link rel="manifest" href="/${appName}/manifest.json" />`
+                `<link rel="manifest" href="${manifestApiUrl}" />`
             );
             
             // If no manifest link exists, add one
             if (!content.includes('rel="manifest"')) {
                 content = content.replace(
                     '</head>',
-                    `    <link rel="manifest" href="/${appName}/manifest.json" />\n  </head>`
+                    `    <link rel="manifest" href="${manifestApiUrl}" />\n  </head>`
                 );
             }
             

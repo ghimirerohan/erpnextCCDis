@@ -24,48 +24,43 @@ def before_request():
 		
 		app_name = path_parts[0]
 		
-		# Handle PWA files: sw.js and manifest.json
-		# These MUST be served from the app's root path for Android Chrome PWA to work
+		# Handle PWA files: sw.js and manifest.json - redirect to assets path
+		# This allows proper caching and serving with correct headers via nginx/frappe
 		if len(path_parts) >= 2:
 			filename = path_parts[1]
 			
-			# Serve service worker with proper headers
+			# Redirect sw.js to assets path
 			if filename == 'sw.js':
-				serve_service_worker(app_name)
-				return
+				frappe.redirect_to_message(
+					'Redirecting...',
+					f'/assets/custom_erp/frontend/{app_name}/sw.js'
+				)
+				frappe.local.flags.redirect_location = f'/assets/custom_erp/frontend/{app_name}/sw.js'
+				raise frappe.Redirect
 			
-			# Serve manifest.json
+			# Redirect manifest.json to assets path
 			if filename == 'manifest.json':
-				serve_manifest(app_name)
-				return
+				frappe.local.flags.redirect_location = f'/assets/custom_erp/frontend/{app_name}/manifest.json'
+				raise frappe.Redirect
 		
 		# Handle trailing slash - redirect /appname to /appname/
 		if path == f'/{app_name}':
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = f'/{app_name}/'
-			raise frappe.Redirect(302)
+			frappe.local.flags.redirect_location = f'/{app_name}/'
+			raise frappe.Redirect
 		
 		# CRITICAL: If on login page, allow access and prevent any redirects
 		normalized_path = path.rstrip('/') if path != '/' else path
 		if normalized_path.endswith('/login'):
-			# Store app name in cookie for future redirects
-			frappe.local.response.set_cookie('last_app', app_name, max_age=3600, path='/')
-			# Don't redirect - allow the login page to load
 			return
 		
 		# Check if user is Guest (not authenticated)
 		user = frappe.session.user
 		
 		if user == 'Guest':
-			# Store app name in cookie before redirecting
-			frappe.local.response.set_cookie('last_app', app_name, max_age=3600, path='/')
-			
 			# Redirect to this app's login page
 			app_login_path = f'/{app_name}/login'
-			frappe.logger().info(f"[custom_erp] before_request: Redirecting Guest from {path} to: {app_login_path}")
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = app_login_path
-			raise frappe.Redirect(302)
+			frappe.local.flags.redirect_location = app_login_path
+			raise frappe.Redirect
 			
 	except frappe.Redirect:
 		# Re-raise redirects
@@ -100,63 +95,5 @@ def handle_account_login_redirect(app_names):
 			app_name = app_cookie
 	
 	app_login_path = f'/{app_name}/login'
-	frappe.logger().info(f"[custom_erp] before_request: Redirecting from {path} to {app_login_path}")
-	frappe.local.response["type"] = "redirect"
-	frappe.local.response["location"] = app_login_path
-	raise frappe.Redirect(302)
-
-
-def serve_service_worker(app_name):
-	"""
-	Serve service worker for PWA with proper headers.
-	Critical for Android Chrome PWA installation.
-	"""
-	# Sanitize app name
-	app_name = app_name.replace('..', '').replace('/', '').replace('\\', '')
-	
-	# Path to the service worker file
-	sw_path = frappe.get_app_path('custom_erp', 'public', 'frontend', app_name, 'sw.js')
-	
-	if not os.path.exists(sw_path):
-		frappe.throw(f"Service worker not found for {app_name}", frappe.DoesNotExistError)
-	
-	with open(sw_path, 'r') as f:
-		sw_content = f.read()
-	
-	# Build response with proper headers for service worker
-	response = frappe.make_response(sw_content)
-	response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
-	response.headers['Service-Worker-Allowed'] = f'/{app_name}/'
-	response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-	response.headers['Pragma'] = 'no-cache'
-	response.headers['Expires'] = '0'
-	
-	# Set the response directly and abort further processing
-	frappe.local.response = response
-	raise frappe.Redirect(200)
-
-
-def serve_manifest(app_name):
-	"""
-	Serve PWA manifest with proper headers.
-	"""
-	# Sanitize app name
-	app_name = app_name.replace('..', '').replace('/', '').replace('\\', '')
-	
-	# Path to the manifest file
-	manifest_path = frappe.get_app_path('custom_erp', 'public', 'frontend', app_name, 'manifest.json')
-	
-	if not os.path.exists(manifest_path):
-		frappe.throw(f"Manifest not found for {app_name}", frappe.DoesNotExistError)
-	
-	with open(manifest_path, 'r') as f:
-		manifest_content = f.read()
-	
-	# Build response with proper headers for manifest
-	response = frappe.make_response(manifest_content)
-	response.headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
-	response.headers['Cache-Control'] = 'no-cache'
-	
-	# Set the response directly and abort further processing
-	frappe.local.response = response
-	raise frappe.Redirect(200)
+	frappe.local.flags.redirect_location = app_login_path
+	raise frappe.Redirect
