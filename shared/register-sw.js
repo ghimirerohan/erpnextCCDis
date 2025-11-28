@@ -1,149 +1,168 @@
-// ADDED BY AI: MULTI_PWA - Service worker registration module
-// Fixed for Android Chrome PWA installation requirements
+// Service Worker Registration for Android Chrome PWA
+// Critical: SW must be served from the same scope or higher
+
 export async function registerScopedSW() {
-  if (!('serviceWorker' in navigator)) {
-    console.warn('Service Workers not supported in this browser');
-    return null;
-  }
-
-  // Detect current app from pathname (root-level paths)
-  const segs = window.location.pathname.split('/').filter(Boolean);
-  let app = 'home';
-  if (segs.length >= 1 && segs[0] !== '') {
-    app = segs[0];
-  }
-  
-  // Normalize app name
-  if (!app || app === '') {
-    app = 'home';
-  }
-
-  const swFilename = `sw-${app}.js`;
-  // Service worker scope and URL for root-level apps
-  const scope = `/${app}/`;
-  // Service worker is stored in the assets directory
-  const swUrl = `/assets/custom_erp/frontend/${app}/${swFilename}`;
-
-  console.log(`🔧 Registering SW for app: ${app}, scope: ${scope}`);
-
-  // Unregister any existing service workers that might conflict
-  try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    for (const registration of registrations) {
-      // Only unregister if it's for a different scope
-      if (registration.scope !== window.location.origin + scope) {
-        console.log(`🗑️ Unregistering conflicting SW: ${registration.scope}`);
-        await registration.unregister();
-      }
+    if (!('serviceWorker' in navigator)) {
+        console.warn('⚠️ Service Workers not supported');
+        return null;
     }
-  } catch (err) {
-    console.warn('⚠️ Error checking existing registrations:', err);
-  }
 
-  // Try to register service worker with proper error handling
-  async function tryRegister(url, targetScope) {
-    try {
-      // For Android Chrome, the scope must be exactly correct
-      const registration = await navigator.serviceWorker.register(url, { 
-        scope: targetScope,
-        updateViaCache: 'none' // Ensure fresh updates
-      });
-      
-      console.log('✅ Registered SW:', url, 'scope:', targetScope);
-      
-      // Wait for service worker to be active (critical for Android Chrome)
-      let serviceWorker = registration.installing || registration.waiting || registration.active;
-      
-      if (serviceWorker) {
-        if (serviceWorker.state === 'activated') {
-          console.log('✅ Service Worker is active');
-        } else {
-          // Wait for activation
-          await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error('Service Worker activation timeout'));
-            }, 10000); // 10 second timeout
-            
-            serviceWorker.addEventListener('statechange', () => {
-              if (serviceWorker.state === 'activated') {
-                clearTimeout(timeout);
-                console.log('✅ Service Worker activated');
-                resolve();
-              } else if (serviceWorker.state === 'redundant') {
-                clearTimeout(timeout);
-                reject(new Error('Service Worker became redundant'));
-              }
-            });
-            
-            // If already active, resolve immediately
-            if (serviceWorker.state === 'activated') {
-              clearTimeout(timeout);
-              resolve();
-            }
-          }).catch(err => {
-            console.warn('⚠️ Service Worker activation warning:', err);
-          });
-        }
-      }
-      
-      // Check for updates periodically
-      if (registration) {
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000); // Check every hour
-      }
-      
-      // Verify service worker is controlling the page
-      if (registration.active) {
-        console.log('✅ Service Worker is active and controlling:', registration.active.scriptURL);
-        
-        // Check if service worker is actually controlling the page
-        if (navigator.serviceWorker.controller) {
-          console.log('✅ Service Worker is controlling this page');
-        } else {
-          console.warn('⚠️ Service Worker registered but not yet controlling the page. Page reload may be needed.');
-        }
-      }
-      
-      return registration;
-    } catch (err) {
-      console.warn('❌ Failed registering SW', url, err.message);
-      console.warn('Error details:', err);
-      return null;
-    }
-  }
-
-  // Try to register service worker
-  let registration = await tryRegister(swUrl, scope);
-  
-  // Final verification for Android Chrome PWA installation
-  if (registration) {
-    console.log('🔍 Final PWA Installation Check:');
-    console.log('  - Service Worker:', registration.active ? 'Active ✅' : 'Not Active ❌');
-    console.log('  - Scope:', registration.scope);
-    console.log('  - Controlling Page:', navigator.serviceWorker.controller ? 'Yes ✅' : 'No (may need reload)');
-    console.log('  - HTTPS:', window.location.protocol === 'https:' ? 'Yes ✅' : `No (${window.location.protocol})`);
+    // Detect app from URL path
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const appName = pathParts[0] || 'home';
     
-    // Check manifest
-    const manifestLink = document.querySelector('link[rel="manifest"]');
-    if (manifestLink) {
-      console.log('  - Manifest:', manifestLink.href);
-      fetch(manifestLink.href)
-        .then(r => r.json())
-        .then(manifest => {
-          console.log('  - Manifest Display:', manifest.display);
-          console.log('  - Manifest Start URL:', manifest.start_url);
-          console.log('  - Manifest Scope:', manifest.scope);
-          
-          if (manifest.display !== 'standalone' && manifest.display !== 'fullscreen') {
-            console.error('❌ CRITICAL: Manifest display is not "standalone" or "fullscreen"');
-          }
-        })
-        .catch(err => console.warn('⚠️ Could not fetch manifest:', err));
+    // Service worker URL - served from app's root via Frappe route
+    // This ensures the SW can control the entire app scope
+    const swUrl = `/${appName}/sw.js`;
+    const scope = `/${appName}/`;
+
+    console.log(`🔧 PWA Setup for: ${appName}`);
+    console.log(`   SW URL: ${swUrl}`);
+    console.log(`   Scope: ${scope}`);
+
+    try {
+        // First, unregister any old/conflicting service workers
+        const existingRegs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of existingRegs) {
+            // Keep only the registration for our exact scope
+            if (reg.scope !== window.location.origin + scope) {
+                console.log(`🗑️ Removing old SW: ${reg.scope}`);
+                await reg.unregister();
+            }
+        }
+
+        // Register the service worker
+        const registration = await navigator.serviceWorker.register(swUrl, {
+            scope: scope,
+            updateViaCache: 'none'
+        });
+
+        console.log('✅ Service Worker registered');
+        console.log(`   Scope: ${registration.scope}`);
+
+        // Wait for the service worker to be ready
+        const sw = registration.installing || registration.waiting || registration.active;
+        
+        if (sw && sw.state !== 'activated') {
+            await new Promise((resolve) => {
+                if (sw.state === 'activated') {
+                    resolve();
+                    return;
+                }
+                sw.addEventListener('statechange', () => {
+                    if (sw.state === 'activated') {
+                        resolve();
+                    }
+                });
+                // Timeout after 10 seconds
+                setTimeout(resolve, 10000);
+            });
+        }
+
+        // Check if SW is controlling the page
+        if (navigator.serviceWorker.controller) {
+            console.log('✅ Service Worker is controlling this page');
+        } else {
+            console.log('⚠️ Service Worker registered but not yet controlling');
+            console.log('   The page will be controlled after reload');
+        }
+
+        // Log PWA installation readiness
+        logPWAStatus(appName);
+
+        return registration;
+
+    } catch (error) {
+        console.error('❌ Service Worker registration failed:', error);
+        
+        // Provide helpful error messages
+        if (error.message.includes('path restriction')) {
+            console.error('💡 The service worker scope is restricted.');
+            console.error('   Make sure the SW is served with Service-Worker-Allowed header');
+        }
+        
+        return null;
     }
-  }
-  
-  return registration;
 }
 
+function logPWAStatus(appName) {
+    console.log('\n📱 PWA Installation Checklist:');
+    
+    // HTTPS check
+    const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
+    console.log(`   ${isHttps ? '✅' : '❌'} HTTPS: ${location.protocol}`);
+    
+    // Manifest check
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (manifestLink) {
+        console.log(`   ✅ Manifest: ${manifestLink.href}`);
+        
+        // Fetch and validate manifest
+        fetch(manifestLink.href)
+            .then(r => r.json())
+            .then(m => {
+                console.log(`   ✅ Name: ${m.name}`);
+                console.log(`   ✅ Start URL: ${m.start_url}`);
+                console.log(`   ✅ Display: ${m.display}`);
+                console.log(`   ✅ Icons: ${m.icons?.length || 0} defined`);
+                
+                // Check for required icon sizes
+                const has192 = m.icons?.some(i => i.sizes?.includes('192'));
+                const has512 = m.icons?.some(i => i.sizes?.includes('512'));
+                console.log(`   ${has192 ? '✅' : '❌'} Has 192x192 icon`);
+                console.log(`   ${has512 ? '✅' : '❌'} Has 512x512 icon`);
+            })
+            .catch(e => console.log(`   ❌ Manifest fetch failed: ${e.message}`));
+    } else {
+        console.log('   ❌ No manifest link found');
+    }
+    
+    // Service Worker check
+    navigator.serviceWorker.getRegistrations().then(regs => {
+        const appReg = regs.find(r => r.scope.includes(`/${appName}/`));
+        if (appReg) {
+            console.log(`   ✅ Service Worker: ${appReg.active ? 'Active' : 'Registered'}`);
+        } else {
+            console.log('   ❌ No Service Worker for this app');
+        }
+    });
+    
+    console.log('\n');
+}
 
+// Listen for the beforeinstallprompt event (Android Chrome)
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('🎉 beforeinstallprompt fired - App is installable!');
+    e.preventDefault();
+    deferredPrompt = e;
+    window.deferredPrompt = e;
+    
+    // Dispatch custom event for UI to show install button
+    window.dispatchEvent(new CustomEvent('pwa-install-available', { detail: e }));
+});
+
+window.addEventListener('appinstalled', () => {
+    console.log('✅ PWA installed successfully!');
+    deferredPrompt = null;
+    window.deferredPrompt = null;
+});
+
+// Export function to trigger install prompt
+export function promptInstall() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((result) => {
+            console.log(`Install prompt result: ${result.outcome}`);
+            deferredPrompt = null;
+        });
+        return true;
+    }
+    return false;
+}
+
+// Export function to check if install is available
+export function isInstallAvailable() {
+    return deferredPrompt !== null;
+}

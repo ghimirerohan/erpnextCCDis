@@ -300,8 +300,8 @@ doc_events = {
 
 # Request Events
 # ----------------
-# Temporarily disabled to debug
-# before_request = ["custom_erp.utils.before_request"]
+# ENABLED: Required for PWA service worker and manifest serving with proper headers
+before_request = ["custom_erp.utils.before_request"]
 # after_request = ["custom_erp.utils.after_request"]
 
 # API Endpoints
@@ -382,24 +382,34 @@ override_doctype_class = {
 }
 
 # Route each app at root level
+# PWA routes: sw.js and manifest.json are served via before_request hook
 website_route_rules = [
+    # QRPay
     {"from_route": "/qrpay", "to_route": "qrpay"},
-    {"from_route": "/qrpay/login", "to_route": "qrpay"},
+    {"from_route": "/qrpay/<path:subpath>", "to_route": "qrpay"},
+    # QRPay Admin
     {"from_route": "/qrpay-admin", "to_route": "qrpay-admin"},
-    {"from_route": "/qrpay-admin/login", "to_route": "qrpay-admin"},
+    {"from_route": "/qrpay-admin/<path:subpath>", "to_route": "qrpay-admin"},
+    # Scanner
     {"from_route": "/scanner", "to_route": "scanner"},
-    {"from_route": "/scanner/login", "to_route": "scanner"},
+    {"from_route": "/scanner/<path:subpath>", "to_route": "scanner"},
+    # Pay Dashboard
     {"from_route": "/pay-dashboard", "to_route": "pay-dashboard"},
-    {"from_route": "/pay-dashboard/login", "to_route": "pay-dashboard"},
+    {"from_route": "/pay-dashboard/<path:subpath>", "to_route": "pay-dashboard"},
+    # Upload Sales
     {"from_route": "/uploadsales", "to_route": "uploadsales"},
-    {"from_route": "/uploadsales/login", "to_route": "uploadsales"},
+    {"from_route": "/uploadsales/<path:subpath>", "to_route": "uploadsales"},
+    # Upload Reco
     {"from_route": "/uploadreco", "to_route": "uploadreco"},
-    {"from_route": "/uploadreco/login", "to_route": "uploadreco"},
+    {"from_route": "/uploadreco/<path:subpath>", "to_route": "uploadreco"},
+    # Daily Reco Entry
     {"from_route": "/dailyrecoentry", "to_route": "dailyrecoentry"},
-    {"from_route": "/dailyrecoentry/login", "to_route": "dailyrecoentry"},
+    {"from_route": "/dailyrecoentry/<path:subpath>", "to_route": "dailyrecoentry"},
+    # Home
     {"from_route": "/home", "to_route": "home"},
-    {"from_route": "/home/login", "to_route": "home"},
+    {"from_route": "/home/<path:subpath>", "to_route": "home"},
+    # Test Login
     {"from_route": "/testlogin", "to_route": "testlogin"},
-    {"from_route": "/testlogin/login", "to_route": "testlogin"},
+    {"from_route": "/testlogin/<path:subpath>", "to_route": "testlogin"},
 ]
 
