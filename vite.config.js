@@ -14,6 +14,7 @@ const apps = [
 	'uploadsales',
 	'uploadreco',
 	'dailyrecoentry',
+	'dailytrnxs',
 	'home',
 	'testlogin'
 ]

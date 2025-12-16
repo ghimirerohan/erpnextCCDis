@@ -67,6 +67,9 @@
       <UnmatchedList
         v-if="csvParsed"
         :unmatched-customers="parsedData.unmatched_customers || []"
+        :created-customers="newlyCreatedCustomers"
+        @customer-created="handleCustomerCreated"
+        @all-customers-created="handleAllCustomersCreated"
       />
 
       <!-- Data Preview Table -->
@@ -137,7 +140,7 @@
               <div class="mt-2 text-sm text-yellow-700 space-y-1">
                 <p v-if="!csvParsed">❌ CSV not uploaded</p>
                 <p v-if="csvParsed && !assignmentsValid">❌ Not all load sheets have drivers assigned</p>
-                <p v-if="csvParsed && parsedData.unmatched_customers?.length > 0">❌ {{ parsedData.unmatched_customers.length }} unmatched customers found</p>
+                <p v-if="csvParsed && remainingUnmatchedCount > 0">❌ {{ remainingUnmatchedCount }} unmatched customers need to be created</p>
                 <p class="font-medium mt-2">Please complete the requirements above to enable the button.</p>
               </div>
             </div>
@@ -278,16 +281,24 @@ const showConfirmDialog = ref(false)
 const creating = ref(false)
 const showSuccessDialog = ref(false)
 const successMessage = ref('')
+const newlyCreatedCustomers = ref([])  // Track customers created during this session
 
 // Computed
 const loadsheetList = computed(() => {
   return Object.keys(parsedData.value.grouped_by_loadsheet || {})
 })
 
+// Count remaining unmatched customers (original list minus newly created)
+const remainingUnmatchedCount = computed(() => {
+  const originalUnmatched = parsedData.value.unmatched_customers || []
+  const createdCodes = new Set(newlyCreatedCustomers.value.map(c => c.outlet_code))
+  return originalUnmatched.filter(c => !createdCodes.has(c.outlet_code)).length
+})
+
 const canCreate = computed(() => {
   return csvParsed.value && 
          assignmentsValid.value && 
-         (parsedData.value.unmatched_customers?.length === 0)
+         remainingUnmatchedCount.value === 0
 })
 
 const groupedAssignments = computed(() => {
@@ -351,6 +362,7 @@ const clearFile = () => {
   parsedData.value = {}
   driverAssignments.value = {}
   assignmentsValid.value = false
+  newlyCreatedCustomers.value = []
 }
 
 const createRecords = async () => {
@@ -379,6 +391,43 @@ const createRecords = async () => {
 const closeSuccessDialog = () => {
   showSuccessDialog.value = false
   clearFile()
+}
+
+// Handle when a single customer is created
+const handleCustomerCreated = (customer) => {
+  // Add to newly created customers list (this persists throughout session)
+  if (!newlyCreatedCustomers.value.some(c => c.outlet_code === customer.outlet_code)) {
+    newlyCreatedCustomers.value.push({
+      outlet_code: customer.outlet_code,
+      outlet_name: customer.outlet_name,
+      name: customer.name
+    })
+  }
+  
+  // Update customer_exists flag in parsed_rows and grouped_by_loadsheet
+  if (parsedData.value.parsed_rows) {
+    parsedData.value.parsed_rows.forEach(row => {
+      if (row.outlet_code === customer.outlet_code) {
+        row.customer_exists = true
+      }
+    })
+  }
+  
+  if (parsedData.value.grouped_by_loadsheet) {
+    Object.values(parsedData.value.grouped_by_loadsheet).forEach(rows => {
+      rows.forEach(row => {
+        if (row.outlet_code === customer.outlet_code) {
+          row.customer_exists = true
+        }
+      })
+    })
+  }
+}
+
+// Handle when all customers are created - just a notification, state is already managed
+const handleAllCustomersCreated = () => {
+  // All customers created - canCreate will now be true via computed property
+  console.log('All unmatched customers have been created')
 }
 </script>
 

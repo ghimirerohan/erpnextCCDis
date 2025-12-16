@@ -1047,27 +1047,47 @@ def get_pay_dashboard_summary(date: Optional[str] = None) -> Dict[str, Any]:
     - total_success_amount (NPR) - sum of all successful payments for the date
     - total_success_count - count of all successful payments for the date
     - current_user - logged in user info
+    
+    Includes both QR transactions and Payment Entries with Fonepay mode.
     """
     user = frappe.session.user
     bounds = _today_bounds(date)
+    target_date = date if date else frappe.utils.today()
     
-    # Total success amount for all users today
-    total_success = frappe.db.sql(
-        """
-        select coalesce(sum(amount), 0), count(*) from `tabFonepay QR Transaction`
-        where status = 'SUCCESS'
-          and creation >= %s and creation < %s
-        """,
-        (bounds["start"], bounds["end"]),
-    )[0]
+    # Get QR transactions using ORM
+    qr_rows = frappe.get_all(
+        "Fonepay QR Transaction",
+        filters={
+            "status": "SUCCESS",
+            "creation": [">=", bounds["start"]],
+        },
+        fields=["amount", "creation"],
+    )
+    # Filter by end date in Python
+    qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
+    qr_total = sum(float(r.get("amount") or 0) for r in qr_rows)
+    qr_count = len(qr_rows)
+    
+    # Get Payment Entries with Fonepay mode using ORM
+    pe_rows = frappe.get_all(
+        "Payment Entry",
+        filters={
+            "mode_of_payment": "Fonepay",
+            "posting_date": target_date,
+            "docstatus": 1,
+        },
+        fields=["paid_amount"],
+    )
+    pe_total = sum(float(r.get("paid_amount") or 0) for r in pe_rows)
+    pe_count = len(pe_rows)
     
     full_name = frappe.db.get_value("User", user, "full_name") or user
     
     return {
         "current_user": user,
         "current_user_full_name": full_name,
-        "total_success_amount": float(total_success[0] or 0),
-        "total_success_count": int(total_success[1] or 0),
+        "total_success_amount": qr_total + pe_total,
+        "total_success_count": qr_count + pe_count,
     }
 
 
@@ -1080,23 +1100,26 @@ def get_username_grouped_totals(username_filter: Optional[str] = None, date: Opt
     """
     bounds = _today_bounds(date)
     
-    filters: Dict[str, Any] = {
+    # Use ORM with proper filter operators
+    filters = {
         "status": "SUCCESS",
+        "creation": [">=", bounds["start"]],
     }
     
     if username_filter and username_filter.strip():
         filters["owner"] = username_filter.strip()
     
-    # Filter by date in DB query
-    filters["creation"] = ["between", [bounds["start"], bounds["end"]]]
-    
-    rows = frappe.get_all(
+    # Get all records within date range using ORM
+    all_rows = frappe.get_all(
         "Fonepay QR Transaction",
         filters=filters,
         fields=["owner", "amount", "creation"],
         order_by="owner asc",
         limit_page_length=10000,
     )
+    
+    # Filter by end date (creation < end) in Python since ORM doesn't support multiple conditions on same field easily
+    rows = [r for r in all_rows if r.get("creation") < bounds["end"]]
     
     # Group by username
     grouped = {}
@@ -1138,8 +1161,10 @@ def get_customer_grouped_totals(customer_filter: Optional[str] = None, username_
     """
     bounds = _today_bounds(date)
     
-    filters: Dict[str, Any] = {
+    # Use ORM with proper filter operators
+    filters = {
         "status": "SUCCESS",
+        "creation": [">=", bounds["start"]],
     }
     
     if username_filter and username_filter.strip():
@@ -1148,16 +1173,17 @@ def get_customer_grouped_totals(customer_filter: Optional[str] = None, username_
     if customer_filter and customer_filter.strip():
         filters["customer"] = customer_filter.strip()
     
-    # Filter by date in DB query
-    filters["creation"] = ["between", [bounds["start"], bounds["end"]]]
-    
-    rows = frappe.get_all(
+    # Get all records within date range using ORM
+    all_rows = frappe.get_all(
         "Fonepay QR Transaction",
         filters=filters,
         fields=["customer", "owner", "amount", "creation"],
         order_by="customer asc",
         limit_page_length=10000,
     )
+    
+    # Filter by end date (creation < end) in Python
+    rows = [r for r in all_rows if r.get("creation") < bounds["end"]]
     
     # Group by customer
     grouped = {}
@@ -1208,8 +1234,10 @@ def get_transaction_list(
     bounds = _today_bounds(date)
     limit = max(1, min(int(limit or 100), 500))
     
-    filters: Dict[str, Any] = {
+    # Use ORM with proper filter operators
+    filters = {
         "status": "SUCCESS",
+        "creation": [">=", bounds["start"]],
     }
     
     if username_filter and username_filter.strip():
@@ -1218,16 +1246,17 @@ def get_transaction_list(
     if customer_filter and customer_filter.strip():
         filters["customer"] = customer_filter.strip()
     
-    # Filter by date in DB query
-    filters["creation"] = ["between", [bounds["start"], bounds["end"]]]
-    
-    rows = frappe.get_all(
+    # Get all records within date range using ORM
+    all_rows = frappe.get_all(
         "Fonepay QR Transaction",
         filters=filters,
         fields=["name", "customer", "owner", "amount", "status", "creation", "payment_entry"],
         order_by="creation desc",
-        limit=limit,
+        limit_page_length=limit * 2,  # Get more to account for filtering
     )
+    
+    # Filter by end date (creation < end) in Python and limit
+    rows = [r for r in all_rows if r.get("creation") < bounds["end"]][:limit]
     
     # Resolve customer names and user full names
     result = []
@@ -1260,34 +1289,57 @@ def get_filter_customers_today(date: Optional[str] = None) -> Dict[str, Any]:
     """
     Return list of customers with at least one success transaction for the specified date (or today).
     Used for customer filter dropdown.
+    Includes both QR transactions and Payment Entries with Fonepay mode.
     date: optional date in YYYY-MM-DD format (AD), None = today
     """
     bounds = _today_bounds(date)
+    target_date = date if date else frappe.utils.today()
     
-    rows = frappe.db.sql(
-        """
-        select distinct customer
-        from `tabFonepay QR Transaction`
-        where status = 'SUCCESS'
-          and customer is not null
-          and customer != ''
-          and creation >= %s and creation < %s
-        order by customer asc
-        """,
-        (bounds["start"], bounds["end"]),
-        as_dict=True,
+    # Get customers from QR transactions using ORM
+    qr_rows = frappe.get_all(
+        "Fonepay QR Transaction",
+        filters={
+            "status": "SUCCESS",
+            "customer": ["is", "set"],
+            "creation": [">=", bounds["start"]],
+        },
+        fields=["customer", "creation"],
+        distinct=True,
+    )
+    # Filter by end date in Python
+    qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
+    
+    # Get customers from Payment Entries with Fonepay mode using ORM
+    pe_rows = frappe.get_all(
+        "Payment Entry",
+        filters={
+            "mode_of_payment": "Fonepay",
+            "party_type": "Customer",
+            "party": ["is", "set"],
+            "posting_date": target_date,
+            "docstatus": 1,
+        },
+        fields=["party"],
+        distinct=True,
     )
     
+    # Combine unique customers
+    customer_set = set()
+    for r in qr_rows:
+        if r.get("customer"):
+            customer_set.add(r.get("customer"))
+    for r in pe_rows:
+        if r.get("party"):
+            customer_set.add(r.get("party"))
+    
     customers = []
-    for r in rows:
-        customer_code = r.get("customer")
-        if customer_code:
-            customer_name = frappe.db.get_value("Customer", customer_code, "customer_name") or customer_code
-            customers.append({
-                "value": customer_code,
-                "label": f"{customer_name} ({customer_code})",
-                "customer_name": customer_name,
-            })
+    for customer_code in sorted(customer_set):
+        customer_name = frappe.db.get_value("Customer", customer_code, "customer_name") or customer_code
+        customers.append({
+            "value": customer_code,
+            "label": f"{customer_name} ({customer_code})",
+            "customer_name": customer_name,
+        })
     
     return {"customers": customers}
 
@@ -1297,31 +1349,53 @@ def get_filter_usernames_today(date: Optional[str] = None) -> Dict[str, Any]:
     """
     Return list of usernames who created at least one transaction for the specified date (or today).
     Used for username filter dropdown.
+    Includes both QR transactions and Payment Entries with Fonepay mode.
     date: optional date in YYYY-MM-DD format (AD), None = today
     """
     bounds = _today_bounds(date)
+    target_date = date if date else frappe.utils.today()
     
-    rows = frappe.db.sql(
-        """
-        select distinct owner
-        from `tabFonepay QR Transaction`
-        where creation >= %s and creation < %s
-        order by owner asc
-        """,
-        (bounds["start"], bounds["end"]),
-        as_dict=True,
+    # Get owners from QR transactions using ORM
+    qr_rows = frappe.get_all(
+        "Fonepay QR Transaction",
+        filters={
+            "creation": [">=", bounds["start"]],
+        },
+        fields=["owner", "creation"],
+        distinct=True,
+    )
+    # Filter by end date in Python
+    qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
+    
+    # Get owners from Payment Entries with Fonepay mode using ORM
+    pe_rows = frappe.get_all(
+        "Payment Entry",
+        filters={
+            "mode_of_payment": "Fonepay",
+            "posting_date": target_date,
+            "docstatus": 1,
+        },
+        fields=["owner"],
+        distinct=True,
     )
     
+    # Combine unique usernames
+    username_set = set()
+    for r in qr_rows:
+        if r.get("owner"):
+            username_set.add(r.get("owner"))
+    for r in pe_rows:
+        if r.get("owner"):
+            username_set.add(r.get("owner"))
+    
     usernames = []
-    for r in rows:
-        username = r.get("owner")
-        if username:
-            full_name = frappe.db.get_value("User", username, "full_name") or username
-            usernames.append({
-                "value": username,
-                "label": f"{full_name} ({username})",
-                "full_name": full_name,
-            })
+    for username in sorted(username_set):
+        full_name = frappe.db.get_value("User", username, "full_name") or username
+        usernames.append({
+            "value": username,
+            "label": f"{full_name} ({username})",
+            "full_name": full_name,
+        })
     
     return {"usernames": usernames}
 
@@ -1334,17 +1408,20 @@ def get_today_unprocessed_count(date: Optional[str] = None) -> Dict[str, Any]:
     """
     bounds = _today_bounds(date)
     
-    count = frappe.db.sql(
-        """
-        select count(*) from `tabFonepay QR Transaction`
-        where processed = 0
-          and creation >= %s and creation < %s
-        """,
-        (bounds["start"], bounds["end"]),
-    )[0][0]
+    # Get unprocessed transactions using ORM
+    rows = frappe.get_all(
+        "Fonepay QR Transaction",
+        filters={
+            "processed": 0,
+            "creation": [">=", bounds["start"]],
+        },
+        fields=["creation"],
+    )
+    # Filter by end date in Python
+    count = len([r for r in rows if r.get("creation") < bounds["end"]])
     
     return {
-        "unprocessed_count": int(count or 0),
+        "unprocessed_count": count,
     }
 
 
@@ -1408,40 +1485,27 @@ def get_payment_entries_for_date(date: Optional[str] = None) -> Dict[str, Any]:
     Return Payment Entries with mode of payment "Fonepay" for the specified date (or today).
     date: optional date in YYYY-MM-DD format (AD), None = today
     """
-    if date:
-        target_date = date
-    else:
-        target_date = frappe.utils.today()
+    target_date = date if date else frappe.utils.today()
     
-    # Get Payment Entries with mode of payment "Fonepay" for the specified date
-    # Use SQL query to ensure exact match and handle case sensitivity
-    payment_entries = frappe.db.sql("""
-        SELECT 
-            pe.name,
-            pe.party,
-            pe.party_name,
-            pe.paid_amount,
-            pe.received_amount,
-            pe.posting_date,
-            pe.posting_time,
-            pe.creation,
-            pe.owner,
-            pe.reference_no,
-            pe.mode_of_payment
-        FROM `tabPayment Entry` pe
-        WHERE pe.mode_of_payment = 'Fonepay'
-          AND pe.posting_date = %s
-          AND pe.docstatus = 1
-        ORDER BY pe.posting_date DESC, pe.posting_time DESC
-        LIMIT 500
-    """, (target_date,), as_dict=True)
+    # Get Payment Entries with mode of payment "Fonepay" for the specified date using ORM
+    payment_entries = frappe.get_all(
+        "Payment Entry",
+        filters={
+            "mode_of_payment": "Fonepay",
+            "posting_date": target_date,
+            "docstatus": 1,
+        },
+        fields=[
+            "name", "party", "party_name", "paid_amount", "received_amount",
+            "posting_date", "creation", "owner", "reference_no", "mode_of_payment"
+        ],
+        order_by="posting_date desc, creation desc",
+        limit_page_length=500,
+    )
     
     # Get full names for owners
     result = []
     for pe in payment_entries:
-        # Double-check: Only process Payment Entries with mode_of_payment = "Fonepay"
-        if pe.get("mode_of_payment") != "Fonepay":
-            continue
             
         owner_full_name = None
         if pe.get("owner"):
@@ -1462,11 +1526,9 @@ def get_payment_entries_for_date(date: Optional[str] = None) -> Dict[str, Any]:
             "owner_full_name": owner_full_name,
             "creation": pe.get("creation"),
             "posting_date": pe.get("posting_date"),
-            "posting_time": pe.get("posting_time"),
             "reference_no": pe.get("reference_no"),
             "type": "payment_entry",  # To distinguish from QR transactions
         })
     
-    frappe.log_error(f"Found {len(result)} Payment Entries with mode 'Fonepay' for date {target_date}", "Payment Entries Debug")
     return {"payment_entries": result}
 

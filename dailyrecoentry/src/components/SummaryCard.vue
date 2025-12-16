@@ -7,13 +7,25 @@
         <p class="text-xs sm:text-sm font-semibold truncate" style="color: #ffffff;">{{ todayDate }}</p>
         <p v-if="bsToday" class="text-xs mt-0.5 font-medium" style="color: #f0f9ff;">BS: {{ bsToday }}</p>
       </div>
-      <button
-        @click="$emit('view-all')"
-        class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
-        style="border: 2px solid #ffffff; color: #0284c7; background-color: #ffffff;"
-      >
-        View All
-      </button>
+      <div class="flex gap-2 flex-shrink-0">
+        <button
+          @click="openExpenseDialog"
+          class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl"
+          style="border: 2px solid #fbbf24; color: #92400e; background-color: #fef3c7;"
+        >
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Expense
+        </button>
+        <button
+          @click="$emit('view-all')"
+          class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl"
+          style="border: 2px solid #ffffff; color: #0284c7; background-color: #ffffff;"
+        >
+          View All
+        </button>
+      </div>
     </div>
     
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
@@ -38,6 +50,16 @@
       </div>
     </div>
     
+    <!-- Expense Row -->
+    <div v-if="summary.expense_amount > 0" class="mt-2 sm:mt-3">
+      <div class="rounded-lg p-2 sm:p-3 shadow-lg" style="background-color: rgba(251, 191, 36, 0.3); border: 2px solid rgba(251, 191, 36, 0.6); backdrop-filter: blur(10px);">
+        <div class="flex justify-between items-center">
+          <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Expense (from Cash)</p>
+          <p class="text-sm sm:text-base font-bold" style="color: #fef3c7;">- {{ formatCurrency(summary.expense_amount) }}</p>
+        </div>
+      </div>
+    </div>
+    
     <div class="mt-3 sm:mt-4 pt-3 sm:pt-4" style="border-top: 2px solid rgba(255, 255, 255, 0.5);">
       <div class="flex justify-between items-center gap-2">
         <span class="font-bold text-base sm:text-lg lg:text-xl" style="color: #ffffff;">Remaining</span>
@@ -45,10 +67,89 @@
       </div>
     </div>
   </div>
+  
+  <!-- Expense Input Dialog -->
+  <div v-if="showExpenseDialog" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="expense-modal" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeExpenseDialog"></div>
+
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full">
+        <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-4">
+          <h3 class="text-lg font-bold text-white flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Record Expense
+          </h3>
+          <p class="text-amber-100 text-sm mt-1">Expense will be deducted from cash collected</p>
+        </div>
+        
+        <div class="bg-white px-4 py-5 sm:p-6">
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Current Cash Balance</label>
+            <div class="text-2xl font-bold text-green-600">{{ formatCurrency(summary.cash_amount) }}</div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Current Expense</label>
+            <div class="text-lg font-semibold text-amber-600">{{ formatCurrency(summary.expense_amount || 0) }}</div>
+          </div>
+          
+          <div>
+            <label for="expense-amount" class="block text-sm font-semibold text-gray-700 mb-2">
+              Total Expense Amount <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">NPR</span>
+              <input
+                id="expense-amount"
+                v-model.number="expenseInput"
+                type="number"
+                min="0"
+                :max="maxExpense"
+                step="1"
+                placeholder="0"
+                class="block w-full pl-14 pr-4 py-3 text-lg font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                @keyup.enter="saveExpense"
+              />
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Maximum: {{ formatCurrency(maxExpense) }}</p>
+          </div>
+          
+          <div v-if="expenseError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">{{ expenseError }}</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 flex flex-col sm:flex-row-reverse gap-2">
+          <button
+            type="button"
+            @click="saveExpense"
+            :disabled="savingExpense"
+            class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-amber-600 text-base font-semibold text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <svg v-if="savingExpense" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ savingExpense ? 'Saving...' : 'Save Expense' }}
+          </button>
+          <button
+            type="button"
+            @click="closeExpenseDialog"
+            class="w-full sm:w-auto inline-flex justify-center rounded-lg border-2 border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { call } from 'frappe-ui'
 
 const props = defineProps({
   driverName: {
@@ -58,12 +159,20 @@ const props = defineProps({
   summary: {
     type: Object,
     required: true
+  },
+  recoName: {
+    type: String,
+    required: true
   }
 })
 
-defineEmits(['view-all'])
+const emit = defineEmits(['view-all', 'expense-updated'])
 
 const bsToday = ref('')
+const showExpenseDialog = ref(false)
+const expenseInput = ref(0)
+const savingExpense = ref(false)
+const expenseError = ref('')
 
 const todayDate = computed(() => {
   const date = new Date()
@@ -75,12 +184,64 @@ const todayDate = computed(() => {
   })
 })
 
+// Maximum expense is the sum of current cash + current expense (since expense comes from cash)
+const maxExpense = computed(() => {
+  const currentCash = props.summary.cash_amount || 0
+  const currentExpense = props.summary.expense_amount || 0
+  return currentCash + currentExpense
+})
+
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-NP', {
     style: 'currency',
     currency: 'NPR',
     minimumFractionDigits: 0
   }).format(amount || 0)
+}
+
+const openExpenseDialog = () => {
+  expenseInput.value = props.summary.expense_amount || 0
+  expenseError.value = ''
+  showExpenseDialog.value = true
+}
+
+const closeExpenseDialog = () => {
+  showExpenseDialog.value = false
+  expenseError.value = ''
+}
+
+const saveExpense = async () => {
+  if (expenseInput.value < 0) {
+    expenseError.value = 'Expense amount cannot be negative'
+    return
+  }
+  
+  if (expenseInput.value > maxExpense.value) {
+    expenseError.value = `Expense cannot exceed available cash (${formatCurrency(maxExpense.value)})`
+    return
+  }
+  
+  savingExpense.value = true
+  expenseError.value = ''
+  
+  try {
+    const response = await call('custom_erp.custom_erp.api.payment_reco.save_expense_amount', {
+      reco_name: props.recoName,
+      expense_amount: expenseInput.value
+    })
+    
+    if (response.success) {
+      emit('expense-updated', response.data)
+      closeExpenseDialog()
+    } else {
+      expenseError.value = response.message || 'Failed to save expense'
+    }
+  } catch (error) {
+    console.error('Error saving expense:', error)
+    expenseError.value = 'Failed to save expense. Please try again.'
+  } finally {
+    savingExpense.value = false
+  }
 }
 
 const loadNepaliDate = async () => {

@@ -108,7 +108,9 @@
         <SummaryCard
           :driver-name="driverName"
           :summary="recoData.summary"
+          :reco-name="recoData.reco.name"
           @view-all="showAllDialog = true"
+          @expense-updated="handleExpenseUpdated"
         />
 
         <!-- Search & Filters -->
@@ -462,6 +464,18 @@ const openCustomerPayment = (line) => {
     params: { lineName: line.name },
     query: { driver: driverName.value }
   })
+}
+
+const handleExpenseUpdated = (updatedSummary) => {
+  // Update the summary with the new values from the backend
+  if (recoData.value && updatedSummary) {
+    recoData.value.summary = {
+      ...recoData.value.summary,
+      expense_amount: updatedSummary.expense_amount,
+      cash_amount: updatedSummary.cash_amount,
+      remaining_amount: updatedSummary.remaining_amount
+    }
+  }
 }
 
 const formatCurrency = (amount) => {

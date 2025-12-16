@@ -15,7 +15,7 @@ import PWAUpdatePrompt from '../../shared/components/PWAUpdatePrompt.vue'
 const route = useRoute()
 
 const updateManifest = () => {
-  const manifestPath = '/manifest-uploadsales.json'
+  const manifestPath = '/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=uploadsales'
   
   const existingLinks = document.querySelectorAll('link[rel="manifest"]')
   existingLinks.forEach(link => link.remove())

@@ -15,7 +15,7 @@ import PWAUpdatePrompt from '../../shared/components/PWAUpdatePrompt.vue'
 const route = useRoute()
 
 const updateManifest = () => {
-  const manifestPath = '/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=scanner'
+  const manifestPath = '/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=dailytrnxs'
   
   const existingLinks = document.querySelectorAll('link[rel="manifest"]')
   existingLinks.forEach(link => link.remove())
@@ -31,7 +31,7 @@ const updateManifest = () => {
     themeMeta.name = 'theme-color'
     document.head.appendChild(themeMeta)
   }
-  themeMeta.content = '#7c3aed'
+  themeMeta.content = '#0891b2'
 }
 
 watch(() => route.name, () => {

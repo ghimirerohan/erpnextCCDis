@@ -58,7 +58,7 @@
               Clear Date Filter
             </button>
             <div class="pt-2 border-t border-gray-200 mt-3">
-              <div class="text-xs sm:text-sm uppercase text-gray-600 tracking-wide mb-1">Today's Total Success</div>
+              <div class="text-xs sm:text-sm uppercase text-gray-600 tracking-wide mb-1">{{ selectedDate ? 'Selected Date' : "Today's" }} Total Success</div>
               <div class="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600">NPR {{ formatAmount(summary.total_success_amount) }}</div>
               <div class="text-sm text-gray-500">{{ summary.total_success_count || 0 }} payments</div>
             </div>
@@ -236,7 +236,7 @@
           <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
-          <p class="mt-4 text-gray-600">No data found for today.</p>
+          <p class="mt-4 text-gray-600">No data found{{ selectedDate ? ` for ${selectedDateBs}` : ' for today' }}.</p>
         </div>
 
         <!-- Username-wise View -->

@@ -4,6 +4,7 @@ with proper headers for Android Chrome PWA installation
 """
 import frappe
 import os
+import json
 
 
 @frappe.whitelist(allow_guest=True)
@@ -34,17 +35,15 @@ def get_service_worker(app_name):
     with open(sw_path, 'r') as f:
         sw_content = f.read()
     
-    # Set headers first using response_headers dict
+    # Set headers - must be set before response type
     frappe.local.response_headers['Content-Type'] = 'application/javascript; charset=utf-8'
     frappe.local.response_headers['Service-Worker-Allowed'] = f'/{app_name}/'
     frappe.local.response_headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     
-    # Set response type and content for download/raw response
-    frappe.response['filename'] = 'sw.js'
+    # Use binary response type for proper handling
+    frappe.response['type'] = 'binary'
     frappe.response['filecontent'] = sw_content.encode('utf-8')
-    frappe.response['content_type'] = 'application/javascript; charset=utf-8'
-    frappe.response['type'] = 'download'
-    frappe.response['display_content_as'] = 'inline'
+    frappe.response['filename'] = 'sw.js'
 
 
 @frappe.whitelist(allow_guest=True)
@@ -56,7 +55,7 @@ def get_manifest(app_name):
         app_name: Name of the app (e.g., 'qrpay', 'pay-dashboard')
     
     Returns:
-        Manifest JSON content
+        Manifest JSON content as dict (Frappe will serialize it)
     """
     if not app_name:
         app_name = 'home'
@@ -71,15 +70,11 @@ def get_manifest(app_name):
         frappe.throw(f"Manifest not found for {app_name}", frappe.DoesNotExistError)
     
     with open(manifest_path, 'r') as f:
-        manifest_content = f.read()
+        manifest_dict = json.load(f)
     
-    # Set headers first using response_headers dict
+    # Set headers for JSON response
     frappe.local.response_headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
     frappe.local.response_headers['Cache-Control'] = 'no-cache'
     
-    # Set response type and content for download/raw response
-    frappe.response['filename'] = 'manifest.json'
-    frappe.response['filecontent'] = manifest_content.encode('utf-8')
-    frappe.response['content_type'] = 'application/manifest+json; charset=utf-8'
-    frappe.response['type'] = 'download'
-    frappe.response['display_content_as'] = 'inline'
+    # Return as dict - Frappe will serialize it as JSON
+    return manifest_dict
