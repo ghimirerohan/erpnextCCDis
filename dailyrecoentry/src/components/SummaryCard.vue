@@ -18,13 +18,13 @@
           </svg>
           Expense
         </button>
-        <button
-          @click="$emit('view-all')"
+      <button
+        @click="$emit('view-all')"
           class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl"
-          style="border: 2px solid #ffffff; color: #0284c7; background-color: #ffffff;"
-        >
-          View All
-        </button>
+        style="border: 2px solid #ffffff; color: #0284c7; background-color: #ffffff;"
+      >
+        View All
+      </button>
       </div>
     </div>
     

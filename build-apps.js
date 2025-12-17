@@ -17,6 +17,7 @@ const apps = [
 	'uploadsales',
 	'uploadreco',
 	'dailyrecoentry',
+	'dailytrnxs',
 	'home',
 	'testlogin'
 ];
@@ -30,6 +31,7 @@ const appThemes = {
 	'uploadsales': { theme: '#059669', bg: '#ffffff', name: 'Upload Sales', desc: 'Upload and Process Sales Data' },
 	'uploadreco': { theme: '#dc2626', bg: '#ffffff', name: 'Upload Reco', desc: 'Upload Reconciliation Data' },
 	'dailyrecoentry': { theme: '#0891b2', bg: '#ffffff', name: 'Daily Reco', desc: 'Daily Reconciliation Entry' },
+	'dailytrnxs': { theme: '#7c3aed', bg: '#ffffff', name: 'Daily Transactions', desc: 'Daily Payment Reconciliation Dashboard' },
 	'home': { theme: '#6366f1', bg: '#ffffff', name: 'Home', desc: 'Application Home' },
 	'testlogin': { theme: '#64748b', bg: '#ffffff', name: 'Test Login', desc: 'Login Test App' }
 };
