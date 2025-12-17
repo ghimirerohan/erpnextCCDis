@@ -1048,27 +1048,14 @@ def get_pay_dashboard_summary(date: Optional[str] = None) -> Dict[str, Any]:
     - total_success_count - count of all successful payments for the date
     - current_user - logged in user info
     
-    Includes both QR transactions and Payment Entries with Fonepay mode.
+    Uses only Payment Entries with Fonepay mode to avoid double counting
+    (since successful QR transactions create Payment Entries).
     """
     user = frappe.session.user
-    bounds = _today_bounds(date)
     target_date = date if date else frappe.utils.today()
     
-    # Get QR transactions using ORM
-    qr_rows = frappe.get_all(
-        "Fonepay QR Transaction",
-        filters={
-            "status": "SUCCESS",
-            "creation": [">=", bounds["start"]],
-        },
-        fields=["amount", "creation"],
-    )
-    # Filter by end date in Python
-    qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
-    qr_total = sum(float(r.get("amount") or 0) for r in qr_rows)
-    qr_count = len(qr_rows)
-    
     # Get Payment Entries with Fonepay mode using ORM
+    # This is the canonical source - successful QR transactions create Payment Entries
     pe_rows = frappe.get_all(
         "Payment Entry",
         filters={
@@ -1086,8 +1073,8 @@ def get_pay_dashboard_summary(date: Optional[str] = None) -> Dict[str, Any]:
     return {
         "current_user": user,
         "current_user_full_name": full_name,
-        "total_success_amount": qr_total + pe_total,
-        "total_success_count": qr_count + pe_count,
+        "total_success_amount": pe_total,
+        "total_success_count": pe_count,
     }
 
 

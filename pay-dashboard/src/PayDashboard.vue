@@ -332,11 +332,8 @@
                         View Payment Entry
                       </a>
                     </div>
-                    <div v-if="txn.type === 'payment_entry'" class="text-xs text-green-600 mt-1 font-medium">
-                      Payment Entry
-                    </div>
-                    <div v-else class="text-xs text-gray-500 mt-1">
-                      QR Transaction
+                    <div class="text-xs text-green-600 mt-1 font-medium">
+                      Fonepay Payment
                     </div>
                   </div>
                 </div>
@@ -529,18 +526,12 @@ const loadSummary = async () => {
 const loadUsernameData = async () => {
   loadingData.value = true
   try {
-    const [usernameRes, peRes] = await Promise.all([
-      usernameGroupedResource.fetch({
-        username_filter: selectedUsername.value || undefined,
-        date: selectedDate.value || undefined,
-      }),
-      paymentEntriesResource.fetch({
-        date: selectedDate.value || undefined,
-      }),
-    ])
+    // Only use Payment Entries (Fonepay mode) to avoid duplication
+    // QR transactions create Payment Entries when successful, so we only count Payment Entries
+    const peRes = await paymentEntriesResource.fetch({
+      date: selectedDate.value || undefined,
+    })
     
-    // Combine QR transaction totals with Payment Entry totals
-    const qrTotals = usernameRes?.grouped_totals || []
     const paymentEntries = peRes?.payment_entries || []
     
     // Group Payment Entries by owner
@@ -562,21 +553,7 @@ const loadUsernameData = async () => {
       peByOwner[owner].count += 1
     }
     
-    // Merge with QR transaction totals
-    const merged = {}
-    for (const item of qrTotals) {
-      merged[item.username] = { ...item }
-    }
-    for (const [owner, data] of Object.entries(peByOwner)) {
-      if (merged[owner]) {
-        merged[owner].total_amount += data.total_amount
-        merged[owner].count += data.count
-      } else {
-        merged[owner] = data
-      }
-    }
-    
-    usernameData.value = Object.values(merged).sort((a, b) => b.total_amount - a.total_amount)
+    usernameData.value = Object.values(peByOwner).sort((a, b) => b.total_amount - a.total_amount)
   } catch (error) {
     console.error('Failed to load username data', error)
     usernameData.value = []
@@ -588,19 +565,12 @@ const loadUsernameData = async () => {
 const loadCustomerData = async () => {
   loadingData.value = true
   try {
-    const [customerRes, peRes] = await Promise.all([
-      customerGroupedResource.fetch({
-        customer_filter: selectedCustomer.value?.value || undefined,
-        username_filter: selectedUsername.value || undefined,
-        date: selectedDate.value || undefined,
-      }),
-      paymentEntriesResource.fetch({
-        date: selectedDate.value || undefined,
-      }),
-    ])
+    // Only use Payment Entries (Fonepay mode) to avoid duplication
+    // QR transactions create Payment Entries when successful, so we only count Payment Entries
+    const peRes = await paymentEntriesResource.fetch({
+      date: selectedDate.value || undefined,
+    })
     
-    // Combine QR transaction totals with Payment Entry totals
-    const qrTotals = customerRes?.grouped_totals || []
     const paymentEntries = peRes?.payment_entries || []
     
     // Group Payment Entries by customer
@@ -626,21 +596,7 @@ const loadCustomerData = async () => {
       peByCustomer[customer].count += 1
     }
     
-    // Merge with QR transaction totals
-    const merged = {}
-    for (const item of qrTotals) {
-      merged[item.customer] = { ...item }
-    }
-    for (const [customer, data] of Object.entries(peByCustomer)) {
-      if (merged[customer]) {
-        merged[customer].total_amount += data.total_amount
-        merged[customer].count += data.count
-      } else {
-        merged[customer] = data
-      }
-    }
-    
-    customerData.value = Object.values(merged).sort((a, b) => b.total_amount - a.total_amount)
+    customerData.value = Object.values(peByCustomer).sort((a, b) => b.total_amount - a.total_amount)
   } catch (error) {
     console.error('Failed to load customer data', error)
     customerData.value = []
@@ -652,20 +608,12 @@ const loadCustomerData = async () => {
 const loadTransactionData = async () => {
   loadingData.value = true
   try {
-    const [txnRes, peRes] = await Promise.all([
-      transactionListResource.fetch({
-        username_filter: selectedUsername.value || undefined,
-        customer_filter: selectedCustomer.value?.value || undefined,
-        date: selectedDate.value || undefined,
-        limit: 100,
-      }),
-      paymentEntriesResource.fetch({
-        date: selectedDate.value || undefined,
-      }),
-    ])
+    // Only use Payment Entries (Fonepay mode) to avoid duplication
+    // QR transactions create Payment Entries when successful, so we only show Payment Entries
+    const peRes = await paymentEntriesResource.fetch({
+      date: selectedDate.value || undefined,
+    })
     
-    // Combine QR transactions and Payment Entries
-    const qrTransactions = txnRes?.transactions || []
     const paymentEntries = peRes?.payment_entries || []
     
     // Filter payment entries by username/customer if filters are active
@@ -677,8 +625,8 @@ const loadTransactionData = async () => {
       filteredPaymentEntries = filteredPaymentEntries.filter(pe => pe.customer === selectedCustomer.value.value)
     }
     
-    // Merge and sort by creation time (most recent first)
-    transactionData.value = [...qrTransactions, ...filteredPaymentEntries].sort((a, b) => {
+    // Sort by creation time (most recent first)
+    transactionData.value = filteredPaymentEntries.sort((a, b) => {
       const dateA = new Date(a.creation || a.posting_date || 0)
       const dateB = new Date(b.creation || b.posting_date || 0)
       return dateB - dateA
