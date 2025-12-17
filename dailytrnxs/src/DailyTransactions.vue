@@ -377,6 +377,32 @@
                   </div>
                 </div>
                 
+                <!-- Row 4: Cash Received & Cash Difference -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                  <div class="category-pill" style="background-color: #dcfce7; border: 1px solid #86efac; border-radius: 0.75rem; padding: 0.75rem;">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div class="w-2 h-2 rounded-full" style="background-color: #22c55e;"></div>
+                      <span class="text-xs font-medium" style="color: #15803d;">Cash Received</span>
+                    </div>
+                    <div class="text-base font-bold" style="color: #16a34a;">{{ formatAmount(item.cash_received || 0) }}</div>
+                  </div>
+                  <div class="category-pill" 
+                       :style="{ 
+                         backgroundColor: (item.cash_difference || 0) >= 0 ? '#dcfce7' : '#fee2e2',
+                         border: (item.cash_difference || 0) >= 0 ? '1px solid #86efac' : '1px solid #fca5a5',
+                         borderRadius: '0.75rem',
+                         padding: '0.75rem'
+                       }">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div class="w-2 h-2 rounded-full" :style="{ backgroundColor: (item.cash_difference || 0) >= 0 ? '#22c55e' : '#dc2626' }"></div>
+                      <span class="text-xs font-medium" :style="{ color: (item.cash_difference || 0) >= 0 ? '#15803d' : '#b91c1c' }">Cash Difference</span>
+                    </div>
+                    <div class="text-base font-bold" :style="{ color: (item.cash_difference || 0) >= 0 ? '#16a34a' : '#dc2626' }">
+                      {{ (item.cash_difference || 0) >= 0 ? '+' : '' }}{{ formatAmount(item.cash_difference || 0) }}
+                    </div>
+                  </div>
+                </div>
+                
                 <!-- Remaining Amount Highlight -->
                 <div class="remaining-highlight p-3 rounded-xl" 
                      :style="{ 

@@ -473,7 +473,9 @@ const handleExpenseUpdated = (updatedSummary) => {
       ...recoData.value.summary,
       expense_amount: updatedSummary.expense_amount,
       cash_amount: updatedSummary.cash_amount,
-      remaining_amount: updatedSummary.remaining_amount
+      remaining_amount: updatedSummary.remaining_amount,
+      cash_received: updatedSummary.cash_received,
+      cash_difference: updatedSummary.cash_difference
     }
   }
 }

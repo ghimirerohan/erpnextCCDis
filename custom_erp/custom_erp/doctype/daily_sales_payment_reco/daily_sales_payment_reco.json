@@ -66,6 +66,18 @@
       "fieldtype": "Currency"
     },
     {
+      "fieldname": "cash_received",
+      "label": "Cash Received",
+      "fieldtype": "Currency",
+      "description": "Actual cash received from driver"
+    },
+    {
+      "fieldname": "cash_difference",
+      "label": "Cash Difference",
+      "fieldtype": "Currency",
+      "description": "Cash Received - Total Cash (can be positive or negative)"
+    },
+    {
       "fieldname": "remaining_amount",
       "label": "Remaining Amount",
       "fieldtype": "Currency"

@@ -515,6 +515,8 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
             "return_amount": reco_doc.return_amount,
             "credit_amount": reco_doc.credit_amount,
             "expense_amount": reco_doc.expense_amount,
+            "cash_received": reco_doc.cash_received or 0,
+            "cash_difference": reco_doc.cash_difference or 0,
             "remaining_amount": reco_doc.remaining_amount
         }
         
@@ -675,7 +677,6 @@ def update_payment_entry(
         total_qr = 0
         total_cheque = 0
         total_remaining = 0
-        all_settled = True
         
         for line in parent_doc.daily_sales_payment_reco_line:
             total_return += line.return_amount or 0
@@ -685,10 +686,8 @@ def update_payment_entry(
             total_qr += line.qr_amount or 0
             total_cheque += line.cheque_amount or 0
             total_remaining += line.remaining_amount or 0
-            if not line.settled:
-                all_settled = False
         
-        # Update parent
+        # Update parent - aggregates only, do NOT auto-settle
         parent_doc.return_amount = total_return
         parent_doc.additional_amount = total_additional
         parent_doc.credit_amount = total_credit
@@ -698,9 +697,8 @@ def update_payment_entry(
         parent_doc.net_total_amount = parent_doc.initial_total_amount + total_additional - total_return
         parent_doc.remaining_amount = total_remaining
         
-        if all_settled:
-            parent_doc.settled = 1
-            parent_doc.settled_at = datetime.now()
+        # NOTE: Removed auto-settling logic - parent doc should NOT be auto-settled
+        # when the last reco line is processed. Settling should be manual.
         
         # Save the parent with detailed error handling
         # Bypass permission checks since this is a whitelisted API method
@@ -798,6 +796,7 @@ def compress_and_attach_image(
 ) -> Dict[str, Any]:
     """
     Compress photo and create attachment.
+    Falls back to raw upload if PIL is unavailable.
     
     Args:
         image_data: Base64 encoded image data
@@ -819,61 +818,82 @@ def compress_and_attach_image(
         
         image_bytes = base64.b64decode(image_data)
         
-        # Compress image using PIL
-        from PIL import Image
-        import io
-        
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        # Convert to RGB if needed
-        if image.mode in ("RGBA", "LA", "P"):
-            image = image.convert("RGB")
-        
-        # Calculate resize dimensions to keep under 500KB
-        max_size = (1920, 1920)
-        image.thumbnail(max_size, Image.Resampling.LANCZOS)
-        
-        # Compress to JPEG
-        output = io.BytesIO()
-        image.save(output, format="JPEG", quality=85, optimize=True)
-        compressed_bytes = output.getvalue()
-        
-        # If still too large, reduce quality
-        quality = 85
-        while len(compressed_bytes) > 500000 and quality > 40:
-            quality -= 10
-            output = io.BytesIO()
-            image.save(output, format="JPEG", quality=quality, optimize=True)
-            compressed_bytes = output.getvalue()
-        
         # Generate filename
         if not filename:
             filename = f"cheque_{reference_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         
-        # Create File document
-        file_doc = frappe.get_doc({
-            "doctype": "File",
-            "file_name": filename,
-            "attached_to_doctype": reference_doctype,
-            "attached_to_name": reference_name,
-            "content": compressed_bytes,
-            "is_private": 1
-        })
-        file_doc.save()
-        frappe.db.commit()
+        compressed_bytes = image_bytes
+        compression_method = "none"
+        
+        # Try to compress image using PIL
+        try:
+            from PIL import Image
+            
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Convert to RGB if needed
+            if image.mode in ("RGBA", "LA", "P"):
+                image = image.convert("RGB")
+            
+            # Calculate resize dimensions to keep under 500KB
+            max_size = (1920, 1920)
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Compress to JPEG
+            output = io.BytesIO()
+            image.save(output, format="JPEG", quality=85, optimize=True)
+            compressed_bytes = output.getvalue()
+            
+            # If still too large, reduce quality
+            quality = 85
+            while len(compressed_bytes) > 500000 and quality > 40:
+                quality -= 10
+                output = io.BytesIO()
+                image.save(output, format="JPEG", quality=quality, optimize=True)
+                compressed_bytes = output.getvalue()
+            
+            compression_method = f"PIL (quality={quality})"
+            
+        except ImportError:
+            # PIL not available, use raw bytes
+            compression_method = "raw (PIL unavailable)"
+            frappe.log_error("PIL/Pillow not available for image compression", "Payment Reco Warning")
+        except Exception as pil_error:
+            # PIL failed, use raw bytes as fallback
+            compression_method = f"raw (PIL error: {str(pil_error)[:50]})"
+            frappe.log_error(f"PIL compression failed, using raw upload: {str(pil_error)}", "Payment Reco Warning")
+        
+        # Create File document with permission bypass
+        frappe.flags.ignore_permissions = True
+        try:
+            file_doc = frappe.get_doc({
+                "doctype": "File",
+                "file_name": filename,
+                "attached_to_doctype": reference_doctype,
+                "attached_to_name": reference_name,
+                "content": compressed_bytes,
+                "is_private": 1
+            })
+            file_doc.save(ignore_permissions=True)
+            frappe.db.commit()
+        finally:
+            frappe.flags.ignore_permissions = False
         
         return {
             "success": True,
             "data": {"file_url": file_doc.file_url},
-            "message": "Image compressed and attached successfully"
+            "message": f"Image attached successfully ({compression_method})"
         }
         
     except Exception as e:
-        frappe.log_error(f"Error compressing image: {str(e)}\n{traceback.format_exc()}")
+        frappe.db.rollback()
+        error_msg = str(e) if str(e) else repr(e)
+        error_traceback = traceback.format_exc()
+        frappe.log_error(f"Error attaching image: {error_msg}\n{error_traceback}", "Payment Reco API Error")
         return {
             "success": False,
             "data": None,
-            "message": f"Error compressing image: {str(e)}"
+            "message": f"Error attaching image: {error_msg}" if error_msg else "Error attaching image: Unknown error"
         }
 
 
@@ -1038,6 +1058,11 @@ def save_expense_amount(
         )
         reco_doc.remaining_amount = float(reco_doc.net_total_amount or 0) - total_collected
         
+        # Recalculate cash_difference if cash_received is set
+        if reco_doc.cash_received is not None and reco_doc.cash_received > 0:
+            total_cash_after_expense = new_cash
+            reco_doc.cash_difference = float(reco_doc.cash_received or 0) - total_cash_after_expense
+        
         # Save the document
         reco_doc.save(ignore_permissions=True)
         frappe.db.commit()
@@ -1054,7 +1079,9 @@ def save_expense_amount(
                 "qr_amount": reco_doc.qr_amount,
                 "cheque_amount": reco_doc.cheque_amount,
                 "return_amount": reco_doc.return_amount,
-                "credit_amount": reco_doc.credit_amount
+                "credit_amount": reco_doc.credit_amount,
+                "cash_received": reco_doc.cash_received,
+                "cash_difference": reco_doc.cash_difference
             },
             "message": f"Expense of NPR {expense_amount:,.0f} saved successfully"
         }
@@ -1065,6 +1092,86 @@ def save_expense_amount(
             "success": False,
             "data": None,
             "message": f"Error saving expense: {str(e)}"
+        }
+
+
+@frappe.whitelist()
+def save_cash_received(
+    reco_name: str,
+    cash_received: float
+) -> Dict[str, Any]:
+    """
+    Save cash received amount for a Daily Sales Payment Reco.
+    Calculates cash_difference as: cash_received - (cash_amount - expense_amount)
+    i.e., cash_received - total_cash_after_expense
+    
+    Args:
+        reco_name: Name of the Daily Sales Payment Reco document
+        cash_received: Actual cash received from driver
+    
+    Returns:
+        {
+            "success": bool,
+            "data": updated summary,
+            "message": str
+        }
+    """
+    try:
+        if not reco_name:
+            return {
+                "success": False,
+                "data": None,
+                "message": "Reco name is required"
+            }
+        
+        cash_received = float(cash_received or 0)
+        if cash_received < 0:
+            return {
+                "success": False,
+                "data": None,
+                "message": "Cash received amount cannot be negative"
+            }
+        
+        # Get the reco document
+        reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        
+        # Update cash received
+        reco_doc.cash_received = cash_received
+        
+        # Calculate cash_difference = cash_received - total_cash_after_expense
+        # Total cash after expense is (cash_amount which is already reduced by expense)
+        total_cash_after_expense = float(reco_doc.cash_amount or 0)
+        reco_doc.cash_difference = cash_received - total_cash_after_expense
+        
+        # Save the document
+        reco_doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        
+        # Return updated summary
+        return {
+            "success": True,
+            "data": {
+                "expense_amount": reco_doc.expense_amount,
+                "cash_amount": reco_doc.cash_amount,
+                "remaining_amount": reco_doc.remaining_amount,
+                "initial_total_amount": reco_doc.initial_total_amount,
+                "net_total_amount": reco_doc.net_total_amount,
+                "qr_amount": reco_doc.qr_amount,
+                "cheque_amount": reco_doc.cheque_amount,
+                "return_amount": reco_doc.return_amount,
+                "credit_amount": reco_doc.credit_amount,
+                "cash_received": reco_doc.cash_received,
+                "cash_difference": reco_doc.cash_difference
+            },
+            "message": f"Cash received of NPR {cash_received:,.0f} saved. Difference: NPR {reco_doc.cash_difference:,.0f}"
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error saving cash received: {str(e)}\n{traceback.format_exc()}")
+        return {
+            "success": False,
+            "data": None,
+            "message": f"Error saving cash received: {str(e)}"
         }
 
 
@@ -1296,7 +1403,8 @@ def get_daily_transactions_by_user(
             fields=[
                 "name", "driver",
                 "net_total_amount", "cash_amount", "qr_amount", "cheque_amount",
-                "credit_amount", "return_amount", "expense_amount", "remaining_amount"
+                "credit_amount", "return_amount", "expense_amount", "remaining_amount",
+                "cash_received", "cash_difference"
             ]
         )
         
@@ -1326,6 +1434,8 @@ def get_daily_transactions_by_user(
                     "return_amount": 0,
                     "expense_amount": 0,
                     "remaining_amount": 0,
+                    "cash_received": 0,
+                    "cash_difference": 0,
                     "line_count": 0,
                     "parent_names": []
                 }
@@ -1339,6 +1449,8 @@ def get_daily_transactions_by_user(
             driver_data[driver_id]["return_amount"] += parent.return_amount or 0
             driver_data[driver_id]["expense_amount"] += parent.expense_amount or 0
             driver_data[driver_id]["remaining_amount"] += parent.remaining_amount or 0
+            driver_data[driver_id]["cash_received"] += parent.cash_received or 0
+            driver_data[driver_id]["cash_difference"] += parent.cash_difference or 0
             driver_data[driver_id]["parent_names"].append(parent.name)
         
         # Get line count for each driver

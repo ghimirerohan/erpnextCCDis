@@ -60,6 +60,27 @@
       </div>
     </div>
     
+    <!-- Cash Received & Difference Row -->
+    <div class="mt-2 sm:mt-3">
+      <div class="rounded-lg p-2 sm:p-3 shadow-lg cursor-pointer hover:opacity-90 transition-opacity" 
+           @click="openCashReceivedDialog"
+           style="background-color: rgba(34, 197, 94, 0.3); border: 2px solid rgba(34, 197, 94, 0.6); backdrop-filter: blur(10px);">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Cash Received</p>
+            <p class="text-sm sm:text-base font-bold" style="color: #bbf7d0;">{{ formatCurrency(summary.cash_received || 0) }}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Cash Difference</p>
+            <p class="text-sm sm:text-base font-bold" :style="{ color: (summary.cash_difference || 0) >= 0 ? '#bbf7d0' : '#fca5a5' }">
+              {{ (summary.cash_difference || 0) >= 0 ? '+' : '' }}{{ formatCurrency(summary.cash_difference || 0) }}
+            </p>
+          </div>
+        </div>
+        <p class="text-[10px] mt-1 text-center" style="color: rgba(255,255,255,0.8);">Tap to enter cash received</p>
+      </div>
+    </div>
+    
     <div class="mt-3 sm:mt-4 pt-3 sm:pt-4" style="border-top: 2px solid rgba(255, 255, 255, 0.5);">
       <div class="flex justify-between items-center gap-2">
         <span class="font-bold text-base sm:text-lg lg:text-xl" style="color: #ffffff;">Remaining</span>
@@ -145,6 +166,98 @@
       </div>
     </div>
   </div>
+  
+  <!-- Cash Received Input Dialog -->
+  <div v-if="showCashReceivedDialog" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="cash-received-modal" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeCashReceivedDialog"></div>
+
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full">
+        <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-4">
+          <h3 class="text-lg font-bold text-white flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            Record Cash Received
+          </h3>
+          <p class="text-green-100 text-sm mt-1">Enter actual cash received from driver</p>
+        </div>
+        
+        <div class="bg-white px-4 py-5 sm:p-6">
+          <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-sm font-semibold text-gray-700">Total Cash (after expense)</label>
+              <span class="text-lg font-bold text-gray-900">{{ formatCurrency(totalCashAfterExpense) }}</span>
+            </div>
+            <p class="text-xs text-gray-500">This is the expected cash = Cash Collected - Expense</p>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Current Cash Received</label>
+            <div class="text-lg font-semibold text-green-600">{{ formatCurrency(summary.cash_received || 0) }}</div>
+          </div>
+          
+          <div>
+            <label for="cash-received-amount" class="block text-sm font-semibold text-gray-700 mb-2">
+              Cash Received Amount <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">NPR</span>
+              <input
+                id="cash-received-amount"
+                v-model.number="cashReceivedInput"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+                class="block w-full pl-14 pr-4 py-3 text-lg font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                @keyup.enter="saveCashReceived"
+              />
+            </div>
+          </div>
+          
+          <!-- Live Difference Preview -->
+          <div v-if="cashReceivedInput > 0" class="mt-4 p-3 rounded-lg" :class="cashDifferencePreview >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium" :class="cashDifferencePreview >= 0 ? 'text-green-700' : 'text-red-700'">Cash Difference</span>
+              <span class="text-lg font-bold" :class="cashDifferencePreview >= 0 ? 'text-green-700' : 'text-red-700'">
+                {{ cashDifferencePreview >= 0 ? '+' : '' }}{{ formatCurrency(cashDifferencePreview) }}
+              </span>
+            </div>
+            <p class="text-xs mt-1" :class="cashDifferencePreview >= 0 ? 'text-green-600' : 'text-red-600'">
+              {{ cashDifferencePreview >= 0 ? 'Surplus: More cash received than expected' : 'Shortage: Less cash received than expected' }}
+            </p>
+          </div>
+          
+          <div v-if="cashReceivedError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">{{ cashReceivedError }}</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 flex flex-col sm:flex-row-reverse gap-2">
+          <button
+            type="button"
+            @click="saveCashReceived"
+            :disabled="savingCashReceived"
+            class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-green-600 text-base font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <svg v-if="savingCashReceived" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ savingCashReceived ? 'Saving...' : 'Save Cash Received' }}
+          </button>
+          <button
+            type="button"
+            @click="closeCashReceivedDialog"
+            class="w-full sm:w-auto inline-flex justify-center rounded-lg border-2 border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -174,6 +287,12 @@ const expenseInput = ref(0)
 const savingExpense = ref(false)
 const expenseError = ref('')
 
+// Cash received state
+const showCashReceivedDialog = ref(false)
+const cashReceivedInput = ref(0)
+const savingCashReceived = ref(false)
+const cashReceivedError = ref('')
+
 const todayDate = computed(() => {
   const date = new Date()
   return date.toLocaleDateString('en-US', { 
@@ -189,6 +308,16 @@ const maxExpense = computed(() => {
   const currentCash = props.summary.cash_amount || 0
   const currentExpense = props.summary.expense_amount || 0
   return currentCash + currentExpense
+})
+
+// Total cash after expense (the expected cash to receive)
+const totalCashAfterExpense = computed(() => {
+  return props.summary.cash_amount || 0
+})
+
+// Live preview of cash difference
+const cashDifferencePreview = computed(() => {
+  return (cashReceivedInput.value || 0) - totalCashAfterExpense.value
 })
 
 const formatCurrency = (amount) => {
@@ -241,6 +370,47 @@ const saveExpense = async () => {
     expenseError.value = 'Failed to save expense. Please try again.'
   } finally {
     savingExpense.value = false
+  }
+}
+
+// Cash Received Dialog functions
+const openCashReceivedDialog = () => {
+  cashReceivedInput.value = props.summary.cash_received || 0
+  cashReceivedError.value = ''
+  showCashReceivedDialog.value = true
+}
+
+const closeCashReceivedDialog = () => {
+  showCashReceivedDialog.value = false
+  cashReceivedError.value = ''
+}
+
+const saveCashReceived = async () => {
+  if (cashReceivedInput.value < 0) {
+    cashReceivedError.value = 'Cash received amount cannot be negative'
+    return
+  }
+  
+  savingCashReceived.value = true
+  cashReceivedError.value = ''
+  
+  try {
+    const response = await call('custom_erp.custom_erp.api.payment_reco.save_cash_received', {
+      reco_name: props.recoName,
+      cash_received: cashReceivedInput.value
+    })
+    
+    if (response.success) {
+      emit('expense-updated', response.data)
+      closeCashReceivedDialog()
+    } else {
+      cashReceivedError.value = response.message || 'Failed to save cash received'
+    }
+  } catch (error) {
+    console.error('Error saving cash received:', error)
+    cashReceivedError.value = 'Failed to save cash received. Please try again.'
+  } finally {
+    savingCashReceived.value = false
   }
 }
 

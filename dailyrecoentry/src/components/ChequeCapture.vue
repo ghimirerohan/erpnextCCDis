@@ -197,14 +197,38 @@ const saveCheque = async () => {
     
     const chequeName = chequeResponse.data.name
     
-    // Upload and attach the photo
+    // Upload and attach the photo with retry logic
     if (photoData.value) {
-      await call('custom_erp.custom_erp.api.payment_reco.compress_and_attach_image', {
-        image_data: photoData.value,
-        reference_doctype: 'Cheques Taageta',
-        reference_name: chequeName,
-        filename: `cheque_${chequeNumber.value}.jpg`
-      })
+      let uploadSuccess = false
+      let uploadError = null
+      
+      // Try up to 2 times to upload the image
+      for (let attempt = 1; attempt <= 2 && !uploadSuccess; attempt++) {
+        try {
+          const uploadResponse = await call('custom_erp.custom_erp.api.payment_reco.compress_and_attach_image', {
+            image_data: photoData.value,
+            reference_doctype: 'Cheques Taageta',
+            reference_name: chequeName,
+            filename: `cheque_${chequeNumber.value}.jpg`
+          })
+          
+          if (uploadResponse.success) {
+            uploadSuccess = true
+          } else {
+            uploadError = uploadResponse.message || 'Upload failed'
+            console.warn(`Image upload attempt ${attempt} failed:`, uploadError)
+          }
+        } catch (err) {
+          uploadError = err.message || 'Network error during upload'
+          console.warn(`Image upload attempt ${attempt} error:`, err)
+        }
+      }
+      
+      // If image upload failed, still proceed but warn user
+      if (!uploadSuccess) {
+        console.warn('Image upload failed after retries, but cheque record was created:', uploadError)
+        // Don't block the user - cheque record is created, just image failed
+      }
     }
     
     emit('success', chequeName)
