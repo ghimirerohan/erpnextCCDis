@@ -697,10 +697,33 @@ def get_all_active_recos() -> Dict[str, Any]:
         return {"success": False, "data": [], "message": str(e)}
 
 
+def get_driver_for_user(user: str) -> Optional[str]:
+    """
+    Find driver linked to a user via: Driver.employee -> Employee.user_id
+    Returns driver name (ID) or None if not found.
+    """
+    try:
+        # First find the employee linked to this user
+        employee = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
+        if not employee:
+            return None
+        
+        # Then find the driver linked to this employee
+        driver_id = frappe.db.get_value("Driver", {"employee": employee}, "name")
+        return driver_id
+    except Exception:
+        return None
+
+
 @frappe.whitelist()
 def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
     """
     Get reconciliation data for a specific driver or the current user.
+    
+    Logic:
+    - If driver_name is provided (admin selecting), find that driver
+    - If no driver_name, find driver via: Driver.employee -> Employee.user_id = current user
+    - Admins can see all drivers, non-admins only see their own
     """
     try:
         user = frappe.session.user
@@ -709,19 +732,14 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
         
         driver_id = None
         if driver_name:
-            # Find driver by full name
+            # Admin selecting a specific driver by full name
             driver_id = frappe.db.get_value("Driver", {"full_name": driver_name}, "name")
         else:
-            # Try to find driver linked to current user (if user field exists in Driver doctype)
-            try:
-                driver_meta = frappe.get_meta("Driver")
-                if driver_meta.has_field("user"):
-                    driver_id = frappe.db.get_value("Driver", {"user": user}, "name")
-            except Exception:
-                pass  # Field doesn't exist, skip user-based lookup
+            # Find driver linked to current user via Employee
+            driver_id = get_driver_for_user(user)
             
         if not driver_id and not is_admin:
-            return {"success": False, "is_admin": is_admin, "message": "No driver linked to your account"}
+            return {"success": False, "is_admin": is_admin, "message": "No driver linked to your account. Please ensure your Employee record is linked to your user and a Driver record is linked to that Employee."}
             
         # Find active (unsettled) reco for this driver
         filters = {"settled": 0}
