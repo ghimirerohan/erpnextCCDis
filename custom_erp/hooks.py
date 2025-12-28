@@ -176,7 +176,7 @@ after_install = "custom_erp.install.after_install"
 
 scheduler_events = {
     "hourly": [
-        "custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs"
+        "custom_erp.api.fonepay.scheduled_process_unprocessed_qrs"
     ],
 }
 
@@ -199,35 +199,35 @@ override_whitelisted_methods = {
 
 # Whitelist Fonepay API methods
 whitelisted_methods = [
-	"custom_erp.custom_erp.api.fonepay.create_dynamic_qr",
-	"custom_erp.custom_erp.api.fonepay.listen_to_ws",
-	"custom_erp.custom_erp.api.fonepay.check_qr_status",
-	"custom_erp.custom_erp.api.fonepay.finalize_payment_from_ws",
-	"custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs",
-	"custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs",
+	"custom_erp.api.fonepay.create_dynamic_qr",
+	"custom_erp.api.fonepay.listen_to_ws",
+	"custom_erp.api.fonepay.check_qr_status",
+	"custom_erp.api.fonepay.finalize_payment_from_ws",
+	"custom_erp.api.fonepay.process_unprocessed_qrs",
+	"custom_erp.api.fonepay.scheduled_process_unprocessed_qrs",
 	# ADDED BY AI: UPLOAD_SALES - Upload Sales API methods
-	"custom_erp.custom_erp.api.uploadsales.transform_and_preview",
-	"custom_erp.custom_erp.api.uploadsales.enqueue_import_job",
-	"custom_erp.custom_erp.api.uploadsales.get_drivers",
-	"custom_erp.custom_erp.api.uploadsales.get_vehicles",
-	"custom_erp.custom_erp.api.uploadsales.get_job_progress",
-	"custom_erp.custom_erp.api.uploadsales.run_data_import",
-        "custom_erp.custom_erp.api.uploadsales.test_api",
-        "custom_erp.custom_erp.api.uploadsales.test_api_v2",
-        "custom_erp.custom_erp.api.uploadsales.debug_import_status",
-        "custom_erp.custom_erp.api.uploadsales.download_error_csv",
+	"custom_erp.api.uploadsales.transform_and_preview",
+	"custom_erp.api.uploadsales.enqueue_import_job",
+	"custom_erp.api.uploadsales.get_drivers",
+	"custom_erp.api.uploadsales.get_vehicles",
+	"custom_erp.api.uploadsales.get_job_progress",
+	"custom_erp.api.uploadsales.run_data_import",
+	"custom_erp.api.uploadsales.test_api",
+	"custom_erp.api.uploadsales.test_api_v2",
+	"custom_erp.api.uploadsales.debug_import_status",
+	"custom_erp.api.uploadsales.download_error_csv",
 	# ADDED BY AI: DAILY_PAYMENT_RECO - Payment Reconciliation API methods
-	"custom_erp.custom_erp.api.payment_reco.parse_and_validate_csv",
-	"custom_erp.custom_erp.api.payment_reco.get_drivers_list",
-	"custom_erp.custom_erp.api.payment_reco.create_payment_recos",
-	"custom_erp.custom_erp.api.payment_reco.get_all_active_recos",
-	"custom_erp.custom_erp.api.payment_reco.get_driver_reco_data",
-	"custom_erp.custom_erp.api.payment_reco.update_payment_entry",
-	"custom_erp.custom_erp.api.payment_reco.generate_qr_no_payment_entry",
-	"custom_erp.custom_erp.api.payment_reco.compress_and_attach_image",
-	"custom_erp.custom_erp.api.payment_reco.create_cheque_taageta",
-	"custom_erp.custom_erp.api.payment_reco.get_current_nepali_date",
-	"custom_erp.custom_erp.api.payment_reco.settle_all_pending_as_cash"
+	"custom_erp.api.payment_reco.parse_and_validate_csv",
+	"custom_erp.api.payment_reco.get_drivers_list",
+	"custom_erp.api.payment_reco.create_payment_recos",
+	"custom_erp.api.payment_reco.get_all_active_recos",
+	"custom_erp.api.payment_reco.get_driver_reco_data",
+	"custom_erp.api.payment_reco.update_payment_entry",
+	"custom_erp.api.payment_reco.generate_qr_no_payment_entry",
+	"custom_erp.api.payment_reco.compress_and_attach_image",
+	"custom_erp.api.payment_reco.create_cheque_taageta",
+	"custom_erp.api.payment_reco.get_current_nepali_date",
+	"custom_erp.api.payment_reco.settle_all_pending_as_cash"
 ]
 
 # --- Print Format Type ---
