@@ -5,16 +5,29 @@ import frappeui from "frappe-ui/vite";
 
 const appName = process.env.VITE_APP_NAME || 'qrpay';
 const basePath = `/assets/custom_erp/frontend/${appName}/`;
+const outDir = path.resolve(__dirname, `custom_erp/public/frontend/${appName}`);
+const indexHtmlPath = path.resolve(__dirname, `custom_erp/www/${appName}.html`);
 
 export default defineConfig({
 	plugins: [
-		frappeui(),
+		frappeui({
+			lucideIcons: true,
+			frappeProxy: true,
+			jinjaBootData: true,
+			buildConfig: {
+				outDir: outDir,
+				baseUrl: basePath,
+				indexHtmlPath: indexHtmlPath,
+				emptyOutDir: true,
+				sourcemap: false,
+			}
+		}),
 		vue()
 	],
 	base: basePath,
 	build: {
 		chunkSizeWarningLimit: 1500,
-		outDir: `custom_erp/public/frontend/${appName}`,
+		outDir: outDir,
 		emptyOutDir: true,
 		target: "es2015",
 		sourcemap: false,
@@ -34,12 +47,12 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-            "@shared": path.resolve(__dirname, "shared"),
+			"@shared": path.resolve(__dirname, "shared"),
 			"tailwind.config.js": path.resolve(__dirname, "tailwind.config.js"),
 		},
 	},
 	optimizeDeps: {
-		include: ["feather-icons", "showdown", "highlight.js/lib/core", "interactjs"],
+		include: ["feather-icons", "showdown", "highlight.js/lib/core", "interactjs", "nepali-date-converter"],
 	},
 })
 

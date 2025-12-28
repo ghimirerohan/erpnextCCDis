@@ -283,7 +283,7 @@ export default defineConfig({
 		},
 	},
 	optimizeDeps: {
-		include: ["feather-icons", "showdown", "highlight.js/lib/core", "interactjs"],
+		include: ["feather-icons", "showdown", "highlight.js/lib/core", "interactjs", "nepali-date-converter"],
 	},
 	server: {
 		host: true,
