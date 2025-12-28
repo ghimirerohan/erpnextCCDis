@@ -2,7 +2,9 @@ import path from "path";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import frappeui from "frappe-ui/vite";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appName = process.env.VITE_APP_NAME || 'qrpay';
 const basePath = `/assets/custom_erp/frontend/${appName}/`;
 const outDir = path.resolve(__dirname, `custom_erp/public/frontend/${appName}`);
@@ -32,6 +34,9 @@ export default defineConfig({
 		target: "es2015",
 		sourcemap: false,
 		minify: false,
+		commonjsOptions: {
+			include: [/node_modules/],
+		},
 		rollupOptions: {
 			input: path.resolve(__dirname, `${appName}/index.html`),
 			output: {
@@ -50,6 +55,7 @@ export default defineConfig({
 			"@shared": path.resolve(__dirname, "shared"),
 			"tailwind.config.js": path.resolve(__dirname, "tailwind.config.js"),
 		},
+		dedupe: ['vue', 'vue-router', 'nepali-date-converter'],
 	},
 	optimizeDeps: {
 		include: ["feather-icons", "showdown", "highlight.js/lib/core", "interactjs", "nepali-date-converter"],
