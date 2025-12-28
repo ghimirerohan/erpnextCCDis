@@ -712,8 +712,13 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
             # Find driver by full name
             driver_id = frappe.db.get_value("Driver", {"full_name": driver_name}, "name")
         else:
-            # Find driver linked to current user
-            driver_id = frappe.db.get_value("Driver", {"user": user}, "name")
+            # Try to find driver linked to current user (if user field exists in Driver doctype)
+            try:
+                driver_meta = frappe.get_meta("Driver")
+                if driver_meta.has_field("user"):
+                    driver_id = frappe.db.get_value("Driver", {"user": user}, "name")
+            except Exception:
+                pass  # Field doesn't exist, skip user-based lookup
             
         if not driver_id and not is_admin:
             return {"success": False, "is_admin": is_admin, "message": "No driver linked to your account"}
@@ -786,7 +791,8 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
             "data": data
         }
     except Exception as e:
-        frappe.log_error(f"Error in get_driver_reco_data: {str(e)}\n{traceback.format_exc()}")
+        error_msg = str(e)[:100]  # Truncate for error log title
+        frappe.log_error(message=traceback.format_exc(), title=f"get_driver_reco_data: {error_msg}")
         return {"success": False, "is_admin": False, "message": str(e)}
 
 
