@@ -554,7 +554,7 @@ const loadLineData = async () => {
       return
     }
     
-    const response = await call('custom_erp.custom_erp.api.payment_reco.get_driver_reco_data', { driver_name: driverName })
+    const response = await call('custom_erp.api.payment_reco.get_driver_reco_data', { driver_name: driverName })
     if (response.success) {
       const lineName = route.params.lineName
       if (!lineName) {
@@ -683,7 +683,7 @@ const saveWholePayment = async (type, amount) => {
     }
     
     console.log('📤 Sending payment data:', JSON.stringify(paymentData, null, 2))
-    const response = await call('custom_erp.custom_erp.api.payment_reco.update_payment_entry', paymentData)
+    const response = await call('custom_erp.api.payment_reco.update_payment_entry', paymentData)
     console.log('📥 Payment response:', JSON.stringify(response, null, 2))
     
     if (response.success) {
@@ -914,7 +914,7 @@ const completeBreakdownPayment = async () => {
       remarks: `Breakdown Entry: ${summary.join(', ')}`
     }
     
-    const response = await call('custom_erp.custom_erp.api.payment_reco.update_payment_entry', paymentData)
+    const response = await call('custom_erp.api.payment_reco.update_payment_entry', paymentData)
     
     if (response.success) {
       // Backend automatically marks as settled when remaining is 0

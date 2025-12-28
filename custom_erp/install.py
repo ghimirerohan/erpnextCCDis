@@ -4,6 +4,38 @@ import sys
 import shutil
 from pathlib import Path
 
+def migrate_add_updated_later_field():
+    """
+    Migration to add 'updated_later' field to Daily Sales Payment Reco Line table.
+    This field tracks entries that were added/updated after the initial import.
+    """
+    try:
+        import frappe
+        
+        table_name = "tabDaily Sales Payment Reco Line"
+        column_name = "updated_later"
+        
+        # Check if the column already exists
+        columns = frappe.db.sql(f"SHOW COLUMNS FROM `{table_name}` LIKE '{column_name}'")
+        
+        if not columns:
+            print(f"   Adding '{column_name}' field to {table_name}...")
+            frappe.db.sql(f"""
+                ALTER TABLE `{table_name}` 
+                ADD COLUMN `{column_name}` INT(1) NOT NULL DEFAULT 0
+            """)
+            frappe.db.commit()
+            print(f"   ✅ '{column_name}' field added successfully.")
+        else:
+            print(f"   ✅ '{column_name}' field already exists in {table_name}.")
+        
+        return True
+        
+    except Exception as e:
+        print(f"   ⚠️  Could not add '{column_name}' field: {e}")
+        return False
+
+
 def check_hrms_dependencies():
     """Check if HRMS app is installed and required doctypes exist."""
     try:
@@ -197,6 +229,11 @@ def after_install():
     # Step 4: Verify custom fields
     print("Step 4: Verifying custom fields...")
     fields_verified = verify_custom_fields()
+    print()
+    
+    # Step 5: Run database migrations
+    print("Step 5: Running database migrations...")
+    migration_success = migrate_add_updated_later_field()
     print()
     
     # Summary

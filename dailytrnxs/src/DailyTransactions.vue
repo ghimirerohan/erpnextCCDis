@@ -35,7 +35,10 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
           <div class="space-y-2">
             <div class="text-xs sm:text-sm" style="color: #6b7280;">Today (BS)</div>
-            <div class="text-xl sm:text-2xl font-bold" style="color: #111827;">{{ bsToday }}</div>
+            <div class="text-xl sm:text-2xl font-bold" style="color: #111827;">
+              {{ bsToday }}
+              <span class="text-sm font-normal text-gray-500 ml-1">({{ adToday }})</span>
+            </div>
             <div class="text-sm sm:text-base" style="color: #374151;">
               <span class="font-medium">{{ session.user }}</span>
             </div>
@@ -51,6 +54,7 @@
             />
             <div v-if="selectedDateBs" class="text-sm text-gray-600 mt-2">
               Selected: <span class="font-semibold">{{ selectedDateBs }}</span>
+              <span class="text-xs text-gray-500 ml-1">({{ selectedDate }})</span>
             </div>
             <button
               v-if="selectedDate"
@@ -130,6 +134,36 @@
         <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #ecfeff; border: 2px solid #22d3ee;">
           <div class="text-xs sm:text-sm mb-1" style="color: #0e7490;">Remaining</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #0891b2;">{{ formatAmount(summary.remaining_amount) }}</div>
+        </div>
+        <!-- Cheque Settlement Info (Added by AI) -->
+        <div 
+          @click="selectedViewMode = 'cheques'"
+          class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" 
+          style="background-color: #fff1f2; border: 1px solid #fecdd3;"
+        >
+          <div class="flex items-center justify-between mb-3">
+             <div class="text-xs sm:text-sm font-semibold" style="color: #be123c;">Cheque Settlement</div>
+             <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          </div>
+          
+          <!-- Total Pending -->
+          <div class="flex justify-between items-baseline mb-2">
+            <div class="text-xs text-gray-500">Pending ({{ summary.cheque_settlement_info?.total_pending_count || 0 }})</div>
+            <div class="font-bold text-lg" style="color: #be123c;">
+              {{ formatAmount(summary.cheque_settlement_info?.total_pending_amount || 0) }}
+            </div>
+          </div>
+          
+          <!-- Due Today -->
+          <div class="pt-2 border-t border-rose-200 mt-2">
+            <div class="flex justify-between items-center mb-1">
+              <div class="text-xs text-rose-700 font-medium">Due Today / Late</div>
+              <div class="text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">{{ summary.cheque_settlement_info?.due_today_count || 0 }}</div>
+            </div>
+            <div class="text-right text-base font-bold text-rose-800">
+              {{ formatAmount(summary.cheque_settlement_info?.due_today_amount || 0) }}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -685,7 +719,68 @@
             </div>
           </div>
         </div>
-      </section>
+      
+      <!-- Cheques View -->
+      <div v-else-if="selectedViewMode === 'cheques'">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h3 class="text-lg font-semibold" style="color: #111827;">Pending Cheques</h3>
+          
+          <!-- Cheque Filters/Sort -->
+          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+            <select v-model="chequeSort" class="select-dropdown text-sm p-2 border rounded-lg">
+              <option value="date_asc">Date: Oldest First</option>
+              <option value="date_desc">Date: Newest First</option>
+              <option value="amount_desc">Amount: High to Low</option>
+              <option value="amount_asc">Amount: Low to High</option>
+            </select>
+            
+            <select v-model="chequeFilterStatus" class="select-dropdown text-sm p-2 border rounded-lg">
+               <option value="all">All Pending</option>
+               <option value="due_today">Due Today/Late</option>
+               <option value="future">Future Dated</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+           <div v-if="loadingCheques" class="text-center py-8">
+              <div class="animate-spin rounded-full h-8 w-8 mx-auto border-b-2 border-rose-600"></div>
+           </div>
+           <div v-else-if="!filteredCheques.length" class="text-center py-8 text-gray-500">
+              No cheques found matching filters.
+           </div>
+           <div
+             v-for="cheque in filteredCheques"
+             :key="cheque.name"
+             class="rounded-xl p-4 transition-all hover:shadow-md"
+             style="background-color: #ffffff; border: 1px solid #e5e7eb;"
+           >
+             <div class="flex flex-col sm:flex-row justify-between gap-4">
+               <div class="flex items-start gap-3">
+                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-rose-500">
+                    {{ getInitials(cheque.customer_name) }}
+                 </div>
+                 <div>
+                   <div class="font-semibold text-gray-900">{{ cheque.customer_name }}</div>
+                   <div class="text-xs text-gray-500">Cheque No: {{ cheque.cheque_no }}</div>
+                   <div class="text-xs text-gray-500">{{ cheque.bank_name }}</div>
+                 </div>
+               </div>
+               
+               <div class="text-right">
+                  <div class="font-bold text-lg text-gray-900">{{ formatAmount(cheque.amount) }}</div>
+                  <div class="mt-1 inline-flex items-center px-2 py-1 rounded bg-gray-100 text-xs font-medium text-gray-700">
+                     BS: {{ cheque.cheque_date_nepali }}
+                  </div>
+                  <div class="text-xs mt-1" :class="isDue(cheque.cheque_date_nepali) ? 'text-rose-600 font-bold' : 'text-green-600'">
+                     {{ getDueStatus(cheque.cheque_date_nepali) }}
+                  </div>
+               </div>
+             </div>
+           </div>
+        </div>
+      </div>
+    </section>
     </main>
   </div>
 </template>
@@ -708,6 +803,13 @@ const summary = ref({
   expense_amount: 0,
   remaining_amount: 0,
   total_records: 0,
+  cheque_settlement_info: {
+    total_pending_count: 0,
+    total_pending_amount: 0,
+    due_today_count: 0,
+    due_today_amount: 0,
+    today_bs: ''
+  }
 })
 
 const categoryBreakdown = ref({
@@ -718,7 +820,13 @@ const categoryBreakdown = ref({
   return_count: 0,
 })
 
+const chequeData = ref([])
+const loadingCheques = ref(false)
+const chequeSort = ref('date_asc')
+const chequeFilterStatus = ref('all')
+
 const bsToday = ref(getTodayBs())
+const adToday = ref(new Date().toLocaleDateString('en-CA'))
 const selectedDate = ref(null)
 const selectedDateBs = computed(() => {
   return selectedDate.value ? adToBs(selectedDate.value) : ''
@@ -733,6 +841,7 @@ const viewModes = [
   { value: 'customer', label: 'By Customer' },
   { value: 'category', label: 'By Category' },
   { value: 'detail', label: 'Details' },
+  { value: 'cheques', label: 'Cheque List' },
 ]
 const selectedViewMode = ref('driver')
 
@@ -751,23 +860,38 @@ const detailData = ref([])
 
 // API Resources
 const summaryResource = createResource({
-  url: 'custom_erp.custom_erp.api.payment_reco.get_daily_transactions_summary',
+  url: 'custom_erp.api.payment_reco.get_daily_transactions_summary',
   auto: false,
 })
 
 const driverDataResource = createResource({
-  url: 'custom_erp.custom_erp.api.payment_reco.get_daily_transactions_by_user',
+  url: 'custom_erp.api.payment_reco.get_daily_transactions_by_user',
   auto: false,
 })
 
 const customerDataResource = createResource({
-  url: 'custom_erp.custom_erp.api.payment_reco.get_daily_transactions_by_customer',
+  url: 'custom_erp.api.payment_reco.get_daily_transactions_by_customer',
   auto: false,
 })
 
 const detailDataResource = createResource({
-  url: 'custom_erp.custom_erp.api.payment_reco.get_daily_transactions_details',
+  url: 'custom_erp.api.payment_reco.get_daily_transactions_details',
   auto: false,
+})
+
+const chequeListResource = createResource({
+  url: 'custom_erp.api.payment_reco.get_due_cheques',
+  auto: false,
+  onSuccess: (data) => {
+    // Handle both wrapped and unwrapped data
+    const list = data?.success ? data.data : (Array.isArray(data) ? data : (data?.data || []))
+    chequeData.value = list
+    loadingCheques.value = false
+  },
+  onError: (err) => {
+    console.error('Failed to load cheques', err)
+    loadingCheques.value = false
+  }
 })
 
 // Computed
@@ -780,7 +904,37 @@ const hasData = computed(() => {
   if (selectedViewMode.value === 'customer') return customerData.value.length > 0
   if (selectedViewMode.value === 'category') return summary.value.total_records > 0
   if (selectedViewMode.value === 'detail') return detailData.value.length > 0
+  if (selectedViewMode.value === 'cheques') return true // Always show container, handle empty state inside
   return false
+})
+
+const filteredCheques = computed(() => {
+  let items = [...chequeData.value]
+  const today = summary.value.cheque_settlement_info?.today_bs || getTodayBs()
+  
+  // Filter
+  if (chequeFilterStatus.value === 'due_today') {
+     items = items.filter(c => c.cheque_date_nepali <= today)
+  } else if (chequeFilterStatus.value === 'future') {
+     items = items.filter(c => c.cheque_date_nepali > today)
+  }
+  
+  // Sort
+  items.sort((a, b) => {
+    if (chequeSort.value === 'amount_desc') return b.amount - a.amount
+    if (chequeSort.value === 'amount_asc') return a.amount - b.amount
+    if (chequeSort.value === 'date_desc') return b.cheque_date_nepali.localeCompare(a.cheque_date_nepali)
+    return a.cheque_date_nepali.localeCompare(b.cheque_date_nepali) // date_asc default
+  })
+  
+  return items
+})
+
+watch(selectedViewMode, (newMode) => {
+  if (newMode === 'cheques') {
+    loadingCheques.value = true
+    chequeListResource.submit()
+  }
 })
 
 // Methods
@@ -797,6 +951,18 @@ const getDriverLabel = (driverValue) => {
 const getCustomerLabel = (customerValue) => {
   const customer = customerOptions.value.find(c => c.value === customerValue)
   return customer ? customer.label : customerValue
+}
+
+const isDue = (dateBs) => {
+  const today = summary.value.cheque_settlement_info?.today_bs || getTodayBs()
+  return dateBs <= today
+}
+
+const getDueStatus = (dateBs) => {
+  const today = summary.value.cheque_settlement_info?.today_bs || getTodayBs()
+  if (dateBs < today) return 'Overdue'
+  if (dateBs === today) return 'Due Today'
+  return 'Future'
 }
 
 // Helper functions for UI
@@ -854,9 +1020,22 @@ const clearStatusFilter = () => {
   applyFilters()
 }
 
+watch(selectedDate, (newVal) => {
+  console.log('DailyTransactions: watcher triggered for selectedDate:', newVal);
+  if (newVal) {
+    refreshAll()
+  }
+})
+
 const handleDateChange = async (adDate) => {
-  selectedDate.value = adDate
-  await refreshAll()
+  console.log('DailyTransactions: handleDateChange called with', adDate);
+  // #region agent log
+  fetch('http://localhost:7242/ingest/438788ef-4596-4099-9ba4-470042d02997',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DailyTransactions.vue:handleDateChange',message:'Date change handler triggered',data:{adDate},timestamp:Date.now(),sessionId:'debug-data-sync',hypothesisId:'F/G'})}).catch(()=>{});
+  // #endregion
+  if (selectedDate.value !== adDate) {
+    selectedDate.value = adDate
+    // refreshAll is handled by the watch above
+  }
 }
 
 const clearDateFilter = async () => {
@@ -866,42 +1045,47 @@ const clearDateFilter = async () => {
 }
 
 const loadSummary = async () => {
+  console.log('DailyTransactions: loadSummary calling with date:', selectedDate.value);
   try {
     const res = await summaryResource.fetch({
       date: selectedDate.value || undefined,
     })
     
-    if (res?.success) {
+    // Support both raw response and unwrapped data
+    const data = res?.success ? res.data : (res?.net_total_amount !== undefined ? res : null)
+    
+    if (data) {
       summary.value = {
-        net_total_amount: Number(res.data?.net_total_amount || 0),
-        cash_amount: Number(res.data?.cash_amount || 0),
-        qr_amount: Number(res.data?.qr_amount || 0),
-        cheque_amount: Number(res.data?.cheque_amount || 0),
-        credit_amount: Number(res.data?.credit_amount || 0),
-        return_amount: Number(res.data?.return_amount || 0),
-        expense_amount: Number(res.data?.expense_amount || 0),
-        remaining_amount: Number(res.data?.remaining_amount || 0),
-        total_records: Number(res.data?.total_records || 0),
+        net_total_amount: Number(data.net_total_amount || 0),
+        cash_amount: Number(data.cash_amount || 0),
+        qr_amount: Number(data.qr_amount || 0),
+        cheque_amount: Number(data.cheque_amount || 0),
+        credit_amount: Number(data.credit_amount || 0),
+        return_amount: Number(data.return_amount || 0),
+        expense_amount: Number(data.expense_amount || 0),
+        remaining_amount: Number(data.remaining_amount || 0),
+        total_records: Number(data.total_records || 0),
+        cheque_settlement_info: data.cheque_settlement_info || {},
       }
       
       categoryBreakdown.value = {
-        cash_count: Number(res.data?.cash_count || 0),
-        qr_count: Number(res.data?.qr_count || 0),
-        cheque_count: Number(res.data?.cheque_count || 0),
-        credit_count: Number(res.data?.credit_count || 0),
-        return_count: Number(res.data?.return_count || 0),
+        cash_count: Number(data.cash_count || 0),
+        qr_count: Number(data.qr_count || 0),
+        cheque_count: Number(data.cheque_count || 0),
+        credit_count: Number(data.credit_count || 0),
+        return_count: Number(data.return_count || 0),
       }
       
       // Update filter options from summary data
-      if (res.data?.drivers) {
-        driverOptions.value = res.data.drivers.map(d => ({
+      if (data.drivers) {
+        driverOptions.value = data.drivers.map(d => ({
           value: d.driver,
           label: d.driver_name,
         }))
       }
       
-      if (res.data?.customers) {
-        customerOptions.value = res.data.customers.map(c => ({
+      if (data.customers) {
+        customerOptions.value = data.customers.map(c => ({
           value: c.customer,
           label: c.customer_name || c.customer,
         }))
@@ -921,8 +1105,10 @@ const loadDriverData = async () => {
       status_filter: selectedStatus.value || undefined,
     })
     
-    if (res?.success) {
-      driverData.value = res.data || []
+    const data = res?.success ? res.data : (Array.isArray(res) ? res : null)
+    
+    if (data) {
+      driverData.value = data
     }
   } catch (error) {
     console.error('Failed to load driver data', error)
@@ -942,8 +1128,10 @@ const loadCustomerData = async () => {
       status_filter: selectedStatus.value || undefined,
     })
     
-    if (res?.success) {
-      customerData.value = res.data || []
+    const data = res?.success ? res.data : (Array.isArray(res) ? res : null)
+    
+    if (data) {
+      customerData.value = data
     }
   } catch (error) {
     console.error('Failed to load customer data', error)
@@ -964,8 +1152,10 @@ const loadDetailData = async () => {
       status_filter: selectedStatus.value || undefined,
     })
     
-    if (res?.success) {
-      detailData.value = res.data || []
+    const data = res?.success ? res.data : (Array.isArray(res) ? res : null)
+    
+    if (data) {
+      detailData.value = data
     }
   } catch (error) {
     console.error('Failed to load detail data', error)
@@ -987,12 +1177,22 @@ const applyFilters = async () => {
 }
 
 const refreshAll = async () => {
+  console.error('DailyTransactions: refreshAll START', { loading: loading.value, selectedDate: selectedDate.value });
+  // #region agent log
+  fetch('http://localhost:7242/ingest/438788ef-4596-4099-9ba4-470042d02997',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DailyTransactions.vue:refreshAll',message:'Refreshing all data',data:{selectedDate:selectedDate.value},timestamp:Date.now(),sessionId:'debug-data-sync',hypothesisId:'H'})}).catch(()=>{});
+  // #endregion
   loading.value = true
   try {
+    console.error('DailyTransactions: fetching summary for', selectedDate.value);
     await loadSummary()
+    console.error('DailyTransactions: summary loaded');
     await applyFilters()
+    console.error('DailyTransactions: filters applied');
+  } catch (err) {
+    console.error('DailyTransactions: refreshAll ERROR', err);
   } finally {
     loading.value = false
+    console.error('DailyTransactions: refreshAll END');
   }
 }
 
@@ -1003,6 +1203,16 @@ watch(selectedViewMode, async () => {
 
 onMounted(async () => {
   bsToday.value = getTodayBs()
+  
+  // Initialize with today's AD date in YYYY-MM-DD format
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const todayStr = `${year}-${month}-${day}`
+  
+  selectedDate.value = todayStr
+  
   await refreshAll()
 })
 </script>

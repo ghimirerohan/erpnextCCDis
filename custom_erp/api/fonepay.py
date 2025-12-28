@@ -311,7 +311,7 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
     # enqueue listener if using inprocess worker
     if cfg.get("ws_worker", "inprocess") == "inprocess" and ws_url:
         try:
-            frappe.enqueue("custom_erp.custom_erp.api.fonepay.listen_to_ws", queue="long", tx_name=tx.name, now=False)
+            frappe.enqueue("custom_erp.api.fonepay.listen_to_ws", queue="long", tx_name=tx.name, now=False)
         except Exception:
             pass
 

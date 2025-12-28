@@ -27,7 +27,10 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
           <div class="space-y-2">
             <div class="text-xs sm:text-sm text-gray-500">Today (BS)</div>
-            <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ todayBs }}</div>
+            <div class="text-xl sm:text-2xl font-bold text-gray-900">
+              {{ todayBs }}
+              <span class="text-sm font-normal text-gray-500 ml-1">({{ todayAd }})</span>
+            </div>
             <div class="text-sm sm:text-base text-gray-700">
               <span class="font-medium">{{ session.user }}</span>
             </div>
@@ -41,6 +44,7 @@
             />
             <div v-if="selectedDateBs" class="text-sm text-gray-600 mt-2">
               Selected: <span class="font-semibold">{{ selectedDateBs }}</span>
+              <span class="text-xs text-gray-500 ml-1">({{ selectedDate }})</span>
             </div>
           </div>
           <div class="flex flex-col gap-2">
@@ -470,6 +474,7 @@ const summaryData = ref([])
 
 // Date display
 const todayBs = ref(getTodayBs())
+const todayAd = ref(new Date().toLocaleDateString('en-CA'))
 const selectedDate = ref("")
 const selectedDateBs = computed(() => {
   return selectedDate.value ? adToBs(selectedDate.value) : ""
@@ -544,6 +549,7 @@ const setToday = () => {
 
 // Methods
 const loadData = async () => {
+  console.log('Home: loadData called', { filters });
   if (!filters.customer || !filters.from_date || !filters.to_date) {
     error.value = "Please fill in all required fields"
     return
@@ -560,12 +566,20 @@ const loadData = async () => {
     } else {
       await salesInvoiceSummaryResource.fetch({ filters: filtersParam })
     }
+    console.log('Home: loadData complete');
   } catch (err) {
     error.value = "Failed to load data: " + err.message
   } finally {
     loading.value = false
   }
 }
+
+watch(() => [filters.from_date, filters.to_date], () => {
+  console.log('Home: dates changed, reloading...', filters);
+  if (filters.customer && filters.from_date && filters.to_date) {
+    loadData()
+  }
+})
 
 const formatDate = (dateString) => {
   if (!dateString) return ""

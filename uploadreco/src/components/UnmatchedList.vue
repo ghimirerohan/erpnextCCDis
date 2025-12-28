@@ -261,7 +261,7 @@ const remainingUnmatched = computed(() => {
 const loadTerritories = async () => {
   loadingTerritories.value = true
   try {
-    const response = await call('custom_erp.custom_erp.api.payment_reco.get_territories_list')
+    const response = await call('custom_erp.api.payment_reco.get_territories_list')
     if (response.success) {
       territories.value = response.data
     } else {
@@ -363,7 +363,7 @@ const createCustomer = async (customer) => {
   form.error = null
 
   try {
-    const response = await call('custom_erp.custom_erp.api.payment_reco.create_customer_from_csv', {
+    const response = await call('custom_erp.api.payment_reco.create_customer_from_csv', {
       outlet_code: customer.outlet_code,
       outlet_name: customer.outlet_name,
       territory: form.territory,

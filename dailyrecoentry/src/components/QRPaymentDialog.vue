@@ -140,7 +140,7 @@ const generateQR = async () => {
     })
     
     // Use the same working Fonepay API as QRPay.vue
-    const response = await call('custom_erp.custom_erp.api.fonepay.create_dynamic_qr', {
+    const response = await call('custom_erp.api.fonepay.create_dynamic_qr', {
       amount: props.amount,
       customer: props.customer,
       remarks1: `${currentUser}`,
@@ -278,7 +278,7 @@ const handleWebSocketMessage = async (data) => {
     
     try {
       // Verify with backend
-      const verify = await call('custom_erp.custom_erp.api.fonepay.check_status', {
+      const verify = await call('custom_erp.api.fonepay.check_status', {
         txn_ref_id: prn.value || transactionId.value
       })
       

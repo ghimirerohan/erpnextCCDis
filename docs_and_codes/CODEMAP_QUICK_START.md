@@ -99,7 +99,7 @@ custom_erp/
 
 **1. Create Python function:**
 ```python
-# custom_erp/custom_erp/api/my_module.py
+# custom_erp.api/my_module.py
 
 import frappe
 
@@ -121,7 +121,7 @@ def my_new_api(param1, param2):
 
 whitelisted_methods = [
     # ... existing methods
-    "custom_erp.custom_erp.api.my_module.my_new_api",
+    "custom_erp.api.my_module.my_new_api",
 ]
 ```
 
@@ -132,7 +132,7 @@ whitelisted_methods = [
 import { createResource } from "frappe-ui"
 
 const myResource = createResource({
-  url: "custom_erp.custom_erp.api.my_module.my_new_api",
+  url: "custom_erp.api.my_module.my_new_api",
   params: { param1: "value1", param2: "value2" }
 })
 
@@ -162,7 +162,7 @@ const loading = ref(false)
 const data = ref([])
 
 const dataResource = createResource({
-  url: "custom_erp.custom_erp.api.my_module.my_new_api",
+  url: "custom_erp.api.my_module.my_new_api",
   onSuccess: (result) => {
     if (result.success) {
       data.value = result.data
@@ -312,7 +312,7 @@ npm run test
 # Using bench console
 bench --site [site] console
 
->>> from custom_erp.custom_erp.api.fonepay import create_dynamic_qr
+>>> from custom_erp.api.fonepay import create_dynamic_qr
 >>> result = create_dynamic_qr("CUST-001", 1000)
 >>> print(result)
 ```
@@ -363,7 +363,7 @@ Cmd+Shift+R (Mac)
 ```python
 # Check if method is whitelisted in hooks.py
 whitelisted_methods = [
-    "custom_erp.custom_erp.api.my_module.my_function"
+    "custom_erp.api.my_module.my_function"
 ]
 
 # Or add @frappe.whitelist() decorator

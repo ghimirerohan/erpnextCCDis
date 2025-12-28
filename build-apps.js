@@ -200,7 +200,7 @@ for (const appName of apps) {
             console.log(`   ✅ Created manifest.json for ${appName}`);
             
             // Update manifest path in HTML - use API endpoint for proper Content-Type
-            const manifestApiUrl = `/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=${appName}`;
+            const manifestApiUrl = `/api/method/custom_erp.api.pwa.get_manifest?app_name=${appName}`;
             content = content.replace(
                 /<link[^>]*rel="manifest"[^>]*>/gi,
                 `<link rel="manifest" href="${manifestApiUrl}" />`

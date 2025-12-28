@@ -131,7 +131,7 @@ const transactions = ref([])
 const loading = ref(false)
 
 const transactionsResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_previous_transactions',
+  url: 'custom_erp.api.fonepay.get_previous_transactions',
   auto: false,
 })
 

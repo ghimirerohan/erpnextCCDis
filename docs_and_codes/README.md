@@ -244,8 +244,8 @@ To use Fonepay payment integration, add the following configuration to your site
    ```
    
    All whitelisted methods in this app:
-   - ✅ All Fonepay API endpoints (`custom_erp.custom_erp.api.fonepay.*`)
-   - ✅ All UploadSales API endpoints (`custom_erp.custom_erp.api.uploadsales.*`)
+   - ✅ All Fonepay API endpoints (`custom_erp.api.fonepay.*`)
+   - ✅ All UploadSales API endpoints (`custom_erp.api.uploadsales.*`)
    
    These endpoints work with or without `ignore_csrf` setting, as they're properly decorated with `@frappe.whitelist()`.
 

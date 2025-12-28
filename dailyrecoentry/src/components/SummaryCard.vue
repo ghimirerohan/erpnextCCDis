@@ -4,8 +4,8 @@
     <div class="flex items-center justify-between mb-3 sm:mb-4 gap-2">
       <div class="min-w-0 flex-1">
         <h2 class="text-lg sm:text-xl lg:text-2xl font-bold truncate" style="color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">{{ driverName }}</h2>
-        <p class="text-xs sm:text-sm font-semibold truncate" style="color: #ffffff;">{{ todayDate }}</p>
-        <p v-if="bsToday" class="text-xs mt-0.5 font-medium" style="color: #f0f9ff;">BS: {{ bsToday }}</p>
+        <p class="text-xs sm:text-sm font-semibold truncate" style="color: #ffffff;">{{ formattedBsDate || todayDate }}</p>
+        <p v-if="formattedBsDate" class="text-xs mt-0.5 font-medium" style="color: #f0f9ff;">AD: {{ todayDate }}</p>
       </div>
       <div class="flex gap-2 flex-shrink-0">
         <button
@@ -53,9 +53,21 @@
     <!-- Expense Row -->
     <div v-if="summary.expense_amount > 0" class="mt-2 sm:mt-3">
       <div class="rounded-lg p-2 sm:p-3 shadow-lg" style="background-color: rgba(251, 191, 36, 0.3); border: 2px solid rgba(251, 191, 36, 0.6); backdrop-filter: blur(10px);">
-        <div class="flex justify-between items-center">
-          <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Expense (from Cash)</p>
-          <p class="text-sm sm:text-base font-bold" style="color: #fef3c7;">- {{ formatCurrency(summary.expense_amount) }}</p>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="text-center">
+            <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Expense</p>
+            <p class="text-sm sm:text-base font-bold" style="color: #fef3c7;">- {{ formatCurrency(summary.expense_amount) }}</p>
+          </div>
+          <div class="text-center border-l border-r" style="border-color: rgba(255,255,255,0.3);">
+            <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Cash Expected</p>
+            <p class="text-sm sm:text-base font-bold" style="color: #bbf7d0;">{{ formatCurrency(cashExpectedValue) }}</p>
+          </div>
+          <div class="text-center">
+            <p class="text-[10px] sm:text-xs font-bold" style="color: #ffffff;">Cash Difference</p>
+            <p class="text-sm sm:text-base font-bold" :style="{ color: (summary.cash_difference || 0) >= 0 ? '#bbf7d0' : '#fca5a5' }">
+              {{ (summary.cash_difference || 0) >= 0 ? '+' : '' }}{{ formatCurrency(summary.cash_difference || 0) }}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -281,7 +293,7 @@ const props = defineProps({
 
 const emit = defineEmits(['view-all', 'expense-updated'])
 
-const bsToday = ref('')
+const formattedBsDate = ref('')
 const showExpenseDialog = ref(false)
 const expenseInput = ref(0)
 const savingExpense = ref(false)
@@ -310,14 +322,23 @@ const maxExpense = computed(() => {
   return currentCash + currentExpense
 })
 
+// Cash Expected = Cash Amount - Expense Amount
+const cashExpectedValue = computed(() => {
+  // Use the value from backend if available, otherwise calculate
+  if (props.summary.cash_expected !== undefined && props.summary.cash_expected !== null) {
+    return props.summary.cash_expected
+  }
+  return (props.summary.cash_amount || 0) - (props.summary.expense_amount || 0)
+})
+
 // Total cash after expense (the expected cash to receive)
 const totalCashAfterExpense = computed(() => {
-  return props.summary.cash_amount || 0
+  return cashExpectedValue.value
 })
 
 // Live preview of cash difference
 const cashDifferencePreview = computed(() => {
-  return (cashReceivedInput.value || 0) - totalCashAfterExpense.value
+  return (cashReceivedInput.value || 0) - cashExpectedValue.value
 })
 
 const formatCurrency = (amount) => {
@@ -354,7 +375,7 @@ const saveExpense = async () => {
   expenseError.value = ''
   
   try {
-    const response = await call('custom_erp.custom_erp.api.payment_reco.save_expense_amount', {
+    const response = await call('custom_erp.api.payment_reco.save_expense_amount', {
       reco_name: props.recoName,
       expense_amount: expenseInput.value
     })
@@ -395,7 +416,7 @@ const saveCashReceived = async () => {
   cashReceivedError.value = ''
   
   try {
-    const response = await call('custom_erp.custom_erp.api.payment_reco.save_cash_received', {
+    const response = await call('custom_erp.api.payment_reco.save_cash_received', {
       reco_name: props.recoName,
       cash_received: cashReceivedInput.value
     })
@@ -416,24 +437,9 @@ const saveCashReceived = async () => {
 
 const loadNepaliDate = async () => {
   try {
-    if (typeof window !== 'undefined' && !window.NepaliFunctions) {
-      const script = document.createElement('script')
-      script.src = '/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js'
-      document.head.appendChild(script)
-      await new Promise((resolve) => { 
-        script.onload = resolve
-        script.onerror = resolve
-      })
-    }
-    
-    if (typeof window !== 'undefined' && window.NepaliFunctions) {
-      const d = new Date()
-      const bs = window.NepaliFunctions.AD2BS({ 
-        year: d.getFullYear(), 
-        month: d.getMonth() + 1, 
-        day: d.getDate() 
-      })
-      bsToday.value = `${bs.year}-${String(bs.month).padStart(2, '0')}-${String(bs.day).padStart(2, '0')}`
+    const response = await call('custom_erp.api.payment_reco.get_current_nepali_date')
+    if (response.success) {
+      formattedBsDate.value = response.data.formatted
     }
   } catch (error) {
     console.warn('Failed to load Nepali date:', error)

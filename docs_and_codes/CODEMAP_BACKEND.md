@@ -98,10 +98,10 @@ doc_events = {
 #### Whitelisted Methods
 ```python
 whitelisted_methods = [
-    "custom_erp.custom_erp.api.fonepay.create_dynamic_qr",
-    "custom_erp.custom_erp.api.fonepay.check_qr_status",
-    "custom_erp.custom_erp.api.uploadsales.transform_and_preview",
-    "custom_erp.custom_erp.api.uploadsales.enqueue_import_job",
+    "custom_erp.api.fonepay.create_dynamic_qr",
+    "custom_erp.api.fonepay.check_qr_status",
+    "custom_erp.api.uploadsales.transform_and_preview",
+    "custom_erp.api.uploadsales.enqueue_import_job",
     # ... more methods
 ]
 ```
@@ -123,7 +123,7 @@ override_doctype_class = {
 ```python
 scheduler_events = {
     "hourly": [
-        "custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs"
+        "custom_erp.api.fonepay.scheduled_process_unprocessed_qrs"
     ],
 }
 ```
@@ -473,7 +473,7 @@ Frontend calls:
 ```javascript
 // Frappe UI automatically includes session cookies
 const resource = createResource({
-  url: "custom_erp.custom_erp.api.fonepay.create_dynamic_qr",
+  url: "custom_erp.api.fonepay.create_dynamic_qr",
   params: { customer: "CUST-001", amount: 1000 }
 })
 ```
@@ -527,7 +527,7 @@ filtered = [inv for inv in invoices if inv.customer == customer]
 ```python
 # For long-running tasks
 frappe.enqueue(
-    method="custom_erp.custom_erp.api.uploadsales.run_data_import",
+    method="custom_erp.api.uploadsales.run_data_import",
     queue="long",
     timeout=3600,
     data=data

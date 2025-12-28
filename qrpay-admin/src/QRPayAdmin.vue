@@ -293,7 +293,7 @@ const processSelected = async () => {
 
   processing.value = true
   try {
-    const res = await $call('custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs', {
+    const res = await $call('custom_erp.api.fonepay.process_unprocessed_qrs', {
       tx_names: selectedTransactions.value.join(','),
       limit: selectedTransactions.value.length
     })
@@ -337,7 +337,7 @@ const processAll = async () => {
   }
   processing.value = true
   try {
-    const res = await $call('custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs', { limit: 500 })
+    const res = await $call('custom_erp.api.fonepay.process_unprocessed_qrs', { limit: 500 })
     
     if (res) {
       processingResults.value = res

@@ -1,18 +1,6 @@
 // Nepali Date Conversion Utilities
-// Based on the Nepali calendar system (Bikram Sambat)
-
-// This is a simplified version - for production, use nepali-date-converter library
-// Reference date: 2000 Baisakh 1 BS = 1943 April 14 AD
-
-/**
- * Bikram Sambat calendar data
- * Each entry is [year, [days in each month]]
- */
-const bsCalendarData = {
-  2080: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2081: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2082: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31]
-}
+// Using nepali-date-converter library for accuracy
+import NepaliDate from 'nepali-date-converter'
 
 /**
  * Convert BS (Bikram Sambat) date to AD (Gregorian) date
@@ -20,44 +8,30 @@ const bsCalendarData = {
  * @returns {string} Date in YYYY-MM-DD format (AD)
  */
 export function bsToAd(bsDateStr) {
+  console.log('nepaliDate: bsToAd called with', bsDateStr);
   if (!bsDateStr) return ''
   
   try {
-    const [year, month, day] = bsDateStr.split('-').map(Number)
-    
-    // Reference: 2000/01/01 BS = 1943/04/14 AD
-    const bsEpochYear = 2000
-    const bsEpochMonth = 1
-    const bsEpochDay = 1
-    const adEpochDate = new Date(1943, 3, 14) // April 14, 1943
-    
-    // Calculate days from epoch
-    let totalDays = 0
-    
-    // Add days for complete years
-    for (let y = bsEpochYear; y < year; y++) {
-      const yearData = bsCalendarData[y] || [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
-      totalDays += yearData.reduce((sum, days) => sum + days, 0)
+    if (typeof window !== 'undefined' && window.NepaliFunctions) {
+      const bsObj = window.NepaliFunctions.ParseDate(bsDateStr)
+      if (bsObj && bsObj.parsedDate) {
+        const adObj = window.NepaliFunctions.BS2AD(bsObj.parsedDate)
+        const result = `${adObj.year}-${String(adObj.month).padStart(2, '0')}-${String(adObj.day).padStart(2, '0')}`
+        console.log('nepaliDate: bsToAd result (via NepaliFunctions)', result);
+        return result
+      }
     }
+    const [year, month, day] = bsDateStr.split(/[-/]/).map(Number)
+    const nd = new NepaliDate(year, month - 1, day)
+    const adDate = nd.toJsDate()
     
-    // Add days for complete months in current year
-    const currentYearData = bsCalendarData[year] || [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
-    for (let m = 0; m < month - 1; m++) {
-      totalDays += currentYearData[m]
-    }
-    
-    // Add remaining days
-    totalDays += day - 1
-    
-    // Calculate AD date
-    const adDate = new Date(adEpochDate.getTime() + totalDays * 24 * 60 * 60 * 1000)
-    
-    // Format as YYYY-MM-DD
     const adYear = adDate.getFullYear()
     const adMonth = String(adDate.getMonth() + 1).padStart(2, '0')
     const adDay = String(adDate.getDate()).padStart(2, '0')
     
-    return `${adYear}-${adMonth}-${adDay}`
+    const result = `${adYear}-${adMonth}-${adDay}`
+    console.log('nepaliDate: bsToAd result (via nepali-date-converter)', result);
+    return result
   } catch (e) {
     console.error('BS to AD conversion failed:', e, bsDateStr)
     return ''
@@ -70,51 +44,24 @@ export function bsToAd(bsDateStr) {
  * @returns {string} Date in YYYY-MM-DD format (BS)
  */
 export function adToBs(adDateStr) {
+  console.log('nepaliDate: adToBs called with', adDateStr);
   if (!adDateStr) return ''
   
   try {
+    if (typeof window !== 'undefined' && window.NepaliFunctions) {
+      const adObj = window.NepaliFunctions.ParseDate(adDateStr)
+      if (adObj && adObj.parsedDate) {
+        const bsObj = window.NepaliFunctions.AD2BS(adObj.parsedDate)
+        const result = `${bsObj.year}-${String(bsObj.month).padStart(2, '0')}-${String(bsObj.day).padStart(2, '0')}`
+        console.log('nepaliDate: adToBs result (via NepaliFunctions)', result);
+        return result
+      }
+    }
     const adDate = new Date(adDateStr)
-    const adEpochDate = new Date(1943, 3, 14) // April 14, 1943 = 2000/01/01 BS
-    
-    // Calculate days difference
-    const diffTime = adDate.getTime() - adEpochDate.getTime()
-    const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000))
-    
-    // Start from epoch
-    let bsYear = 2000
-    let bsMonth = 1
-    let bsDay = 1
-    let remainingDays = diffDays
-    
-    // Find the year
-    while (remainingDays > 0) {
-      const yearData = bsCalendarData[bsYear] || [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
-      const daysInYear = yearData.reduce((sum, days) => sum + days, 0)
-      
-      if (remainingDays >= daysInYear) {
-        remainingDays -= daysInYear
-        bsYear++
-      } else {
-        break
-      }
-    }
-    
-    // Find the month
-    const currentYearData = bsCalendarData[bsYear] || [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
-    for (let i = 0; i < 12; i++) {
-      const daysInMonth = currentYearData[i]
-      if (remainingDays >= daysInMonth) {
-        remainingDays -= daysInMonth
-        bsMonth++
-      } else {
-        break
-      }
-    }
-    
-    // Remaining days
-    bsDay += remainingDays
-    
-    return `${bsYear}-${String(bsMonth).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`
+    const nd = new NepaliDate(adDate)
+    const result = nd.format('YYYY-MM-DD')
+    console.log('nepaliDate: adToBs result (via nepali-date-converter)', result);
+    return result
   } catch (e) {
     console.error('AD to BS conversion failed:', e, adDateStr)
     return ''
@@ -126,9 +73,20 @@ export function adToBs(adDateStr) {
  * @returns {string} Today's date in YYYY-MM-DD format (BS)
  */
 export function getTodayBs() {
-  const today = new Date()
-  const adStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  return adToBs(adStr)
+  try {
+    if (typeof window !== 'undefined' && window.NepaliFunctions) {
+      const d = new Date()
+      const bs = window.NepaliFunctions.AD2BS({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() })
+      return `${bs.year}-${String(bs.month).padStart(2, '0')}-${String(bs.day).padStart(2, '0')}`
+    }
+    const nd = new NepaliDate()
+    return nd.format('YYYY-MM-DD')
+  } catch (e) {
+    console.error('Get Today BS failed:', e)
+    // Fallback if library fails
+    const today = new Date()
+    return `${today.getFullYear() + 57}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  }
 }
 
 /**
@@ -139,9 +97,16 @@ export function getTodayBs() {
 export function formatBsDate(bsDateStr) {
   if (!bsDateStr) return ''
   
-  const [year, month, day] = bsDateStr.split('-')
-  const months = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra']
-  return `${day} ${months[parseInt(month) - 1]} ${year}`
+  try {
+     const [year, month, day] = bsDateStr.split(/[-/]/).map(Number)
+     const months = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra']
+     if (month >= 1 && month <= 12) {
+         return `${day} ${months[month - 1]} ${year}`
+     }
+     return bsDateStr
+  } catch (e) {
+      return bsDateStr
+  }
 }
 
 // Nepali month names

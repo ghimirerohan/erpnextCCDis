@@ -197,7 +197,7 @@ const props = defineProps({
   },
   apiUrl: {
     type: String,
-    default: 'custom_erp.custom_erp.api.fonepay.search_customers'
+    default: 'custom_erp.api.fonepay.search_customers'
   },
   limit: {
     type: Number,

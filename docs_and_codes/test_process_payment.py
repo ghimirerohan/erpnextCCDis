@@ -2,7 +2,7 @@
 """Quick script to manually process a Fonepay transaction"""
 
 import frappe
-from custom_erp.custom_erp.api.fonepay import finalize_payment_from_ws
+from custom_erp.api.fonepay import finalize_payment_from_ws
 
 def process_transaction(tx_name):
     frappe.connect(site='development.localhost')

@@ -13,7 +13,7 @@ export async function registerScopedSW() {
     
     // Service worker URL - served via Frappe API with proper headers
     // The API sets Service-Worker-Allowed header to allow controlling the app scope
-    const swUrl = `/api/method/custom_erp.custom_erp.api.pwa.get_service_worker?app_name=${appName}`;
+    const swUrl = `/api/method/custom_erp.api.pwa.get_service_worker?app_name=${appName}`;
     const scope = `/${appName}/`;
 
     console.log(`🔧 PWA Setup for: ${appName}`);

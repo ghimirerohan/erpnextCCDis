@@ -49,7 +49,7 @@ const handleCustomerSelect = (customerData) => {
 | `label` | String | `'Customer'` | Label text displayed above the input |
 | `placeholder` | String | `'Search by customer name or code'` | Placeholder text for the input |
 | `helpText` | String | `'Start typing to search...'` | Help text shown below the input when no customer is selected |
-| `apiUrl` | String | `'custom_erp.custom_erp.api.fonepay.search_customers'` | API endpoint URL for fetching customers |
+| `apiUrl` | String | `'custom_erp.api.fonepay.search_customers'` | API endpoint URL for fetching customers |
 | `limit` | Number | `10000` | Maximum number of customers to fetch |
 | `autoLoad` | Boolean | `true` | Whether to automatically load customers on mount |
 

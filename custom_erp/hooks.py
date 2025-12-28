@@ -225,7 +225,9 @@ whitelisted_methods = [
 	"custom_erp.custom_erp.api.payment_reco.update_payment_entry",
 	"custom_erp.custom_erp.api.payment_reco.generate_qr_no_payment_entry",
 	"custom_erp.custom_erp.api.payment_reco.compress_and_attach_image",
-	"custom_erp.custom_erp.api.payment_reco.create_cheque_taageta"
+	"custom_erp.custom_erp.api.payment_reco.create_cheque_taageta",
+	"custom_erp.custom_erp.api.payment_reco.get_current_nepali_date",
+	"custom_erp.custom_erp.api.payment_reco.settle_all_pending_as_cash"
 ]
 
 # --- Print Format Type ---
@@ -382,7 +384,7 @@ override_doctype_class = {
 }
 
 # Route each app at root level
-# PWA routes: sw.js and manifest.json are served via API endpoints (custom_erp.custom_erp.api.pwa)
+# PWA routes: sw.js and manifest.json are served via API endpoints (custom_erp.api.pwa)
 website_route_rules = [
     # QRPay
     {"from_route": "/qrpay", "to_route": "qrpay"},

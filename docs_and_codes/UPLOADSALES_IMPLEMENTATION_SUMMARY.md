@@ -10,7 +10,7 @@ October 26, 2025
 
 ## Features Implemented
 
-### 1. Backend API (`custom_erp/custom_erp/api/uploadsales.py`)
+### 1. Backend API (`custom_erp.api/uploadsales.py`)
 **File Size**: ~850 lines of Python code
 
 #### API Endpoints:
@@ -293,7 +293,7 @@ All code includes markers:
 ## Files Created/Modified
 
 ### New Files:
-1. `/custom_erp/custom_erp/api/uploadsales.py` (850 lines)
+1. `/custom_erp.api/uploadsales.py` (850 lines)
 2. `/frontend/UPLOADSALES_MAPPING.md` (250 lines)
 3. `/frontend/UPLOADSALES_RUNBOOK.md` (240 lines)
 4. `/frontend/src/apps/uploadsales/UploadSales.vue` (215 lines)

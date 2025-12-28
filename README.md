@@ -213,7 +213,7 @@ yarn build
 
 ```python
 # Create dynamic QR code
-custom_erp.custom_erp.api.fonepay.create_dynamic_qr(
+custom_erp.api.fonepay.create_dynamic_qr(
     amount,
     customer=None,
     sales_invoice=None,
@@ -223,13 +223,13 @@ custom_erp.custom_erp.api.fonepay.create_dynamic_qr(
 )
 
 # Check QR payment status
-custom_erp.custom_erp.api.fonepay.check_qr_status(prn)
+custom_erp.api.fonepay.check_qr_status(prn)
 
 # Finalize payment from WebSocket
-custom_erp.custom_erp.api.fonepay.finalize_payment_from_ws(tx_name)
+custom_erp.api.fonepay.finalize_payment_from_ws(tx_name)
 
 # Process unprocessed QRs manually
-custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs(
+custom_erp.api.fonepay.process_unprocessed_qrs(
     tx_names=None,
     limit=100,
     sleep_between=0.2
@@ -240,33 +240,33 @@ custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs(
 
 ```python
 # Transform and preview CSV data
-custom_erp.custom_erp.api.uploadsales.transform_and_preview(csv_data)
+custom_erp.api.uploadsales.transform_and_preview(csv_data)
 
 # Enqueue bulk import job
-custom_erp.custom_erp.api.uploadsales.enqueue_import_job(data)
+custom_erp.api.uploadsales.enqueue_import_job(data)
 
 # Get import job progress
-custom_erp.custom_erp.api.uploadsales.get_job_progress(job_id)
+custom_erp.api.uploadsales.get_job_progress(job_id)
 
 # Get available drivers/vehicles
-custom_erp.custom_erp.api.uploadsales.get_drivers()
-custom_erp.custom_erp.api.uploadsales.get_vehicles()
+custom_erp.api.uploadsales.get_drivers()
+custom_erp.api.uploadsales.get_vehicles()
 ```
 
 ### Payment Reconciliation APIs
 
 ```python
 # Parse and validate CSV
-custom_erp.custom_erp.api.payment_reco.parse_and_validate_csv(csv_data)
+custom_erp.api.payment_reco.parse_and_validate_csv(csv_data)
 
 # Create payment reconciliations
-custom_erp.custom_erp.api.payment_reco.create_payment_recos(data)
+custom_erp.api.payment_reco.create_payment_recos(data)
 
 # Get driver reconciliation data
-custom_erp.custom_erp.api.payment_reco.get_driver_reco_data(driver)
+custom_erp.api.payment_reco.get_driver_reco_data(driver)
 
 # Update payment entry
-custom_erp.custom_erp.api.payment_reco.update_payment_entry(entry_data)
+custom_erp.api.payment_reco.update_payment_entry(entry_data)
 ```
 
 ---
@@ -336,7 +336,7 @@ custom_erp/
 
 ```bash
 bench --site your-site.local execute \
-  custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs
+  custom_erp.api.fonepay.scheduled_process_unprocessed_qrs
 ```
 
 ### Repost Sales Invoices

@@ -123,7 +123,7 @@ CSRF Protection: Automatic via `@frappe.whitelist()`
 ## Fonepay Payment API
 
 ### create_dynamic_qr
-**Endpoint**: `custom_erp.custom_erp.api.fonepay.create_dynamic_qr`
+**Endpoint**: `custom_erp.api.fonepay.create_dynamic_qr`
 
 **Purpose**: Generate dynamic QR code for payment.
 
@@ -154,7 +154,7 @@ CSRF Protection: Automatic via `@frappe.whitelist()`
 ---
 
 ### check_qr_status
-**Endpoint**: `custom_erp.custom_erp.api.fonepay.check_qr_status`
+**Endpoint**: `custom_erp.api.fonepay.check_qr_status`
 
 **Purpose**: Poll payment status.
 
@@ -181,7 +181,7 @@ CSRF Protection: Automatic via `@frappe.whitelist()`
 ---
 
 ### listen_to_ws
-**Endpoint**: `custom_erp.custom_erp.api.fonepay.listen_to_ws`
+**Endpoint**: `custom_erp.api.fonepay.listen_to_ws`
 
 **Purpose**: Start WebSocket listener for real-time payment updates.
 
@@ -211,7 +211,7 @@ socket.on("payment_status", (data) => {
 ---
 
 ### finalize_payment_from_ws
-**Endpoint**: `custom_erp.custom_erp.api.fonepay.finalize_payment_from_ws`
+**Endpoint**: `custom_erp.api.fonepay.finalize_payment_from_ws`
 
 **Purpose**: Complete payment after WebSocket notification.
 
@@ -242,7 +242,7 @@ socket.on("payment_status", (data) => {
 ---
 
 ### process_unprocessed_qrs
-**Endpoint**: `custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs`
+**Endpoint**: `custom_erp.api.fonepay.process_unprocessed_qrs`
 
 **Purpose**: Manually trigger batch processing of pending QRs.
 
@@ -264,7 +264,7 @@ socket.on("payment_status", (data) => {
 ## Upload Sales API
 
 ### transform_and_preview
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.transform_and_preview`
+**Endpoint**: `custom_erp.api.uploadsales.transform_and_preview`
 
 **Purpose**: Parse CSV and return preview data.
 
@@ -308,7 +308,7 @@ socket.on("payment_status", (data) => {
 ---
 
 ### enqueue_import_job
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.enqueue_import_job`
+**Endpoint**: `custom_erp.api.uploadsales.enqueue_import_job`
 
 **Purpose**: Start background import job.
 
@@ -333,7 +333,7 @@ socket.on("payment_status", (data) => {
 ---
 
 ### get_job_progress
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.get_job_progress`
+**Endpoint**: `custom_erp.api.uploadsales.get_job_progress`
 
 **Purpose**: Get import job progress.
 
@@ -376,7 +376,7 @@ socket.on("upload_sales_progress", (data) => {
 ---
 
 ### get_drivers
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.get_drivers`
+**Endpoint**: `custom_erp.api.uploadsales.get_drivers`
 
 **Purpose**: Get list of drivers.
 
@@ -398,7 +398,7 @@ socket.on("upload_sales_progress", (data) => {
 ---
 
 ### get_vehicles
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.get_vehicles`
+**Endpoint**: `custom_erp.api.uploadsales.get_vehicles`
 
 **Purpose**: Get list of vehicles.
 
@@ -420,7 +420,7 @@ socket.on("upload_sales_progress", (data) => {
 ---
 
 ### download_error_csv
-**Endpoint**: `custom_erp.custom_erp.api.uploadsales.download_error_csv`
+**Endpoint**: `custom_erp.api.uploadsales.download_error_csv`
 
 **Purpose**: Download CSV of failed rows.
 
@@ -499,7 +499,7 @@ All API calls require valid Frappe session:
 ```javascript
 // Frontend (automatic via Frappe UI)
 const resource = createResource({
-  url: "custom_erp.custom_erp.api.method"
+  url: "custom_erp.api.method"
 })
 
 // Session cookie is automatically included

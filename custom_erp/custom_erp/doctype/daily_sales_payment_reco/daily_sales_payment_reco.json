@@ -66,6 +66,12 @@
       "fieldtype": "Currency"
     },
     {
+      "fieldname": "cash_expected",
+      "label": "Cash Expected",
+      "fieldtype": "Currency",
+      "description": "Cash Amount - Expense Amount (expected cash to receive from driver)"
+    },
+    {
       "fieldname": "cash_received",
       "label": "Cash Received",
       "fieldtype": "Currency",

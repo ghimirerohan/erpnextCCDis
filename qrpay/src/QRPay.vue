@@ -625,10 +625,10 @@ const showOfflineDialog = ref(false)
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 const showConfirmationDialog = ref(false)
 
-const qrCreateResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.create_dynamic_qr', auto: false })
-const dashboardResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.get_user_today_summary', auto: false })
-const processTodayResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.process_user_unprocessed_today', auto: false })
-const listTodayTxnsResource = createResource({ url: 'custom_erp.custom_erp.api.fonepay.list_user_transactions_today', auto: false })
+const qrCreateResource = createResource({ url: 'custom_erp.api.fonepay.create_dynamic_qr', auto: false })
+const dashboardResource = createResource({ url: 'custom_erp.api.fonepay.get_user_today_summary', auto: false })
+const processTodayResource = createResource({ url: 'custom_erp.api.fonepay.process_user_unprocessed_today', auto: false })
+const listTodayTxnsResource = createResource({ url: 'custom_erp.api.fonepay.list_user_transactions_today', auto: false })
 
 let realtimeHandler = null
 const merchantSocket = ref(null)
@@ -985,7 +985,7 @@ const handleWebSocketPaymentUpdate = async (data) => {
         console.log('💳 [PAYMENT-UPDATE] Calling check_status API...')
         
         // Verify payment with backend
-        const verify = await $call('custom_erp.custom_erp.api.fonepay.check_status', {
+        const verify = await $call('custom_erp.api.fonepay.check_status', {
           txn_ref_id: prnRef || currentTxName.value
         })
         
@@ -1186,7 +1186,7 @@ const connectMerchantSocket = (url) => {
             const prnRef = String(prnFromDataRES.productNumber ||  "")
             console.log('  📞 Calling check_status with txn_ref_id:', prnRef)
             
-            const verify = await $call('custom_erp.custom_erp.api.fonepay.check_status', {
+            const verify = await $call('custom_erp.api.fonepay.check_status', {
               txn_ref_id: prnRef
             })
             
@@ -1342,7 +1342,7 @@ const manuallyProcessPayment = async () => {
     console.log('🔍 Calling check_status API with txn_ref_id:', currentTxName.value)
     
     // First check status which will trigger finalization
-    const verify = await $call('custom_erp.custom_erp.api.fonepay.check_status', {
+    const verify = await $call('custom_erp.api.fonepay.check_status', {
       txn_ref_id: currentTxName.value,
     })
     

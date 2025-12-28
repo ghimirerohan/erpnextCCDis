@@ -134,7 +134,7 @@ resetUpload()   // Reset after import
 
 ### Backend
 1. `custom_erp/fixtures/custom_field.json` - Driver field position
-2. `custom_erp/custom_erp/api/uploadsales.py` - Vehicle support & preview fix
+2. `custom_erp.api/uploadsales.py` - Vehicle support & preview fix
 3. `custom_erp/hooks.py` - Register get_vehicles endpoint
 
 ### Frontend

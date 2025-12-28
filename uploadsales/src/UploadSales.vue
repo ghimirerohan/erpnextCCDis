@@ -174,7 +174,7 @@ onMounted(async () => {
 async function loadDrivers() {
   loadingDrivers.value = true
   try {
-    const response = await call('custom_erp.custom_erp.api.uploadsales.get_drivers')
+    const response = await call('custom_erp.api.uploadsales.get_drivers')
     if (response.success) {
       drivers.value = response.drivers
     }
@@ -189,7 +189,7 @@ async function loadDrivers() {
 async function loadVehicles() {
   loadingVehicles.value = true
   try {
-    const response = await call('custom_erp.custom_erp.api.uploadsales.get_vehicles')
+    const response = await call('custom_erp.api.uploadsales.get_vehicles')
     if (response.success) {
       vehicles.value = response.vehicles
     }
@@ -208,7 +208,7 @@ async function handleFileUpload(file) {
     csvContent.value = text
 
     // Get preview
-    const response = await call('custom_erp.custom_erp.api.uploadsales.transform_and_preview', {
+    const response = await call('custom_erp.api.uploadsales.transform_and_preview', {
       csv_content: text
     })
 
@@ -267,8 +267,8 @@ async function startImport() {
     
     // Test API first
     console.log('Testing API connection...')
-    console.log('Calling API:', 'custom_erp.custom_erp.api.uploadsales.test_api_v2')
-    const testResponse = await call('custom_erp.custom_erp.api.uploadsales.test_api_v2')
+    console.log('Calling API:', 'custom_erp.api.uploadsales.test_api_v2')
+    const testResponse = await call('custom_erp.api.uploadsales.test_api_v2')
     console.log('Test API V2 Response:', testResponse)
     
     if (testResponse.message === 'NEW CODE IS LOADED') {
@@ -278,8 +278,8 @@ async function startImport() {
     }
     
     // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
-    console.log('Calling main API:', 'custom_erp.custom_erp.api.uploadsales.enqueue_import_job')
-    const response = await call('custom_erp.custom_erp.api.uploadsales.enqueue_import_job', {
+    console.log('Calling main API:', 'custom_erp.api.uploadsales.enqueue_import_job')
+    const response = await call('custom_erp.api.uploadsales.enqueue_import_job', {
       driver_id: selectedDriver.value,
       vehicle_id: selectedVehicle.value || '',
       csv_content: csvContent.value

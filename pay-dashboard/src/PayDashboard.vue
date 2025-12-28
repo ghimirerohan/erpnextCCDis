@@ -34,7 +34,10 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
           <div class="space-y-2">
             <div class="text-xs sm:text-sm text-gray-500">Today (BS)</div>
-            <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ bsToday || adToday }}</div>
+            <div class="text-xl sm:text-2xl font-bold text-gray-900">
+              {{ bsToday || adToday }}
+              <span class="text-sm font-normal text-gray-500 ml-1">({{ adToday }})</span>
+            </div>
             <div class="text-sm sm:text-base text-gray-700">
               <span class="font-medium">{{ summary.current_user_full_name || summary.current_user || session.user }}</span>
             </div>
@@ -49,6 +52,7 @@
             />
             <div v-if="selectedDateBs" class="text-sm text-gray-600 mt-2">
               Selected: <span class="font-semibold">{{ selectedDateBs }}</span>
+              <span class="text-xs text-gray-500 ml-1">({{ selectedDate }})</span>
             </div>
             <button
               v-if="selectedDate"
@@ -362,7 +366,7 @@ const summary = ref({
   unprocessed_count: 0,
 })
 const bsToday = ref(getTodayBs())
-const adToday = new Date().toISOString().slice(0, 10)
+const adToday = new Date().toLocaleDateString('en-CA')
 const selectedDate = ref(null)
 const selectedDateBs = computed(() => {
   return selectedDate.value ? adToBs(selectedDate.value) : ''
@@ -411,47 +415,47 @@ const paymentEntriesData = ref([])
 
 // Resources
 const summaryResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_pay_dashboard_summary',
+  url: 'custom_erp.api.fonepay.get_pay_dashboard_summary',
   auto: false,
 })
 
 const usernameGroupedResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_username_grouped_totals',
+  url: 'custom_erp.api.fonepay.get_username_grouped_totals',
   auto: false,
 })
 
 const customerGroupedResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_customer_grouped_totals',
+  url: 'custom_erp.api.fonepay.get_customer_grouped_totals',
   auto: false,
 })
 
 const transactionListResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_transaction_list',
+  url: 'custom_erp.api.fonepay.get_transaction_list',
   auto: false,
 })
 
 const filterCustomersResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_filter_customers_today',
+  url: 'custom_erp.api.fonepay.get_filter_customers_today',
   auto: false,
 })
 
 const filterUsernamesResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_filter_usernames_today',
+  url: 'custom_erp.api.fonepay.get_filter_usernames_today',
   auto: false,
 })
 
 const unprocessedCountResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_today_unprocessed_count',
+  url: 'custom_erp.api.fonepay.get_today_unprocessed_count',
   auto: false,
 })
 
 const processAllResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.process_all_today_unprocessed',
+  url: 'custom_erp.api.fonepay.process_all_today_unprocessed',
   auto: false,
 })
 
 const paymentEntriesResource = createResource({
-  url: 'custom_erp.custom_erp.api.fonepay.get_payment_entries_for_date',
+  url: 'custom_erp.api.fonepay.get_payment_entries_for_date',
   auto: false,
 })
 

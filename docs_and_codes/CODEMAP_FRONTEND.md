@@ -76,7 +76,7 @@ Declarative data fetching pattern:
 import { createResource } from "frappe-ui"
 
 const resource = createResource({
-  url: "custom_erp.custom_erp.api.method_name",
+  url: "custom_erp.api.method_name",
   auto: false,
   params: {},
   onSuccess: (result) => { /* handle */ },

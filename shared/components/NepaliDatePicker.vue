@@ -2,9 +2,9 @@
   <div class="nepali-date-picker relative">
     <div class="relative">
       <input
+        ref="datepickerInput"
         type="text"
         :value="displayDate"
-        @click="showPicker = !showPicker"
         readonly
         :placeholder="placeholder"
         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
@@ -15,51 +15,12 @@
         </svg>
       </div>
     </div>
-    
-    <div v-if="showPicker" class="absolute z-50 mt-2 bg-white border border-gray-300 rounded-lg shadow-xl p-4 min-w-[280px]">
-      <div class="flex items-center justify-between mb-4">
-        <button @click="changeMonth(-1)" class="p-1 hover:bg-gray-100 rounded">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div class="text-center">
-          <div class="font-semibold">{{ nepaliMonths[pickerMonth - 1] }} {{ pickerYear }}</div>
-          <div class="text-xs text-gray-500">Bikram Sambat</div>
-        </div>
-        <button @click="changeMonth(1)" class="p-1 hover:bg-gray-100 rounded">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-      
-      <div class="grid grid-cols-7 gap-1 mb-2">
-        <div v-for="day in ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']" :key="day" class="text-center text-xs font-medium text-gray-600 py-1">
-          {{ day }}
-        </div>
-      </div>
-      
-      <div class="grid grid-cols-7 gap-1">
-        <button
-          v-for="day in daysInMonth"
-          :key="day"
-          @click="selectDay(day)"
-          :class="[
-            'p-2 text-sm rounded hover:bg-blue-100',
-            day === pickerDay ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700'
-          ]"
-        >
-          {{ day }}
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { bsToAd, adToBs, getTodayBs, formatBsDate } from '../utils/nepaliDate'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { bsToAd, adToBs, getTodayBs } from '../utils/nepaliDate'
 
 const props = defineProps({
   modelValue: {
@@ -69,101 +30,156 @@ const props = defineProps({
   placeholder: {
     type: String,
     default: 'Select date'
-  },
-  showEnglishDate: {
-    type: Boolean,
-    default: false
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-const nepaliMonths = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra']
-
-const showPicker = ref(false)
+const datepickerInput = ref(null)
 const displayDate = ref('')
-const pickerYear = ref(2081)
-const pickerMonth = ref(1)
-const pickerDay = ref(1)
+const isLibraryLoaded = ref(false)
 
-const daysInMonth = computed(() => {
-  // Simplified - using approximate days per month
-  const daysPerMonth = {
-    2080: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-    2081: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-    2082: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31]
+const loadLibrary = async () => {
+  if (typeof window === 'undefined') return
+  
+  // Check if everything is already loaded and working
+  if (window.NepaliFunctions && window.jQuery && window.jQuery.fn.nepaliDatePicker) {
+    isLibraryLoaded.value = true
+    return
   }
-  
-  const yearData = daysPerMonth[pickerYear.value] || [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
-  const days = yearData[pickerMonth.value - 1] || 30
-  
-  return Array.from({ length: days }, (_, i) => i + 1)
-})
 
-const changeMonth = (delta) => {
-  pickerMonth.value += delta
-  if (pickerMonth.value > 12) {
-    pickerMonth.value = 1
-    pickerYear.value++
-  } else if (pickerMonth.value < 1) {
-    pickerMonth.value = 12
-    pickerYear.value--
+  console.log('NepaliDatePicker: Loading dependencies...');
+
+  // Load jQuery if missing
+  if (!window.jQuery) {
+    await new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://code.jquery.com/jquery-3.7.1.min.js';
+      script.onload = () => {
+        console.log('NepaliDatePicker: jQuery loaded from CDN');
+        resolve();
+      };
+      script.onerror = () => {
+        console.error('NepaliDatePicker: Failed to load jQuery from CDN');
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  // Load CSS
+  if (!document.querySelector('link[href*="nepali.datepicker.v5.0.6.min.css"]')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.type = 'text/css'
+    link.href = '/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.css'
+    document.head.appendChild(link)
+  }
+
+  // Load JS - Force reload if plugin is missing even if script exists
+  const existingScript = document.querySelector('script[src*="nepali.datepicker.v5.0.6.min.js"]');
+  const needsScript = !existingScript || (window.jQuery && !window.jQuery.fn.nepaliDatePicker);
+
+  if (needsScript) {
+    if (existingScript) {
+      console.log('NepaliDatePicker: Script exists but plugin missing, re-injecting...');
+      // We don't necessarily need to remove the old one, but we need to ensure it runs again
+      // with the current jQuery.
+    }
+    
+    await new Promise((resolve) => {
+      const script = document.createElement('script')
+      // Add a timestamp to force reload if needed
+      script.src = '/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js?v=' + Date.now();
+      script.onload = () => {
+        console.log('NepaliDatePicker: Library script loaded');
+        isLibraryLoaded.value = true
+        resolve()
+      }
+      script.onerror = () => {
+        console.error('NepaliDatePicker: Failed to load library script');
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  } else {
+    isLibraryLoaded.value = true
   }
 }
 
-const selectDay = (day) => {
-  pickerDay.value = day
-  const bsDate = `${pickerYear.value}-${String(pickerMonth.value).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  handleDateChange(bsDate)
-  showPicker.value = false
-}
-
-const handleDateChange = (bsDate) => {
-  displayDate.value = bsDate
-  const adDate = bsToAd(bsDate)
+const syncWithLibrary = (bsDate) => {
+  if (!bsDate) return;
   
-  if (adDate) {
-    emit('update:modelValue', adDate)
+  if (bsDate !== displayDate.value) {
+    displayDate.value = bsDate;
+    const adDate = bsToAd(bsDate);
+    if (adDate && adDate !== props.modelValue) {
+      console.log('NepaliDatePicker: Syncing AD date to parent:', adDate);
+      emit('update:modelValue', adDate);
+    }
   }
 }
 
-// Initialize from modelValue
+const initPicker = () => {
+  if (!datepickerInput.value || !window.jQuery || !window.jQuery.fn.nepaliDatePicker) {
+    console.warn('NepaliDatePicker: Missing dependencies for init');
+    return
+  }
+
+  const $input = window.jQuery(datepickerInput.value);
+  
+  $input.nepaliDatePicker({
+    ndpYear: true,
+    ndpMonth: true,
+    ndpYearCount: 100,
+    miniEnglishDates: true,
+    onChange: function() {
+      console.log('NepaliDatePicker: onChange fired');
+      syncWithLibrary(datepickerInput.value.value);
+    }
+  });
+
+  // Additional listener for the library's custom event if it exists
+  $input.on('dateSelect', function(event) {
+    console.log('NepaliDatePicker: dateSelect fired');
+    const bsDate = (event.datePickerData && event.datePickerData.bsDate) || datepickerInput.value.value;
+    syncWithLibrary(bsDate);
+  });
+
+  // Watch for any change in the DOM value directly (polling as fallback)
+  const interval = setInterval(() => {
+    if (datepickerInput.value && datepickerInput.value.value !== displayDate.value) {
+      syncWithLibrary(datepickerInput.value.value);
+    }
+  }, 500);
+
+  onBeforeUnmount(() => {
+    clearInterval(interval);
+    $input.off();
+  });
+}
+
+// Update local display when modelValue (AD date) changes from parent
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    const bsDate = adToBs(newVal)
-    displayDate.value = bsDate
-    
-    if (bsDate) {
-      const [year, month, day] = bsDate.split('-').map(Number)
-      pickerYear.value = year
-      pickerMonth.value = month
-      pickerDay.value = day
+    const bsDate = adToBs(newVal);
+    if (bsDate !== displayDate.value) {
+      displayDate.value = bsDate;
     }
   } else {
-    displayDate.value = ''
+    displayDate.value = '';
   }
 }, { immediate: true })
 
-// Close picker when clicking outside
-const handleClickOutside = (event) => {
-  if (showPicker.value && !event.target.closest('.nepali-date-picker')) {
-    showPicker.value = false
+onMounted(async () => {
+  await loadLibrary()
+  await nextTick()
+  initPicker()
+  
+  if (!props.modelValue) {
+    const today = getTodayBs()
+    if (today) displayDate.value = today
   }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-  const today = getTodayBs()
-  if (today && !props.modelValue) {
-    const [year, month, day] = today.split('-').map(Number)
-    pickerYear.value = year
-    pickerMonth.value = month
-    pickerDay.value = day
-  }
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -171,5 +187,12 @@ onBeforeUnmount(() => {
 .nepali-date-picker input {
   background-color: white;
 }
-</style>
 
+/* Library-specific styling overrides */
+:deep(.ndp-container) {
+  z-index: 9999 !important;
+  font-family: inherit;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+</style>

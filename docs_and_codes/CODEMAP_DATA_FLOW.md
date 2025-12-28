@@ -405,7 +405,7 @@ summary = frappe.db.sql("""
 def start_import(data):
     # Enqueue long-running task
     job = frappe.enqueue(
-        method="custom_erp.custom_erp.api.uploadsales.run_data_import",
+        method="custom_erp.api.uploadsales.run_data_import",
         queue="long",  # or "default", "short"
         timeout=3600,  # 1 hour
         is_async=True,

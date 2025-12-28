@@ -31,7 +31,10 @@
                   placeholder="Select cheque date"
                   class="w-full"
                 />
-                <p class="mt-1 text-xs text-gray-500">Select date from Nepali calendar</p>
+                <p v-if="chequeDate" class="mt-1 text-xs text-gray-600 font-medium">
+                  Selected AD: {{ chequeDate }}
+                </p>
+                <p v-else class="mt-1 text-xs text-gray-500">Select date from Nepali calendar</p>
               </div>
               
               <!-- Institute Name -->
@@ -182,7 +185,7 @@ const saveCheque = async () => {
     const adDateStr = chequeDate.value
     
     // Create the Cheques Taageta record using our custom API method
-    const chequeResponse = await call('custom_erp.custom_erp.api.payment_reco.create_cheque_taageta', {
+    const chequeResponse = await call('custom_erp.api.payment_reco.create_cheque_taageta', {
       customer: props.customer,
       cheque_no: chequeNumber.value,
       cheque_date_nepali: nepaliDateStr, // Nepali BS date as string
@@ -205,7 +208,7 @@ const saveCheque = async () => {
       // Try up to 2 times to upload the image
       for (let attempt = 1; attempt <= 2 && !uploadSuccess; attempt++) {
         try {
-          const uploadResponse = await call('custom_erp.custom_erp.api.payment_reco.compress_and_attach_image', {
+          const uploadResponse = await call('custom_erp.api.payment_reco.compress_and_attach_image', {
             image_data: photoData.value,
             reference_doctype: 'Cheques Taageta',
             reference_name: chequeName,

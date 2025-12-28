@@ -16,7 +16,7 @@ const route = useRoute()
 
 const updateManifest = () => {
   // Use API endpoint for manifest with proper headers
-  const manifestPath = '/api/method/custom_erp.custom_erp.api.pwa.get_manifest?app_name=qrpay'
+  const manifestPath = '/api/method/custom_erp.api.pwa.get_manifest?app_name=qrpay'
   
   const existingLinks = document.querySelectorAll('link[rel="manifest"]')
   existingLinks.forEach(link => link.remove())

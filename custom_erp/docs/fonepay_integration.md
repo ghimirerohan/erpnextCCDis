@@ -45,14 +45,14 @@ bench restart
 ### Manual processors
 
 ```
-bench --site development.localhost execute custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs
+bench --site development.localhost execute custom_erp.api.fonepay.scheduled_process_unprocessed_qrs
 ```
 
 ### API Reference
 
-- `custom_erp.custom_erp.api.fonepay.create_dynamic_qr(amount, customer=None, sales_invoice=None, remarks1="", remarks2="", metadata=None)`
-- `custom_erp.custom_erp.api.fonepay.process_unprocessed_qrs(tx_names=None, limit=100, sleep_between=0.2)`
-- `custom_erp.custom_erp.api.fonepay.finalize_payment_from_ws(tx_name)`
+- `custom_erp.api.fonepay.create_dynamic_qr(amount, customer=None, sales_invoice=None, remarks1="", remarks2="", metadata=None)`
+- `custom_erp.api.fonepay.process_unprocessed_qrs(tx_names=None, limit=100, sleep_between=0.2)`
+- `custom_erp.api.fonepay.finalize_payment_from_ws(tx_name)`
 
 ### Example curl to Fonepay (for reference)
 
@@ -74,7 +74,7 @@ curl -X POST https://dev-merchantapi.fonepay.com/api/merchant/merchantDetailsFor
 ### Acceptance tests
 
 1. Generate QR from `/jsapp/qrpay` (Customer Payment) and confirm realtime update to SUCCESS after scanning using Fonepay dev app; verify `Payment Entry` created with correct customer and allocation.
-2. Simulate no WS: run scheduler `bench --site development.localhost execute custom_erp.custom_erp.api.fonepay.scheduled_process_unprocessed_qrs` and confirm status resolution.
+2. Simulate no WS: run scheduler `bench --site development.localhost execute custom_erp.api.fonepay.scheduled_process_unprocessed_qrs` and confirm status resolution.
 3. Run `finalize_payment_from_ws(tx_name)` twice and confirm only one `Payment Entry` exists.
 4. Use `/jsapp/qrpay-admin` to process selected or all unprocessed; confirm summary and statuses.
 
