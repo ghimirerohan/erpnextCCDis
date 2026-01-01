@@ -48,40 +48,6 @@
                 />
               </div>
               
-              <!-- Photo Capture -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Cheque Photo</label>
-                
-                <input
-                  ref="fileInput"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  class="hidden"
-                  @change="handleFileSelect"
-                />
-                
-                <div v-if="!photoPreview" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer" @click="$refs.fileInput.click()">
-                  <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                  </svg>
-                  <p class="mt-2 text-sm text-gray-600">Tap to capture cheque photo</p>
-                </div>
-                
-                <div v-else class="relative">
-                  <img :src="photoPreview" alt="Cheque preview" class="w-full rounded-lg border border-gray-300" />
-                  <button
-                    type="button"
-                    @click="clearPhoto"
-                    class="absolute top-2 right-2 p-2 bg-red-600 rounded-full text-white hover:bg-red-700"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -149,7 +115,7 @@ const uploading = ref(false)
 const fileInput = ref(null)
 
 const isValid = computed(() => {
-  return chequeNumber.value && chequeDate.value && instituteName.value && photoData.value
+  return chequeNumber.value && chequeDate.value && instituteName.value
 })
 
 const handleFileSelect = (event) => {

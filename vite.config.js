@@ -16,7 +16,9 @@ const apps = [
 	'dailyrecoentry',
 	'dailytrnxs',
 	'home',
-	'testlogin'
+	'testlogin',
+	'ai-assistant',
+	'emp-attendance'
 ]
 
 // Create HTML input configuration for multi-page build

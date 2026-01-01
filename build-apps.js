@@ -19,7 +19,8 @@ const apps = [
 	'dailyrecoentry',
 	'dailytrnxs',
 	'home',
-	'testlogin'
+	'testlogin',
+	'ai-assistant'
 ];
 
 // App-specific theme colors
@@ -33,7 +34,8 @@ const appThemes = {
 	'dailyrecoentry': { theme: '#0891b2', bg: '#ffffff', name: 'Daily Reco', desc: 'Daily Reconciliation Entry' },
 	'dailytrnxs': { theme: '#7c3aed', bg: '#ffffff', name: 'Daily Transactions', desc: 'Daily Payment Reconciliation Dashboard' },
 	'home': { theme: '#6366f1', bg: '#ffffff', name: 'Home', desc: 'Application Home' },
-	'testlogin': { theme: '#64748b', bg: '#ffffff', name: 'Test Login', desc: 'Login Test App' }
+	'testlogin': { theme: '#64748b', bg: '#ffffff', name: 'Test Login', desc: 'Login Test App' },
+	'ai-assistant': { theme: '#7c3aed', bg: '#1e293b', name: 'Bidhi', desc: 'AI Voice ERP Assistant' }
 };
 
 const publicFrontendDir = path.resolve(__dirname, 'custom_erp/public/frontend');

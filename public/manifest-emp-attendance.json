@@ -1,0 +1,29 @@
+{
+  "id": "/emp-attendance/",
+  "name": "Employee Attendance",
+  "short_name": "Attendance",
+  "description": "Employee Attendance Tracking and Management",
+  "start_url": "/emp-attendance/",
+  "scope": "/emp-attendance/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/assets/custom_erp/icons/emp-attendance/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/custom_erp/icons/emp-attendance/icon-512x512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false
+}
+

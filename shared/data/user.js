@@ -20,7 +20,7 @@ export const userResource = createResource({
 				// Fallback: detect app from URL and redirect to app's login
 				const path = window.location.pathname
 				// List of known app names (exclude common Frappe paths)
-				const appNames = ['qrpay', 'qrpay-admin', 'scanner', 'pay-dashboard', 'uploadsales', 'uploadreco', 'dailyrecoentry', 'home', 'testlogin']
+				const appNames = ['qrpay', 'qrpay-admin', 'scanner', 'pay-dashboard', 'uploadsales', 'uploadreco', 'dailyrecoentry', 'dailytrnxs', 'home', 'testlogin', 'emp-attendance']
 				const match = path.match(/^\/([^\/]+)/)
 				if (match && appNames.includes(match[1])) {
 					const appName = match[1]

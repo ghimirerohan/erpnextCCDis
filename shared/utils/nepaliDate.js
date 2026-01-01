@@ -115,12 +115,34 @@ export const nepaliMonths = [
   'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
 ]
 
+/**
+ * Convert 24-hour time format to 12-hour format with AM/PM
+ * @param {string} time24 - Time in HH:MM format (24-hour)
+ * @returns {string} Time in hh:mm AM/PM format
+ */
+export function formatTime12Hour(time24) {
+  if (!time24 || time24 === '--:--') return '--:--'
+  
+  try {
+    const [hours, minutes] = time24.split(':').map(Number)
+    if (isNaN(hours) || isNaN(minutes)) return time24
+    
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    
+    return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`
+  } catch (e) {
+    return time24
+  }
+}
+
 // Export all functions
 export default {
   bsToAd,
   adToBs,
   getTodayBs,
   formatBsDate,
+  formatTime12Hour,
   nepaliMonths
 }
 

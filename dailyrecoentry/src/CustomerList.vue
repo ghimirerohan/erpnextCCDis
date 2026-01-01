@@ -16,6 +16,24 @@
               <p class="text-xs sm:text-sm text-gray-700 font-medium truncate">Collect payments • {{ session.user }}</p>
             </div>
           </div>
+          <!-- Refresh Button -->
+          <button
+            @click="refreshData"
+            :disabled="refreshing"
+            class="inline-flex items-center justify-center w-10 h-10 sm:w-auto sm:px-4 sm:py-2 border-2 border-sky-500 rounded-md shadow-sm text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700 hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 ml-2 flex-shrink-0 disabled:opacity-50 active:scale-95"
+            title="Refresh data"
+          >
+            <svg 
+              :class="['w-5 h-5 sm:w-4 sm:h-4', refreshing ? 'animate-spin' : '']" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              style="stroke: white;"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            <span class="hidden sm:inline sm:ml-2">Refresh</span>
+          </button>
           <button
             @click="session.logout.submit()"
             class="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 border-2 border-gray-300 rounded-md shadow-sm text-xs sm:text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transition-all duration-200 ml-2 flex-shrink-0"
@@ -236,9 +254,7 @@
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-1.5">
                         <h4 class="text-sm font-bold text-gray-900 leading-tight break-words">{{ line.customer_name }}</h4>
-                        <span v-if="line.updated_later" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm" style="background: linear-gradient(135deg, #818cf8, #6366f1); color: #ffffff; border: 1px solid #4f46e5;">
-                          ✦ Added Later
-                        </span>
+                        <span v-if="line.updated_later" class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">Added</span>
                       </div>
                       <p class="text-xs text-gray-600 font-mono mt-0.5">{{ line.customer }}</p>
                     </div>
@@ -286,9 +302,7 @@
                   <div class="flex-grow min-w-0">
                     <div class="flex items-center gap-2">
                       <h4 class="text-base lg:text-lg font-semibold text-gray-900 break-words">{{ line.customer_name }}</h4>
-                      <span v-if="line.updated_later" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm" style="background: linear-gradient(135deg, #818cf8, #6366f1); color: #ffffff; border: 1px solid #4f46e5;">
-                        ✦ Added Later
-                      </span>
+                      <span v-if="line.updated_later" class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">Added</span>
                     </div>
                     <p class="text-xs sm:text-sm text-gray-600 font-mono mt-0.5">{{ line.customer }}</p>
                     
@@ -662,6 +676,7 @@ const selectedDriver = ref(null)
 
 const showSettleAllDialog = ref(false)
 const settlingAll = ref(false)
+const refreshing = ref(false)
 
 // Add Entry Dialog State
 const showAddEntryDialog = ref(false)
@@ -775,6 +790,22 @@ const loadAllDrivers = async () => {
 
 const loadDriverData = async () => {
   await loadData()
+}
+
+const refreshData = async () => {
+  refreshing.value = true
+  try {
+    // Reload all drivers if admin
+    if (isAdmin.value) {
+      await loadAllDrivers()
+    }
+    // Reload the main data
+    await loadData()
+  } catch (error) {
+    console.error('Error refreshing data:', error)
+  } finally {
+    refreshing.value = false
+  }
 }
 
 const openCustomerPayment = (line) => {

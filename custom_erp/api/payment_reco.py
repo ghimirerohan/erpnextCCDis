@@ -668,6 +668,71 @@ def compress_and_attach_image(image_data: str, reference_doctype: str, reference
         frappe.log_error(f"Error attaching image: {str(e)}")
         return {"success": False, "message": str(e)}
 
+
+@frappe.whitelist()
+def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str, bank_name: str, amount: float, promised_date: str = None) -> Dict[str, Any]:
+    """
+    Create a new Cheques Taageta record.
+    
+    Args:
+        customer: Customer ID (required)
+        cheque_no: Cheque number (required)
+        cheque_date_nepali: Nepali date string (optional)
+        bank_name: Institute/Bank name (required)
+        amount: Cheque amount (required)
+        promised_date: AD date for promised date field (optional)
+    
+    Returns:
+        Success response with cheque record name or error message
+    """
+    try:
+        if not customer:
+            raise ValueError("Customer is required")
+        if not cheque_no:
+            raise ValueError("Cheque number is required")
+        if not bank_name:
+            raise ValueError("Institute name is required")
+        
+        amount = float(amount or 0)
+        if amount <= 0:
+            raise ValueError("Amount must be greater than 0")
+        
+        # Verify customer exists
+        if not frappe.db.exists("Customer", customer):
+            raise ValueError(f"Customer '{customer}' does not exist")
+        
+        # Create the Cheques Taageta document
+        cheque_doc = frappe.get_doc({
+            "doctype": "Cheques Taageta",
+            "customer": customer,
+            "cheque_no": cheque_no,
+            "cheque_date_nepali": cheque_date_nepali or "",
+            "bank_name": bank_name,
+            "amount": amount,
+            "promised_date": promised_date if promised_date else None,
+            "brought_by": frappe.session.user,
+            "settled": 0,
+            "attempts": 0
+        })
+        
+        cheque_doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "name": cheque_doc.name,
+                "customer": cheque_doc.customer,
+                "cheque_no": cheque_doc.cheque_no,
+                "amount": float(cheque_doc.amount)
+            },
+            "message": f"Cheque record created successfully: {cheque_doc.name}"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error creating cheque taageta: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": str(e)}
+
 @frappe.whitelist()
 def get_all_active_recos() -> Dict[str, Any]:
     """

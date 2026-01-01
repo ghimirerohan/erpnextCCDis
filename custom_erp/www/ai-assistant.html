@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/custom_erp/frontend/ai-assistant/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Bidhi - AI Assistant</title>
+    <meta name="description" content="AI Voice Assistant for ERPNext" />
+    <meta name="application-name" content="Bidhi" />
+    <meta name="theme-color" content="#7c3aed" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <script type="module" crossorigin src="/assets/custom_erp/frontend/ai-assistant/assets/ai-assistant-D_Si4T37.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/ai-assistant/assets/vendor-B_ZNdBOb.js">
+    <link rel="modulepreload" crossorigin href="/assets/custom_erp/frontend/ai-assistant/assets/ui-BgVUP6eE.js">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/ai-assistant/assets/ui-BNpRTYd0.css">
+    <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/ai-assistant/assets/index-D24XnnKi.css">
+      <link rel="manifest" href="/api/method/custom_erp.api.pwa.get_manifest?app_name=ai-assistant" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // Store app name for future use (root-level paths)
+      (function() {
+        const currentPath = window.location.pathname;
+        const match = currentPath.match(/^\/([^\/]+)/);
+        if (match) {
+          const appName = match[1];
+          sessionStorage.setItem('lastApp', appName);
+          localStorage.setItem('lastApp', appName);
+        }
+      })();
+    </script>
+  
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>
