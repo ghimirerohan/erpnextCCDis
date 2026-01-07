@@ -71,11 +71,21 @@ def check_late_entry(in_time, shift_start="09:00"):
     if not in_time:
         return False
     
+    # Validate shift_start
+    if not shift_start or ':' not in str(shift_start):
+        shift_start = "09:00"
+    
     if isinstance(in_time, str):
         in_time = datetime.strptime(in_time, "%Y-%m-%d %H:%M:%S")
     
-    # Parse shift start time
-    shift_hour, shift_minute = map(int, shift_start.split(":"))
+    # Parse shift start time safely
+    try:
+        parts = str(shift_start).split(":")
+        shift_hour = int(parts[0])
+        shift_minute = int(parts[1]) if len(parts) > 1 else 0
+    except (ValueError, IndexError):
+        shift_hour, shift_minute = 9, 0  # Default to 9:00 AM
+    
     shift_start_dt = in_time.replace(hour=shift_hour, minute=shift_minute, second=0)
     
     # Allow 5 minutes grace period
@@ -90,11 +100,21 @@ def check_early_exit(out_time, shift_end="18:00"):
     if not out_time:
         return False
     
+    # Validate shift_end
+    if not shift_end or ':' not in str(shift_end):
+        shift_end = "18:00"
+    
     if isinstance(out_time, str):
         out_time = datetime.strptime(out_time, "%Y-%m-%d %H:%M:%S")
     
-    # Parse shift end time
-    shift_hour, shift_minute = map(int, shift_end.split(":"))
+    # Parse shift end time safely
+    try:
+        parts = str(shift_end).split(":")
+        shift_hour = int(parts[0])
+        shift_minute = int(parts[1]) if len(parts) > 1 else 0
+    except (ValueError, IndexError):
+        shift_hour, shift_minute = 18, 0  # Default to 6:00 PM
+    
     shift_end_dt = out_time.replace(hour=shift_hour, minute=shift_minute, second=0)
     
     # Allow 5 minutes grace period
@@ -102,6 +122,33 @@ def check_early_exit(out_time, shift_end="18:00"):
     shift_end_with_grace = shift_end_dt - timedelta(minutes=grace_minutes)
     
     return out_time < shift_end_with_grace
+
+
+def format_timedelta_to_time_str(td):
+    """Convert timedelta or time string to HH:MM format"""
+    if td is None:
+        return None
+    
+    # Handle timedelta objects
+    if hasattr(td, 'total_seconds'):
+        total_seconds = int(td.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+    
+    # Handle string - ensure proper HH:MM format
+    time_str = str(td)
+    if ':' in time_str:
+        parts = time_str.split(':')
+        if len(parts) >= 2:
+            try:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                return f"{hours:02d}:{minutes:02d}"
+            except ValueError:
+                pass
+    
+    return None
 
 
 def get_shift_times(employee, date):
@@ -126,9 +173,13 @@ def get_shift_times(employee, date):
     if shift_assignment:
         shift_type = frappe.get_doc("Shift Type", shift_assignment[0].shift_type)
         if shift_type.start_time:
-            shift_start = str(shift_type.start_time)[:5]
+            formatted = format_timedelta_to_time_str(shift_type.start_time)
+            if formatted:
+                shift_start = formatted
         if shift_type.end_time:
-            shift_end = str(shift_type.end_time)[:5]
+            formatted = format_timedelta_to_time_str(shift_type.end_time)
+            if formatted:
+                shift_end = formatted
     else:
         # Try to get default shift
         default_shift = frappe.get_all(
@@ -139,9 +190,13 @@ def get_shift_times(employee, date):
         )
         if default_shift:
             if default_shift[0].start_time:
-                shift_start = str(default_shift[0].start_time)[:5]
+                formatted = format_timedelta_to_time_str(default_shift[0].start_time)
+                if formatted:
+                    shift_start = formatted
             if default_shift[0].end_time:
-                shift_end = str(default_shift[0].end_time)[:5]
+                formatted = format_timedelta_to_time_str(default_shift[0].end_time)
+                if formatted:
+                    shift_end = formatted
     
     return shift_start, shift_end
 
@@ -167,6 +222,7 @@ def get_attendance_list(date=None):
         "total": len(employees),
         "present": 0,
         "absent": 0,
+        "checked_in": 0,  # Employees with checkin but no attendance record yet (real-time)
         "on_time_entry": 0,
         "late_entry": 0,
         "early_exit": 0,
@@ -228,22 +284,29 @@ def get_attendance_list(date=None):
             in_time, out_time = get_employee_time_for_date(emp.name, date)
             
             if in_time or out_time:
-                # Has checkins but no attendance created
+                # Has checkins but no attendance created - REAL-TIME check-in visibility
                 emp_data["in_time"] = format_time(in_time)
                 emp_data["out_time"] = format_time(out_time)
-                emp_data["status"] = "Checkin Only"
+                emp_data["status"] = "Checked In"  # More descriptive than "Checkin Only"
                 
                 # Check late/early based on shift
                 shift_start, shift_end = get_shift_times(emp.name, date)
                 emp_data["late_entry"] = check_late_entry(in_time, shift_start)
                 emp_data["early_exit"] = check_early_exit(out_time, shift_end)
+                
+                # Count in summary for real-time visibility
+                summary["checked_in"] += 1
+                if emp_data["late_entry"]:
+                    summary["late_entry"] += 1
+                else:
+                    summary["on_time_entry"] += 1
             else:
                 summary["absent"] += 1
         
         result.append(emp_data)
     
-    # Sort by status (Present first, then Half Day, then others)
-    status_order = {"Present": 0, "Half Day": 1, "Checkin Only": 2, "On Leave": 3, "Absent": 4}
+    # Sort by status (Present first, then Checked In, then Half Day, then others)
+    status_order = {"Present": 0, "Checked In": 1, "Half Day": 2, "On Leave": 3, "Absent": 4}
     result.sort(key=lambda x: (status_order.get(x["status"], 5), x["employee_name"]))
     
     return {
@@ -356,7 +419,7 @@ def get_employee_history(employee, days=7):
             record = {
                 "date": date_str,
                 "date_bs": ad_to_bs(date_str),
-                "status": "Checkin Only",
+                "status": "Checked In",
                 "in_time": format_time(in_time),
                 "out_time": format_time(out_time),
                 "late_entry": late_entry,

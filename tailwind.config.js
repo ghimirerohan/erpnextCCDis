@@ -11,13 +11,18 @@ export default {
 		"./uploadsales/**/*.{vue,js,ts,jsx,tsx,html}",
 		"./uploadreco/**/*.{vue,js,ts,jsx,tsx,html}",
 		"./dailyrecoentry/**/*.{vue,js,ts,jsx,tsx,html}",
+		"./emp-attendance/**/*.{vue,js,ts,jsx,tsx,html}",
 		"./home/**/*.{vue,js,ts,jsx,tsx,html}",
 		"./testlogin/**/*.{vue,js,ts,jsx,tsx,html}",
 		"./shared/**/*.{vue,js,ts,jsx,tsx}",
 		"./node_modules/frappe-ui/src/components/**/*.{vue,js,ts,jsx,tsx}",
 	],
 	theme: {
-		extend: {},
+		extend: {
+			fontFamily: {
+				sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+			},
+		},
 	},
 	plugins: [],
 }

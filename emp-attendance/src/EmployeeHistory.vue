@@ -1,22 +1,22 @@
 <template>
-  <div class="min-h-screen" style="background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #ffffff 100%);">
+  <div class="min-h-screen font-sans bg-gray-50 text-gray-900 pb-12">
     <!-- Header -->
-    <header class="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 supports-[backdrop-filter]:bg-white/60">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center py-4">
           <!-- Back Button & Title -->
-          <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-4">
             <button 
               @click="goBack"
-              class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
             >
               <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
               </svg>
             </button>
             <div>
-              <h1 class="text-lg sm:text-xl font-bold text-gray-900">Attendance History</h1>
-              <p class="text-xs sm:text-sm text-gray-500">{{ employeeInfo?.employee_name || 'Loading...' }}</p>
+              <h1 class="text-xl font-bold text-gray-900 tracking-tight">Attendance History</h1>
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee Details</p>
             </div>
           </div>
           
@@ -24,13 +24,9 @@
           <button
             @click="refreshData"
             :disabled="loading"
-            class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:outline-none transition-all"
+            class="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
           >
-            <svg v-if="loading" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
-              <path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"/>
-            </svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg :class="{'animate-spin': loading}" class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
           </button>
@@ -38,216 +34,197 @@
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      <!-- Employee Info Card -->
-      <section class="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
-        <div class="flex items-center gap-4">
-          <div 
-            class="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xl sm:text-2xl"
-            style="background: linear-gradient(135deg, #059669 0%, #047857 100%);"
-          >
-            {{ getInitials(employeeInfo?.employee_name) }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ employeeInfo?.employee_name || 'Loading...' }}</h2>
-            <p class="text-sm text-gray-500">{{ employeeId }}</p>
-            <p v-if="employeeInfo?.designation" class="text-xs text-gray-400 mt-1">{{ employeeInfo.designation }}</p>
+      <!-- Employee Profile Card -->
+      <section class="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-8 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full -mr-32 -mt-32 blur-3xl opacity-50 pointer-events-none"></div>
+        
+        <div 
+          class="w-24 h-24 rounded-2xl flex-shrink-0 flex items-center justify-center text-white font-bold text-3xl shadow-lg relative z-10"
+          style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"
+        >
+          {{ getInitials(employeeInfo?.employee_name) }}
+        </div>
+        
+        <div class="flex-1 text-center sm:text-left min-w-0 relative z-10">
+          <h2 class="text-3xl font-extrabold text-gray-900 truncate tracking-tight">{{ employeeInfo?.employee_name || 'Loading...' }}</h2>
+          <div class="flex items-center justify-center sm:justify-start gap-3 mt-2 text-gray-500">
+            <span class="bg-gray-100 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide text-gray-600">{{ employeeId }}</span>
+            <span v-if="employeeInfo?.designation" class="flex items-center gap-1 text-sm font-semibold">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+              {{ employeeInfo.designation }}
+            </span>
           </div>
         </div>
-      </section>
-      
-      <!-- Period Selector -->
-      <section class="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
-        <label class="block text-sm font-semibold text-gray-700 mb-3">Select Period</label>
-        <div class="flex gap-3">
+        
+        <!-- Period Selector -->
+        <div class="flex w-full sm:w-auto bg-gray-100 p-1.5 rounded-xl relative z-10 self-center sm:self-start mt-4 sm:mt-0">
           <button
             @click="selectPeriod(7)"
             :class="selectedPeriod === 7 
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all"
+              ? 'bg-white text-gray-900 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-900'"
+            class="flex-1 sm:flex-none py-2 px-6 rounded-lg text-sm font-bold transition-all duration-200"
           >
             Last 7 Days
           </button>
           <button
             @click="selectPeriod(30)"
-            :class="selectedPeriod === 30 
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-            class="flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all"
+             :class="selectedPeriod === 30 
+              ? 'bg-white text-gray-900 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-900'"
+            class="flex-1 sm:flex-none py-2 px-6 rounded-lg text-sm font-bold transition-all duration-200"
           >
             Last 30 Days
           </button>
         </div>
       </section>
       
-      <!-- Summary Cards -->
-      <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <!-- Stats Summary -->
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Present Days -->
-        <div class="rounded-xl shadow-md p-4" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #6ee7b7;">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-emerald-200 flex items-center justify-center">
-              <svg class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:border-emerald-300 transition-all group">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Present</span>
+            <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
-            <span class="text-xs sm:text-sm text-emerald-700 font-medium">Present</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-bold text-emerald-800">{{ historySummary.present || 0 }}</div>
-          <div class="text-xs text-emerald-600 mt-1">days</div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-3xl font-extrabold text-gray-900">{{ historySummary.present || 0 }}</span>
+            <span class="text-sm font-bold text-gray-500">days</span>
+          </div>
         </div>
         
         <!-- Absent Days -->
-        <div class="rounded-xl shadow-md p-4" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 1px solid #fca5a5;">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-red-200 flex items-center justify-center">
-              <svg class="w-4 h-4 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:border-red-300 transition-all group">
+          <div class="flex items-center justify-between mb-4">
+             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Absent</span>
+            <div class="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center text-red-600 group-hover:bg-red-100 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </div>
-            <span class="text-xs sm:text-sm text-red-700 font-medium">Absent</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-bold text-red-800">{{ historySummary.absent || 0 }}</div>
-          <div class="text-xs text-red-600 mt-1">days</div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-3xl font-extrabold text-gray-900">{{ historySummary.absent || 0 }}</span>
+            <span class="text-sm font-bold text-gray-500">days</span>
+          </div>
         </div>
         
         <!-- Late Entries -->
-        <div class="rounded-xl shadow-md p-4" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fcd34d;">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-amber-200 flex items-center justify-center">
-              <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:border-amber-300 transition-all group">
+          <div class="flex items-center justify-between mb-4">
+             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Late Arrivals</span>
+            <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-100 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
-            <span class="text-xs sm:text-sm text-amber-700 font-medium">Late</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-bold text-amber-800">{{ historySummary.late_entries || 0 }}</div>
-          <div class="text-xs text-amber-600 mt-1">entries</div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-3xl font-extrabold text-gray-900">{{ historySummary.late_entries || 0 }}</span>
+            <span class="text-sm font-bold text-gray-500">times</span>
+          </div>
         </div>
         
         <!-- Early Exits -->
-        <div class="rounded-xl shadow-md p-4" style="background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border: 1px solid #f9a8d4;">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="w-8 h-8 rounded-lg bg-pink-200 flex items-center justify-center">
-              <svg class="w-4 h-4 text-pink-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
-              </svg>
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:border-purple-300 transition-all group">
+          <div class="flex items-center justify-between mb-4">
+             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Early Exits</span>
+            <div class="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-100 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path></svg>
             </div>
-            <span class="text-xs sm:text-sm text-pink-700 font-medium">Early Exit</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-bold text-pink-800">{{ historySummary.early_exits || 0 }}</div>
-          <div class="text-xs text-pink-600 mt-1">exits</div>
+          <div class="flex items-baseline gap-1">
+             <span class="text-3xl font-extrabold text-gray-900">{{ historySummary.early_exits || 0 }}</span>
+            <span class="text-sm font-bold text-gray-500">times</span>
+          </div>
         </div>
       </section>
 
-      <!-- Attendance History List -->
-      <section class="bg-white rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-900">Attendance Records</h2>
-          <span class="text-sm text-gray-500">{{ historyData.length }} records</span>
+      <!-- History List -->
+      <section class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Recent Activity</h2>
+             <p class="text-sm font-medium text-gray-500">Log of daily attendance</p>
+          </div>
+          <span class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 uppercase tracking-widest shadow-sm">{{ historyData.length }} RECORDS</span>
         </div>
         
-        <!-- Loading State -->
-        <div v-if="loading" class="text-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 mx-auto border-b-2 border-emerald-600"></div>
-          <p class="mt-4 text-gray-500">Loading history...</p>
+        <!-- Loading -->
+        <div v-if="loading" class="py-24 flex flex-col items-center">
+          <div class="animate-spin rounded-full h-10 w-10 border-4 border-gray-100 border-t-emerald-500"></div>
+           <p class="mt-4 text-gray-500 text-sm font-bold animate-pulse">Loading history...</p>
         </div>
         
-        <!-- Empty State -->
-        <div v-else-if="!historyData.length" class="text-center py-12">
-          <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <p class="mt-4 text-gray-500 text-lg">No attendance records found</p>
-          <p class="text-sm text-gray-400">for the selected period</p>
+        <!-- Empty -->
+        <div v-else-if="!historyData.length" class="py-24 flex flex-col items-center text-center">
+          <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <p class="text-gray-900 font-bold mb-1">No Attendance Records</p>
+          <p class="text-gray-500 text-sm font-medium">No data found for the selected period</p>
         </div>
         
-        <!-- History Cards -->
-        <div v-else class="space-y-2.5">
+        <!-- List -->
+        <div v-else class="divide-y divide-gray-100">
           <div
             v-for="record in historyData"
             :key="record.date"
-            class="rounded-xl p-3 border-2 transition-all"
-            :class="getRecordCardClass(record)"
+            class="p-5 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row gap-5 sm:items-center group"
           >
-            <div class="flex items-start justify-between gap-3">
-              <!-- Date Column -->
-              <div class="flex-shrink-0">
-                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex flex-col items-center justify-center"
-                     :class="record.status === 'Present' ? 'bg-emerald-500' : record.status === 'Absent' ? 'bg-red-200' : 'bg-gray-100'">
-                  <div class="text-xs text-white uppercase font-semibold" 
-                       :class="record.status === 'Present' ? 'text-white' : record.status === 'Absent' ? 'text-red-700' : 'text-gray-500'">
-                    {{ getDayName(record.date) }}
-                  </div>
-                  <div class="text-lg sm:text-xl font-bold" 
-                       :class="record.status === 'Present' ? 'text-white' : record.status === 'Absent' ? 'text-red-800' : 'text-gray-700'">
-                    {{ getDay(record.date_bs) }}
-                  </div>
-                  <div class="text-xs" 
-                       :class="record.status === 'Present' ? 'text-emerald-100' : record.status === 'Absent' ? 'text-red-600' : 'text-gray-500'">
-                    {{ getMonthYear(record.date_bs) }}
-                  </div>
-                </div>
+            <!-- Date Badge -->
+            <div class="flex-shrink-0 flex items-center gap-5 sm:w-56">
+              <div 
+                class="w-16 h-16 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 shadow-sm text-center border transition-colors"
+                :class="getDateBadgeClass(record.status)"
+              >
+                <span class="text-[10px] uppercase font-bold tracking-wider opacity-90">{{ getDayName(record.date) }}</span>
+                <span class="text-2xl font-black leading-none my-0.5">{{ getDay(record.date_bs) }}</span>
+                <span class="text-[10px] uppercase font-bold tracking-wider opacity-90">{{ getMonthYear(record.date_bs) }}</span>
               </div>
-              
-              <!-- Details Column -->
-              <div class="flex-1 min-w-0">
-                <!-- Nepali Date Large -->
-                <div class="font-bold text-gray-900 text-base mb-0.5">{{ record.date_bs }}</div>
-                <div class="text-xs text-gray-500 mb-1.5">({{ record.date }})</div>
-                
-                <!-- Status Badge -->
-                <span 
-                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mb-2"
-                  :class="getStatusBadgeClass(record.status)"
-                >
-                  {{ record.status || 'Unknown' }}
-                </span>
-                
-                <!-- Time Info -->
-                <div class="grid grid-cols-2 gap-2">
-                  <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-2 border border-emerald-200">
-                    <div class="flex items-center gap-1 mb-0.5">
-                      <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"></path>
-                      </svg>
-                      <span class="text-xs text-emerald-700 font-semibold">In</span>
-                    </div>
-                    <div class="text-sm font-bold" :class="record.late_entry ? 'text-amber-700' : 'text-emerald-800'">
-                      {{ formatTime12Hour(record.in_time) }}
-                    </div>
-                  </div>
-                  <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-2 border border-red-200">
-                    <div class="flex items-center gap-1 mb-0.5">
-                      <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7"></path>
-                      </svg>
-                      <span class="text-xs text-red-700 font-semibold">Out</span>
-                    </div>
-                    <div class="text-sm font-bold" :class="record.early_exit ? 'text-pink-700' : 'text-red-800'">
-                      {{ formatTime12Hour(record.out_time) }}
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Flags -->
-                <div v-if="record.late_entry || record.early_exit" class="flex gap-1.5 flex-wrap mt-2">
-                  <span v-if="record.late_entry" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 border border-amber-300">
-                    <svg class="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"></path>
-                    </svg>
-                    Late
-                  </span>
-                  <span v-if="record.early_exit" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-pink-100 text-pink-700 border border-pink-300">
-                    <svg class="w-2.5 h-2.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4"></path>
-                    </svg>
-                    Early
-                  </span>
+              <div class="min-w-0">
+                <div class="font-bold text-gray-900 text-lg">{{ record.date_bs }}</div>
+                <div class="text-xs font-semibold text-gray-500 mt-0.5 flex items-center gap-1.5">
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  {{ record.date }}
                 </div>
               </div>
             </div>
+            
+            <!-- Status Pill -->
+            <div class="flex-shrink-0 sm:w-32">
+               <span 
+                class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border"
+                :class="getStatusBadgeClass(record.status)"
+              >
+                <span class="w-2 h-2 rounded-full mr-2" :class="getStatusDotClass(record.status)"></span>
+                {{ record.status || 'Unknown' }}
+              </span>
+            </div>
+            
+            <!-- Timing -->
+            <div class="flex-1 grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 rounded-xl px-4 py-2.5 border border-transparent group-hover:border-gray-200 transition-colors flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">In Time</div>
+                  <div class="text-base font-bold text-gray-900" :class="{'text-amber-600': record.late_entry}">
+                    {{ record.in_time ? formatTime12Hour(record.in_time) : '--:--' }}
+                  </div>
+                </div>
+                 <div v-if="record.late_entry" class="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded uppercase tracking-wide border border-amber-200">Late</div>
+              </div>
+              
+               <div class="bg-gray-50 rounded-xl px-4 py-2.5 border border-transparent group-hover:border-gray-200 transition-colors flex items-center justify-between">
+                <div>
+                   <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Out Time</div>
+                  <div class="text-base font-bold text-gray-900" :class="{'text-purple-600': record.early_exit}">
+                    {{ record.out_time ? formatTime12Hour(record.out_time) : '--:--' }}
+                  </div>
+                </div>
+                 <div v-if="record.early_exit" class="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded uppercase tracking-wide border border-purple-200">Early</div>
+              </div>
+            </div>
+            
           </div>
         </div>
       </section>
@@ -307,30 +284,46 @@ const selectPeriod = async (days) => {
   await refreshData()
 }
 
-const getRecordCardClass = (record) => {
-  if (record.status === 'Present') {
-    return 'border-emerald-400 bg-gradient-to-br from-emerald-100 to-emerald-50 shadow-emerald-100'
-  } else if (record.status === 'Absent') {
-    return 'border-red-200 bg-gradient-to-br from-red-50 to-white'
-  } else if (record.status === 'Half Day') {
-    return 'border-amber-200 bg-gradient-to-br from-amber-50 to-white'
-  } else if (record.status === 'On Leave') {
-    return 'border-blue-200 bg-gradient-to-br from-blue-50 to-white'
+const getDateBadgeClass = (status) => {
+  const s = (status || '').toLowerCase()
+  if (s === 'present') {
+    return 'present-date-badge shadow-md'
+  } else if (s === 'absent') {
+    return 'bg-red-500 text-white border-red-500 shadow-md'
+  } else if (s === 'half day') {
+    return 'bg-amber-500 text-white border-amber-500 shadow-md'
+  } else if (s === 'on leave') {
+    return 'bg-blue-500 text-white border-blue-500 shadow-md'
   }
-  return 'border-gray-200 bg-white'
+  return 'bg-gray-100 text-gray-500 border-gray-200'
 }
 
 const getStatusBadgeClass = (status) => {
-  if (status === 'Present') {
-    return 'bg-emerald-600 text-white border border-emerald-700 shadow-sm'
-  } else if (status === 'Absent') {
-    return 'bg-red-100 text-red-800 border border-red-200'
-  } else if (status === 'Half Day') {
-    return 'bg-amber-100 text-amber-800 border border-amber-200'
-  } else if (status === 'On Leave') {
-    return 'bg-blue-100 text-blue-800 border border-blue-200'
+  const s = (status || '').toLowerCase()
+  if (s === 'present') {
+    return 'present-badge'
+  } else if (s === 'absent') {
+    return 'bg-red-100 text-red-800 border-red-200'
+  } else if (s === 'half day') {
+    return 'bg-amber-100 text-amber-800 border-amber-200'
+  } else if (s === 'on leave') {
+    return 'bg-blue-100 text-blue-800 border-blue-200'
   }
-  return 'bg-gray-100 text-gray-800 border border-gray-200'
+  return 'bg-gray-100 text-gray-600 border-gray-200'
+}
+
+const getStatusDotClass = (status) => {
+  const s = (status || '').toLowerCase()
+  if (s === 'present') {
+    return 'present-dot'
+  } else if (s === 'absent') {
+    return 'bg-red-500'
+  } else if (s === 'half day') {
+    return 'bg-amber-500'
+  } else if (s === 'on leave') {
+    return 'bg-blue-500'
+  }
+  return 'bg-gray-400'
 }
 
 const getDayName = (dateStr) => {
@@ -392,13 +385,22 @@ onMounted(async () => {
 
 <style scoped>
 button, select, input {
-  min-height: 44px;
+  min-height: 48px;
 }
 
-@media (max-width: 640px) {
-  section {
-    padding: 1rem !important;
-  }
+.present-badge {
+  background-color: rgba(203, 231, 207, 1);
+  color: rgba(48, 104, 44, 1);
+  border-color: rgba(78, 194, 46, 1);
+}
+
+.present-date-badge {
+  background-color: rgba(69, 161, 75, 1);
+  color: rgba(255, 255, 255, 1);
+  border-color: rgba(69, 161, 75, 1);
+}
+
+.present-dot {
+  background-color: rgba(25, 204, 37, 1);
 }
 </style>
-
