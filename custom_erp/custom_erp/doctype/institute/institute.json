@@ -2,7 +2,7 @@
   "doctype": "DocType",
   "name": "Institute",
   "module": "Custom Erp",
-  "custom": 1,
+  "custom": 0,
   "is_single": 0,
   "editable_grid": 0,
   "track_changes": 1,

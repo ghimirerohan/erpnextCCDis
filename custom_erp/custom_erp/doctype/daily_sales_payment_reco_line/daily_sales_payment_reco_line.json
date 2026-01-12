@@ -2,7 +2,7 @@
   "doctype": "DocType",
   "name": "Daily Sales Payment Reco Line",
   "module": "Custom Erp",
-  "custom": 1,
+  "custom": 0,
   "is_single": 0,
   "istable": 1,
   "editable_grid": 1,
