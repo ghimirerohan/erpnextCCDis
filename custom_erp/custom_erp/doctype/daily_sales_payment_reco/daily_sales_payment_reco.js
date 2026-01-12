@@ -49,18 +49,20 @@ function add_line_buttons(frm, cdt, cdn) {
     // Insert after the form fields
     $(grid_row.grid_form.wrapper).find('.form-group:last').after(btn_container);
     
-    // Process QR button click
+    // Process QR button click - pass cdt and cdn for updating
     btn_container.find('.process-qr-btn').on('click', function() {
-        process_line_qr_logs(frm, row);
+        process_line_qr_logs(frm, cdt, cdn);
     });
     
-    // Recalculate button click
+    // Recalculate button click - pass cdt and cdn for updating
     btn_container.find('.recalculate-btn').on('click', function() {
-        recalculate_line_amounts(frm, row);
+        recalculate_line_amounts(frm, cdt, cdn);
     });
 }
 
-function process_line_qr_logs(frm, row) {
+function process_line_qr_logs(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    
     frappe.confirm(
         __('Process unprocessed QR logs linked to this line?<br><br>If QR amount exceeds initial amount, the difference will be added to Additional Amount.'),
         function() {
@@ -86,13 +88,15 @@ function process_line_qr_logs(frm, row) {
                         
                         let success_count = processed.filter(p => p.status === 'success').length;
                         
+                        // Update the row values in-place if line_data is returned
+                        if (data.line_data) {
+                            update_line_values(frm, cdt, cdn, data.line_data);
+                        }
+                        
                         frappe.show_alert({
                             message: __('Processed {0} QR transactions', [success_count]),
                             indicator: 'green'
                         });
-                        
-                        // Reload the form to show updated values
-                        frm.reload_doc();
                     } else {
                         frappe.msgprint({
                             title: __('Error'),
@@ -106,7 +110,9 @@ function process_line_qr_logs(frm, row) {
     );
 }
 
-function recalculate_line_amounts(frm, row) {
+function recalculate_line_amounts(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    
     frappe.confirm(
         __('Recalculate amounts for this line based on Initial Total Amount?<br><br>Formula: Remaining = Net Total - QR - Cash - Cheque - Credit<br>Where: Net Total = Initial + Additional - Return'),
         function() {
@@ -119,11 +125,15 @@ function recalculate_line_amounts(frm, row) {
                 freeze_message: __('Recalculating...'),
                 callback: function(r) {
                     if (r.message && r.message.success) {
+                        // Update the row values in-place without closing the form
+                        if (r.message.data) {
+                            update_line_values(frm, cdt, cdn, r.message.data);
+                        }
+                        
                         frappe.show_alert({
                             message: __('Line amounts recalculated successfully'),
                             indicator: 'green'
                         });
-                        frm.reload_doc();
                     } else {
                         frappe.msgprint({
                             title: __('Error'),
@@ -135,6 +145,77 @@ function recalculate_line_amounts(frm, row) {
             });
         }
     );
+}
+
+function update_line_values(frm, cdt, cdn, data) {
+    // Update each field in the row without triggering form reload
+    let fields_to_update = [
+        'initial_total_amount',
+        'additional_amount', 
+        'net_total_amount',
+        'return_amount',
+        'qr_amount',
+        'cash_amount',
+        'cheque_amount',
+        'credit_amount',
+        'remaining_amount',
+        'settled'
+    ];
+    
+    fields_to_update.forEach(function(field) {
+        if (data.hasOwnProperty(field)) {
+            frappe.model.set_value(cdt, cdn, field, data[field]);
+        }
+    });
+    
+    // Refresh the grid row to show updated values
+    let grid = frm.fields_dict.daily_sales_payment_reco_line.grid;
+    grid.refresh();
+    
+    // Re-open the form for the same row so user can see updated values
+    let grid_row = grid.grid_rows_by_docname[cdn];
+    if (grid_row) {
+        // Small delay to let refresh complete, then re-open the form
+        setTimeout(function() {
+            grid_row.toggle_view(true);
+        }, 100);
+    }
+    
+    // Also reload parent document data in background to sync totals
+    frappe.call({
+        method: 'frappe.client.get',
+        args: {
+            doctype: frm.doc.doctype,
+            name: frm.doc.name
+        },
+        async: true,
+        callback: function(r) {
+            if (r.message) {
+                // Update parent-level totals without full reload
+                let parent_fields = [
+                    'initial_total_amount',
+                    'additional_amount',
+                    'net_total_amount', 
+                    'return_amount',
+                    'qr_amount',
+                    'cheque_amount',
+                    'cash_amount',
+                    'credit_amount',
+                    'remaining_amount',
+                    'cash_expected',
+                    'cash_difference'
+                ];
+                
+                parent_fields.forEach(function(field) {
+                    if (r.message.hasOwnProperty(field)) {
+                        frm.doc[field] = r.message[field];
+                    }
+                });
+                
+                frm.refresh_fields();
+            }
+        }
+    });
 }
 
 function recalculate_reco_summary(frm) {
