@@ -1,51 +1,57 @@
 {
+  "actions": [],
+  "creation": "2024-01-01 00:00:00.000000",
   "doctype": "DocType",
-  "name": "Institute",
-  "module": "Custom Erp",
-  "custom": 0,
-  "is_single": 0,
-  "editable_grid": 0,
-  "track_changes": 1,
-  "track_seen": 1,
   "engine": "InnoDB",
+  "field_order": [
+    "institute_name",
+    "description"
+  ],
   "fields": [
     {
       "fieldname": "institute_name",
-      "label": "Institute Name",
       "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Institute Name",
       "reqd": 1,
+      "search_index": 1,
       "unique": 1
     },
     {
       "fieldname": "description",
-      "label": "Description",
-      "fieldtype": "Small Text"
+      "fieldtype": "Small Text",
+      "label": "Description"
     }
   ],
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Custom Erp",
+  "name": "Institute",
+  "owner": "Administrator",
   "permissions": [
     {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
       "role": "System Manager",
-      "read": 1,
-      "create": 1,
-      "write": 1,
-      "delete": 1
-    },
-    {
-      "role": "Accounts User",
-      "read": 1,
-      "create": 1,
       "write": 1
     },
     {
-      "role": "Accounts Manager",
-      "read": 1,
       "create": 1,
-      "write": 1,
-      "delete": 1
+      "read": 1,
+      "role": "Accounts User",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
+      "role": "Accounts Manager",
+      "write": 1
     }
   ],
-  "indexes": [
-    ["institute_name"]
-  ]
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
 }
-

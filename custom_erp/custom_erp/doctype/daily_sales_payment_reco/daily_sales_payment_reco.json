@@ -1,146 +1,172 @@
 {
+  "actions": [],
+  "creation": "2024-01-01 00:00:00.000000",
   "doctype": "DocType",
-  "name": "Daily Sales Payment Reco",
-  "module": "Custom Erp",
-  "custom": 0,
-  "is_single": 0,
-  "editable_grid": 0,
-  "track_changes": 1,
-  "track_seen": 1,
   "engine": "InnoDB",
+  "field_order": [
+    "driver",
+    "company",
+    "loadsheet_number",
+    "initial_total_amount",
+    "additional_amount",
+    "net_total_amount",
+    "return_amount",
+    "qr_amount",
+    "cheque_amount",
+    "cash_amount",
+    "credit_amount",
+    "expense_amount",
+    "cash_expected",
+    "cash_received",
+    "cash_difference",
+    "remaining_amount",
+    "settled",
+    "settled_at",
+    "daily_sales_payment_reco_line"
+  ],
   "fields": [
     {
       "fieldname": "driver",
-      "label": "Driver",
       "fieldtype": "Link",
-      "options": "Driver"
+      "in_list_view": 1,
+      "label": "Driver",
+      "options": "Driver",
+      "search_index": 1
     },
     {
       "fieldname": "company",
-      "label": "Company",
       "fieldtype": "Link",
-      "options": "Company"
+      "label": "Company",
+      "options": "Company",
+      "search_index": 1
     },
     {
       "fieldname": "loadsheet_number",
+      "fieldtype": "Data",
+      "in_list_view": 1,
       "label": "Loadsheet Number",
-      "fieldtype": "Data"
+      "search_index": 1
     },
     {
       "fieldname": "initial_total_amount",
-      "label": "Initial Total Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Initial Total Amount"
     },
     {
       "fieldname": "additional_amount",
-      "label": "Additional Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Additional Amount"
     },
     {
       "fieldname": "net_total_amount",
-      "label": "Net Total Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Net Total Amount"
     },
     {
       "fieldname": "return_amount",
-      "label": "Return Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Return Amount"
     },
     {
       "fieldname": "qr_amount",
-      "label": "QR Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "QR Amount"
     },
     {
       "fieldname": "cheque_amount",
-      "label": "Cheque Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Cheque Amount"
     },
     {
       "fieldname": "cash_amount",
-      "label": "Cash Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Cash Amount"
     },
     {
       "fieldname": "credit_amount",
-      "label": "Credit Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Credit Amount"
     },
     {
       "fieldname": "expense_amount",
-      "label": "Expense Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Expense Amount"
     },
     {
+      "description": "Cash Amount - Expense Amount (expected cash to receive from driver)",
       "fieldname": "cash_expected",
-      "label": "Cash Expected",
       "fieldtype": "Currency",
-      "description": "Cash Amount - Expense Amount (expected cash to receive from driver)"
+      "label": "Cash Expected"
     },
     {
+      "description": "Actual cash received from driver",
       "fieldname": "cash_received",
-      "label": "Cash Received",
       "fieldtype": "Currency",
-      "description": "Actual cash received from driver"
+      "label": "Cash Received"
     },
     {
+      "description": "Cash Received - Total Cash (can be positive or negative)",
       "fieldname": "cash_difference",
-      "label": "Cash Difference",
       "fieldtype": "Currency",
-      "description": "Cash Received - Total Cash (can be positive or negative)"
+      "label": "Cash Difference"
     },
     {
       "fieldname": "remaining_amount",
-      "label": "Remaining Amount",
-      "fieldtype": "Currency"
+      "fieldtype": "Currency",
+      "label": "Remaining Amount"
     },
     {
+      "default": "0",
       "fieldname": "settled",
-      "label": "Settled",
       "fieldtype": "Check",
-      "default": 0
+      "in_list_view": 1,
+      "label": "Settled",
+      "search_index": 1
     },
     {
       "fieldname": "settled_at",
+      "fieldtype": "Datetime",
       "label": "Settled At",
-      "fieldtype": "Datetime"
+      "search_index": 1
     },
     {
       "fieldname": "daily_sales_payment_reco_line",
-      "label": "Daily Sales Payment Reco Line",
       "fieldtype": "Table",
+      "label": "Daily Sales Payment Reco Line",
       "options": "Daily Sales Payment Reco Line",
       "reqd": 1
     }
   ],
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Custom Erp",
+  "name": "Daily Sales Payment Reco",
+  "owner": "Administrator",
   "permissions": [
     {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
       "role": "System Manager",
-      "read": 1,
-      "create": 1,
-      "write": 1,
-      "delete": 1
-    },
-    {
-      "role": "Accounts User",
-      "read": 1,
-      "create": 1,
       "write": 1
     },
     {
-      "role": "Accounts Manager",
-      "read": 1,
       "create": 1,
-      "write": 1,
-      "delete": 1
+      "read": 1,
+      "role": "Accounts User",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
+      "role": "Accounts Manager",
+      "write": 1
     }
   ],
-  "indexes": [
-    ["driver"],
-    ["company"],
-    ["loadsheet_number"],
-    ["settled"],
-    ["settled_at"]
-  ]
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
 }
-

@@ -1,50 +1,198 @@
 {
+  "actions": [],
+  "creation": "2024-01-01 00:00:00.000000",
   "doctype": "DocType",
-  "name": "Fonepay QR Transaction",
-  "module": "Custom Erp",
-  "custom": 0,
-  "is_single": 0,
-  "editable_grid": 0,
-  "track_changes": 1,
-  "track_seen": 1,
   "engine": "InnoDB",
+  "field_order": [
+    "prn",
+    "merchant_code",
+    "amount",
+    "currency",
+    "customer",
+    "company",
+    "sales_invoice",
+    "username",
+    "data_validation",
+    "qr_message",
+    "thirdparty_qr_websocket_url",
+    "fonepay_trace_id",
+    "response_json",
+    "last_ws_message",
+    "status",
+    "processed",
+    "payment_entry",
+    "retries",
+    "last_error",
+    "timeout_at",
+    "env",
+    "metadata",
+    "daily_sales_payment_reco_line"
+  ],
   "fields": [
-    {"fieldname": "prn", "label": "PRN", "fieldtype": "Data", "reqd": 1, "unique": 1},
-    {"fieldname": "merchant_code", "label": "Merchant Code", "fieldtype": "Data"},
-    {"fieldname": "amount", "label": "Amount", "fieldtype": "Currency"},
-    {"fieldname": "currency", "label": "Currency", "fieldtype": "Data", "default": "NPR"},
-    {"fieldname": "customer", "label": "Customer", "fieldtype": "Link", "options": "Customer"},
-    {"fieldname": "company", "label": "Company", "fieldtype": "Link", "options": "Company"},
-    {"fieldname": "sales_invoice", "label": "Sales Invoice", "fieldtype": "Link", "options": "Sales Invoice"},
-    {"fieldname": "username", "label": "Username", "fieldtype": "Data"},
-    {"fieldname": "data_validation", "label": "Data Validation (HMAC)", "fieldtype": "Data"},
-    {"fieldname": "qr_message", "label": "QR Message", "fieldtype": "Text"},
-    {"fieldname": "thirdparty_qr_websocket_url", "label": "Thirdparty QR Websocket URL", "fieldtype": "Data"},
-    {"fieldname": "fonepay_trace_id", "label": "Fonepay Trace ID", "fieldtype": "Data"},
-    {"fieldname": "response_json", "label": "Response JSON", "fieldtype": "Text"},
-    {"fieldname": "last_ws_message", "label": "Last WS Message", "fieldtype": "Text"},
-    {"fieldname": "status", "label": "Status", "fieldtype": "Select", "options": "CREATED\nVERIFIED\nSCANNED\nPENDING\nSUCCESS\nFAILED"},
-    {"fieldname": "processed", "label": "Processed", "fieldtype": "Check", "default": "0"},
-    {"fieldname": "payment_entry", "label": "Payment Entry", "fieldtype": "Link", "options": "Payment Entry"},
-    {"fieldname": "retries", "label": "Retries", "fieldtype": "Int"},
-    {"fieldname": "last_error", "label": "Last Error", "fieldtype": "Text"},
-    {"fieldname": "timeout_at", "label": "Timeout At", "fieldtype": "Datetime"},
-    {"fieldname": "env", "label": "Environment", "fieldtype": "Data"},
-    {"fieldname": "metadata", "label": "Metadata", "fieldtype": "Text"},
-    {"fieldname": "daily_sales_payment_reco_line", "label": "Daily Sales Payment Reco Line", "fieldtype": "Link", "options": "Daily Sales Payment Reco Line"}
+    {
+      "fieldname": "prn",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "PRN",
+      "reqd": 1,
+      "search_index": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "merchant_code",
+      "fieldtype": "Data",
+      "label": "Merchant Code"
+    },
+    {
+      "fieldname": "amount",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Amount"
+    },
+    {
+      "default": "NPR",
+      "fieldname": "currency",
+      "fieldtype": "Data",
+      "label": "Currency"
+    },
+    {
+      "fieldname": "customer",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Customer",
+      "options": "Customer"
+    },
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company",
+      "search_index": 1
+    },
+    {
+      "fieldname": "sales_invoice",
+      "fieldtype": "Link",
+      "label": "Sales Invoice",
+      "options": "Sales Invoice"
+    },
+    {
+      "fieldname": "username",
+      "fieldtype": "Data",
+      "label": "Username"
+    },
+    {
+      "fieldname": "data_validation",
+      "fieldtype": "Data",
+      "label": "Data Validation (HMAC)"
+    },
+    {
+      "fieldname": "qr_message",
+      "fieldtype": "Text",
+      "label": "QR Message"
+    },
+    {
+      "fieldname": "thirdparty_qr_websocket_url",
+      "fieldtype": "Data",
+      "label": "Thirdparty QR Websocket URL"
+    },
+    {
+      "fieldname": "fonepay_trace_id",
+      "fieldtype": "Data",
+      "label": "Fonepay Trace ID"
+    },
+    {
+      "fieldname": "response_json",
+      "fieldtype": "Text",
+      "label": "Response JSON"
+    },
+    {
+      "fieldname": "last_ws_message",
+      "fieldtype": "Text",
+      "label": "Last WS Message"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "CREATED\nVERIFIED\nSCANNED\nPENDING\nSUCCESS\nFAILED",
+      "search_index": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "processed",
+      "fieldtype": "Check",
+      "label": "Processed",
+      "search_index": 1
+    },
+    {
+      "fieldname": "payment_entry",
+      "fieldtype": "Link",
+      "label": "Payment Entry",
+      "options": "Payment Entry"
+    },
+    {
+      "fieldname": "retries",
+      "fieldtype": "Int",
+      "label": "Retries"
+    },
+    {
+      "fieldname": "last_error",
+      "fieldtype": "Text",
+      "label": "Last Error"
+    },
+    {
+      "fieldname": "timeout_at",
+      "fieldtype": "Datetime",
+      "label": "Timeout At"
+    },
+    {
+      "fieldname": "env",
+      "fieldtype": "Data",
+      "label": "Environment"
+    },
+    {
+      "fieldname": "metadata",
+      "fieldtype": "Text",
+      "label": "Metadata"
+    },
+    {
+      "fieldname": "daily_sales_payment_reco_line",
+      "fieldtype": "Link",
+      "label": "Daily Sales Payment Reco Line",
+      "options": "Daily Sales Payment Reco Line",
+      "search_index": 1
+    }
   ],
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Custom Erp",
+  "name": "Fonepay QR Transaction",
+  "owner": "Administrator",
   "permissions": [
-    {"role": "System Manager", "read": 1, "create": 1, "write": 1, "delete": 1},
-    {"role": "Accounts User", "read": 1, "create": 1, "write": 1},
-    {"role": "Accounts Manager", "read": 1, "create": 1, "write": 1, "delete": 1}
+    {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
+      "role": "System Manager",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "read": 1,
+      "role": "Accounts User",
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "read": 1,
+      "role": "Accounts Manager",
+      "write": 1
+    }
   ],
-  "indexes": [
-    ["prn"],
-    ["company"],
-    ["status"],
-    ["processed"],
-    ["daily_sales_payment_reco_line"]
-  ]
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
 }
-
-
