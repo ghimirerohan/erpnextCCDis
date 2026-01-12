@@ -338,13 +338,14 @@ def generate_output_csv_rows(transformed_invoices: List[Dict[str, Any]]) -> List
 
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Transform and Preview
 @frappe.whitelist()
-def transform_and_preview(csv_content):
+def transform_and_preview(csv_content, company=None):
     """
     Transform uploaded CSV and return preview of first 10 VALID invoices.
     Invoices with validation errors are skipped from preview.
     
     Args:
         csv_content: CSV file content as string
+        company: Company filter (required for filtering)
     
     Returns:
         Dict with preview_rows, total_invoices, valid_invoice_count, validation_errors
@@ -447,19 +448,27 @@ def get_drivers():
 
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Vehicles
 @frappe.whitelist()
-def get_vehicles():
+def get_vehicles(company=None):
     """
     Get list of vehicles for dropdown selection.
+    
+    Args:
+        company: Optional company filter
     
     Returns:
         List of vehicles with name and license_plate
     """
     try:
         # Get Vehicle doctype
+        filters = {}
+        if company:
+            filters["company"] = company
+            
         if frappe.db.exists("DocType", "Vehicle"):
             vehicles = frappe.get_all(
                 "Vehicle",
                 fields=["name", "license_plate"],
+                filters=filters,
                 order_by="name"
             )
         else:
@@ -476,6 +485,36 @@ def get_vehicles():
             "success": False,
             "error": str(e),
             "vehicles": []
+        }
+
+
+# ADDED BY AI: UPLOAD_SALES - API Endpoint: Get Companies
+@frappe.whitelist()
+def get_companies():
+    """
+    Get list of companies for dropdown selection.
+    
+    Returns:
+        List of companies with name
+    """
+    try:
+        companies = frappe.get_all(
+            "Company",
+            fields=["name"],
+            order_by="name"
+        )
+        
+        return {
+            "success": True,
+            "companies": companies
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in get_companies: {str(e)}", "Upload Sales Get Companies")
+        return {
+            "success": False,
+            "error": str(e),
+            "companies": []
         }
 
 
@@ -649,7 +688,7 @@ def get_final_summary(job_id):
 
 # ADDED BY AI: UPLOAD_SALES - API Endpoint: Enqueue Import Job (Synchronous)
 @frappe.whitelist()
-def enqueue_import_job(driver_id, vehicle_id, csv_content):
+def enqueue_import_job(driver_id, vehicle_id, csv_content, company):
     """
     Create and start a Data Import using Frappe's built-in import system.
     
@@ -657,20 +696,27 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
         driver_id: Selected driver ID
         vehicle_id: Selected vehicle ID (optional)
         csv_content: CSV file content
+        company: Company ID (required)
     
     Returns:
         Import name for tracking
     """
     try:
+        if not company:
+            return {
+                "success": False,
+                "error": "Company is required"
+            }
+        
         print("=== UPLOAD SALES IMPORT STARTED ===")
         frappe.log_error(f"=== UPLOAD SALES IMPORT STARTED ===", "Upload Sales Import")
-        frappe.log_error(f"Driver ID: {driver_id}, Vehicle ID: {vehicle_id}", "Upload Sales Import")
+        frappe.log_error(f"Company: {company}, Driver ID: {driver_id}, Vehicle ID: {vehicle_id}", "Upload Sales Import")
         frappe.log_error(f"CSV Content Length: {len(csv_content) if csv_content else 0}", "Upload Sales Import")
         
         # Write to file for debugging
         with open("/tmp/uploadsales_debug.log", "a") as f:
             f.write(f"[{frappe.utils.now()}] UPLOAD SALES IMPORT STARTED\n")
-            f.write(f"[{frappe.utils.now()}] Driver ID: {driver_id}, Vehicle ID: {vehicle_id}\n")
+            f.write(f"[{frappe.utils.now()}] Company: {company}, Driver ID: {driver_id}, Vehicle ID: {vehicle_id}\n")
             f.write(f"[{frappe.utils.now()}] CSV Content Length: {len(csv_content) if csv_content else 0}\n")
             f.flush()
         
@@ -723,6 +769,7 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                         "Cost Center (Items)": "Main - RTAS",
                         "Income Account (Items)": "Sales - RTAS",
                         "UOM (Items)": "CS",
+                        "Company": company,  # Company field
                         "Driver For Vehicle": driver_id,  # Custom field
                         "Vehicle For Delivery": vehicle_id or ""  # Custom field
                     }
@@ -755,6 +802,7 @@ def enqueue_import_job(driver_id, vehicle_id, csv_content):
                         "Cost Center (Items)": "Main - RTAS",  # Keep static values - item field
                         "Income Account (Items)": "Sales - RTAS",  # Keep static values - item field
                         "UOM (Items)": "CS",  # Keep static values - item field
+                        "Company": "",  # Blank - parent field
                         "Driver For Vehicle": "",  # Blank - custom field
                         "Vehicle For Delivery": ""  # Blank - custom field
                     }
@@ -867,11 +915,14 @@ def run_data_import(data_import_name):
 
 
 # ADDED BY AI: UPLOAD_SALES - Background Job: Process Upload
-def process_upload_sales_job(driver_id, vehicle_id, csv_content, job_id, user):
+def process_upload_sales_job(driver_id, vehicle_id, csv_content, company, job_id, user):
     """
     Background job to process sales invoice upload.
     
     This runs in a background worker and publishes real-time progress.
+    
+    Args:
+        company: Company ID (required)
     """
     frappe.set_user(user)
     
@@ -915,8 +966,8 @@ def process_upload_sales_job(driver_id, vehicle_id, csv_content, job_id, user):
                     publish_progress(job_id, processed, total, f"Validation errors: {invoice_no}", imported, skipped, errors, total_amount)
                     continue
                 
-                # Create Sales Invoice - ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
-                result = create_sales_invoice_doc(transformed, driver_id, vehicle_id)
+                # Create Sales Invoice - ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id and company
+                result = create_sales_invoice_doc(transformed, driver_id, vehicle_id, company)
                 
                 if result.get("success"):
                     imported += 1
@@ -961,7 +1012,7 @@ def process_upload_sales_job(driver_id, vehicle_id, csv_content, job_id, user):
 
 
 # ADDED BY AI: UPLOAD_SALES - Create Sales Invoice Document
-def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, vehicle_id: str = None) -> Dict[str, Any]:
+def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, vehicle_id: str = None, company: str = None) -> Dict[str, Any]:
     """
     Create Sales Invoice document in ERPNext.
     
@@ -969,17 +1020,25 @@ def create_sales_invoice_doc(transformed_data: Dict[str, Any], driver_id: str, v
         transformed_data: Transformed invoice data
         driver_id: Driver ID to assign
         vehicle_id: Vehicle ID to assign (optional)
+        company: Company ID (required)
     
     Returns:
         Dict with success status and grand_total or error
     """
     try:
+        if not company:
+            return {
+                "success": False,
+                "error": "Company is required"
+            }
+        
         invoice_no = transformed_data.get("invoice_no")
         
-        # Build invoice doc - ADDED BY AI: UPLOAD_SALES - Now includes vehicle
+        # Build invoice doc - ADDED BY AI: UPLOAD_SALES - Now includes vehicle and company
         doc_data = {
             "doctype": "Sales Invoice",
             "naming_series": "SI-",
+            "company": company,  # Company field
             "customer": transformed_data.get("customer_id"),
             "posting_date": transformed_data.get("date"),
             "update_stock": 1,
@@ -1125,6 +1184,7 @@ def create_import_csv(import_data):
         "Account Head (Sales Taxes and Charges)", "Description (Sales Taxes and Charges)", 
         "Type (Sales Taxes and Charges)", "Tax Rate (Sales Taxes and Charges)", 
         "Cost Center (Items)", "Income Account (Items)", "UOM (Items)",
+        "Company",  # Company field
         "Driver For Vehicle", "Vehicle For Delivery"  # Custom fields
     ]
     
@@ -1160,6 +1220,7 @@ def create_import_csv(import_data):
             row.get("Cost Center (Items)", "Main - RTAS"),  # Static value
             row.get("Income Account (Items)", "Sales - RTAS"),  # Static value
             row.get("UOM (Items)", "CS"),    # Static value
+            row.get("Company", ""),  # Company field
             row.get("Driver For Vehicle", ""),  # Custom field
             row.get("Vehicle For Delivery", "")  # Custom field
         ])

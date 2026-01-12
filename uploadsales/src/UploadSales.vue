@@ -62,13 +62,16 @@
         </div>
       </div>
 
-      <!-- Driver & Vehicle Selection -->
+      <!-- Company, Driver & Vehicle Selection -->
       <DriverSelect
         v-if="csvContent && !showProgress && !showSummary"
+        v-model:companyValue="selectedCompany"
         v-model:driverValue="selectedDriver"
         v-model:vehicleValue="selectedVehicle"
+        :companies="companies"
         :drivers="drivers"
         :vehicles="vehicles"
+        :loading-companies="loadingCompanies"
         :loading-drivers="loadingDrivers"
         :loading-vehicles="loadingVehicles"
       />
@@ -109,15 +112,15 @@
       <div v-if="csvContent && !showProgress && !showSummary" class="flex justify-center">
         <button
           @click="startImport"
-          :disabled="!selectedDriver || importing || validInvoiceCount === 0"
+          :disabled="!selectedCompany || !selectedDriver || importing || validInvoiceCount === 0"
           class="inline-flex items-center px-8 py-4 border-2 text-lg font-bold rounded-lg shadow-lg transition-all duration-200"
-          :class="selectedDriver && validInvoiceCount > 0 ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 hover:border-indigo-700' : 'bg-gray-300 text-gray-600 border-gray-300 cursor-not-allowed'"
+          :class="selectedCompany && selectedDriver && validInvoiceCount > 0 ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 hover:border-indigo-700' : 'bg-gray-300 text-gray-600 border-gray-300 cursor-not-allowed'"
         >
           <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
           </svg>
           <span class="font-bold">
-            {{ !selectedDriver ? 'Please select a driver first' : (validInvoiceCount === 0 ? 'No valid invoices to import' : `Start Import (${validInvoiceCount} invoices)`) }}
+            {{ !selectedCompany ? 'Please select a company first' : (!selectedDriver ? 'Please select a driver first' : (validInvoiceCount === 0 ? 'No valid invoices to import' : `Start Import (${validInvoiceCount} invoices)`)) }}
           </span>
         </button>
       </div>
@@ -138,7 +141,7 @@
 
 <script setup>
 // ADDED BY AI: UPLOAD_SALES
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { session } from '../../shared/data/session'
 import { call } from 'frappe-ui'
 import Papa from 'papaparse'
@@ -150,10 +153,13 @@ import SummaryCard from './components/SummaryCard.vue'
 
 // State
 const csvContent = ref(null)
+const selectedCompany = ref(null)
 const selectedDriver = ref(null)
 const selectedVehicle = ref(null)
+const companies = ref([])
 const drivers = ref([])
 const vehicles = ref([])
+const loadingCompanies = ref(false)
 const loadingDrivers = ref(false)
 const loadingVehicles = ref(false)
 const previewData = ref([])
@@ -165,10 +171,25 @@ const showProgress = ref(false)
 const showSummary = ref(false)
 const summary = ref(null)
 
-// Load drivers and vehicles on mount
+// Load companies, drivers and vehicles on mount
 onMounted(async () => {
-  await Promise.all([loadDrivers(), loadVehicles()])
+  await Promise.all([loadCompanies(), loadDrivers(), loadVehicles()])
 })
+
+// Load companies
+async function loadCompanies() {
+  loadingCompanies.value = true
+  try {
+    const response = await call('custom_erp.api.uploadsales.get_companies')
+    if (response.success) {
+      companies.value = response.companies
+    }
+  } catch (error) {
+    console.error('Error loading companies:', error)
+  } finally {
+    loadingCompanies.value = false
+  }
+}
 
 // Load drivers
 async function loadDrivers() {
@@ -189,7 +210,9 @@ async function loadDrivers() {
 async function loadVehicles() {
   loadingVehicles.value = true
   try {
-    const response = await call('custom_erp.api.uploadsales.get_vehicles')
+    const response = await call('custom_erp.api.uploadsales.get_vehicles', {
+      company: selectedCompany.value
+    })
     if (response.success) {
       vehicles.value = response.vehicles
     }
@@ -200,8 +223,22 @@ async function loadVehicles() {
   }
 }
 
+// Watch company change to reload vehicles
+watch(selectedCompany, (newCompany) => {
+  if (newCompany) {
+    loadVehicles()
+  } else {
+    vehicles.value = []
+  }
+})
+
 // Handle file upload
 async function handleFileUpload(file) {
+  if (!selectedCompany.value) {
+    alert('Please select a company first before uploading a file')
+    return
+  }
+  
   try {
     // Parse CSV
     const text = await file.text()
@@ -209,7 +246,8 @@ async function handleFileUpload(file) {
 
     // Get preview
     const response = await call('custom_erp.api.uploadsales.transform_and_preview', {
-      csv_content: text
+      csv_content: text,
+      company: selectedCompany.value
     })
 
     if (response.success) {
@@ -230,23 +268,28 @@ async function handleFileUpload(file) {
 function clearFile() {
   if (confirm('Clear current file and selections?')) {
     csvContent.value = null
-    selectedDriver.value = null
     selectedVehicle.value = null
     previewData.value = []
     totalInvoices.value = 0
     validInvoiceCount.value = 0
     validationErrors.value = []
+    // Note: Keep company and driver selection
   }
 }
 
 // Start import
 async function startImport() {
+  if (!selectedCompany.value) {
+    alert('Please select a company')
+    return
+  }
+  
   if (!selectedDriver.value) {
     alert('Please select a driver')
     return
   }
 
-  let confirmMsg = `Import ${totalInvoices.value} invoices with driver ${selectedDriver.value}`
+  let confirmMsg = `Import ${totalInvoices.value} invoices for company ${selectedCompany.value} with driver ${selectedDriver.value}`
   if (selectedVehicle.value) {
     confirmMsg += ` and vehicle ${selectedVehicle.value}`
   }
@@ -261,6 +304,7 @@ async function startImport() {
 
   try {
     console.log('=== STARTING IMPORT ===')
+    console.log('Company:', selectedCompany.value)
     console.log('Driver ID:', selectedDriver.value)
     console.log('Vehicle ID:', selectedVehicle.value)
     console.log('CSV Content Length:', csvContent.value ? csvContent.value.length : 0)
@@ -277,9 +321,10 @@ async function startImport() {
       console.log('⚠️ OLD CODE IS STILL RUNNING!')
     }
     
-    // ADDED BY AI: UPLOAD_SALES - Now includes vehicle_id
+    // ADDED BY AI: UPLOAD_SALES - Now includes company, vehicle_id
     console.log('Calling main API:', 'custom_erp.api.uploadsales.enqueue_import_job')
     const response = await call('custom_erp.api.uploadsales.enqueue_import_job', {
+      company: selectedCompany.value,
       driver_id: selectedDriver.value,
       vehicle_id: selectedVehicle.value || '',
       csv_content: csvContent.value
@@ -319,9 +364,10 @@ async function startImport() {
   }
 }
 
-// Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes vehicle reset and validation errors
+// Reset upload - ADDED BY AI: UPLOAD_SALES - Now includes company, vehicle reset and validation errors
 function resetUpload() {
   csvContent.value = null
+  selectedCompany.value = null
   selectedDriver.value = null
   selectedVehicle.value = null
   previewData.value = []

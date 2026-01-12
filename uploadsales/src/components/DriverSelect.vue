@@ -7,10 +7,37 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
         </svg>
       </div>
-      <h2 class="text-xl font-semibold text-gray-900">Select Driver & Vehicle</h2>
+      <h2 class="text-xl font-semibold text-gray-900">Select Company, Driver & Vehicle</h2>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Company Selection -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-3">
+          Company <span class="text-red-500">*</span>
+        </label>
+
+        <select
+          :value="companyValue"
+          @change="$emit('update:companyValue', $event.target.value)"
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-white"
+          :disabled="loadingCompanies"
+          :class="!companyValue ? 'border-red-300' : ''"
+        >
+          <option value="">{{ loadingCompanies ? 'Loading companies...' : 'Select a company' }}</option>
+          <option
+            v-for="company in companies"
+            :key="company.name"
+            :value="company.name"
+          >
+            {{ company.name }}
+          </option>
+        </select>
+
+        <p class="mt-2 text-sm text-gray-500">
+          Required: Company for all operations
+        </p>
+      </div>
       <!-- Driver Selection -->
       <div>
         <label class="block text-sm font-semibold text-gray-700 mb-3">
@@ -71,6 +98,10 @@
 <script setup>
 // ADDED BY AI: UPLOAD_SALES
 defineProps({
+  companyValue: {
+    type: String,
+    default: null
+  },
   driverValue: {
     type: String,
     default: null
@@ -79,6 +110,10 @@ defineProps({
     type: String,
     default: null
   },
+  companies: {
+    type: Array,
+    default: () => []
+  },
   drivers: {
     type: Array,
     default: () => []
@@ -86,6 +121,10 @@ defineProps({
   vehicles: {
     type: Array,
     default: () => []
+  },
+  loadingCompanies: {
+    type: Boolean,
+    default: false
   },
   loadingDrivers: {
     type: Boolean,
@@ -97,6 +136,6 @@ defineProps({
   }
 })
 
-defineEmits(['update:driverValue', 'update:vehicleValue'])
+defineEmits(['update:companyValue', 'update:driverValue', 'update:vehicleValue'])
 </script>
 

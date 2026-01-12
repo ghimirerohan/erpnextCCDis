@@ -14,6 +14,7 @@
     {"fieldname": "amount", "label": "Amount", "fieldtype": "Currency"},
     {"fieldname": "currency", "label": "Currency", "fieldtype": "Data", "default": "NPR"},
     {"fieldname": "customer", "label": "Customer", "fieldtype": "Link", "options": "Customer"},
+    {"fieldname": "company", "label": "Company", "fieldtype": "Link", "options": "Company"},
     {"fieldname": "sales_invoice", "label": "Sales Invoice", "fieldtype": "Link", "options": "Sales Invoice"},
     {"fieldname": "username", "label": "Username", "fieldtype": "Data"},
     {"fieldname": "data_validation", "label": "Data Validation (HMAC)", "fieldtype": "Data"},
@@ -29,7 +30,8 @@
     {"fieldname": "last_error", "label": "Last Error", "fieldtype": "Text"},
     {"fieldname": "timeout_at", "label": "Timeout At", "fieldtype": "Datetime"},
     {"fieldname": "env", "label": "Environment", "fieldtype": "Data"},
-    {"fieldname": "metadata", "label": "Metadata", "fieldtype": "Text"}
+    {"fieldname": "metadata", "label": "Metadata", "fieldtype": "Text"},
+    {"fieldname": "daily_sales_payment_reco_line", "label": "Daily Sales Payment Reco Line", "fieldtype": "Link", "options": "Daily Sales Payment Reco Line"}
   ],
   "permissions": [
     {"role": "System Manager", "read": 1, "create": 1, "write": 1, "delete": 1},
@@ -38,8 +40,10 @@
   ],
   "indexes": [
     ["prn"],
+    ["company"],
     ["status"],
-    ["processed"]
+    ["processed"],
+    ["daily_sales_payment_reco_line"]
   ]
 }
 

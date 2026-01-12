@@ -6,8 +6,8 @@
       <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center py-3 sm:py-4">
           <div class="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-sky-600 rounded-lg shadow-md flex-shrink-0">
-              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-white border-2 border-gray-300 rounded-lg shadow-md flex-shrink-0">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: rgba(103, 101, 101, 1);">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
               </svg>
             </div>
@@ -24,7 +24,7 @@
             title="Refresh data"
           >
             <svg 
-              :class="['w-5 h-5 sm:w-4 sm:h-4', refreshing ? 'animate-spin' : '']" 
+              :class="['w-5 h-5 sm:w-4 sm:h-4', 'refresh-button-svg', refreshing ? 'animate-spin' : '']" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
@@ -32,7 +32,7 @@
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
             </svg>
-            <span class="hidden sm:inline sm:ml-2">Refresh</span>
+            <span class="hidden sm:inline sm:ml-2" style="color: rgba(103, 101, 101, 1);">Refresh</span>
           </button>
           <button
             @click="session.logout.submit()"
@@ -129,6 +129,7 @@
           :reco-name="recoData.reco.name"
           @view-all="showAllDialog = true"
           @expense-updated="handleExpenseUpdated"
+          @qr-processed="handleQrProcessed"
         />
 
         <!-- Search & Filters -->
@@ -608,6 +609,14 @@
                 <span class="font-semibold">{{ formatCurrency(recoData?.summary.initial_total_amount) }}</span>
               </div>
               <div class="flex justify-between py-2 border-b">
+                <span class="text-gray-700">Additional Amount:</span>
+                <span class="font-semibold text-indigo-600">{{ formatCurrency(recoData?.summary.additional_amount) }}</span>
+              </div>
+              <div class="flex justify-between py-2 border-b">
+                <span class="text-gray-700">Return Amount:</span>
+                <span class="font-semibold text-orange-600">{{ formatCurrency(recoData?.summary.return_amount) }}</span>
+              </div>
+              <div class="flex justify-between py-2 border-b">
                 <span class="text-gray-700">Net Total Amount:</span>
                 <span class="font-semibold">{{ formatCurrency(recoData?.summary.net_total_amount) }}</span>
               </div>
@@ -622,10 +631,6 @@
               <div class="flex justify-between py-2 border-b">
                 <span class="text-gray-700">Cheque Amount:</span>
                 <span class="font-semibold text-purple-600">{{ formatCurrency(recoData?.summary.cheque_amount) }}</span>
-              </div>
-              <div class="flex justify-between py-2 border-b">
-                <span class="text-gray-700">Return Amount:</span>
-                <span class="font-semibold text-orange-600">{{ formatCurrency(recoData?.summary.return_amount) }}</span>
               </div>
               <div class="flex justify-between py-2 border-b">
                 <span class="text-gray-700">Credit Amount:</span>
@@ -854,9 +859,17 @@ const handleExpenseUpdated = (updatedSummary) => {
       cash_expected: updatedSummary.cash_expected,
       remaining_amount: updatedSummary.remaining_amount,
       cash_received: updatedSummary.cash_received,
-      cash_difference: updatedSummary.cash_difference
+      cash_difference: updatedSummary.cash_difference,
+      qr_amount: updatedSummary.qr_amount,
+      additional_amount: updatedSummary.additional_amount
     }
   }
+}
+
+const handleQrProcessed = async (processResults) => {
+  // QR logs were processed - reload the data to get updated line information
+  console.log('QR logs processed:', processResults)
+  await loadData()
 }
 
 // --- Add Entry Dialog Methods ---
@@ -972,3 +985,9 @@ onMounted(() => {
   loadData()
 })
 </script>
+
+<style scoped>
+.refresh-button-svg {
+  background-color: rgba(153, 153, 153, 1);
+}
+</style>

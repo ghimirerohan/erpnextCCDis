@@ -414,6 +414,7 @@
       :customer="customerCode"
       :customer-name="customerName"
       :amount="pendingQRAmount"
+      :line-name="lineData?.name"
       @close="handleQRDialogClose"
       @success="handleQRSuccess"
     />

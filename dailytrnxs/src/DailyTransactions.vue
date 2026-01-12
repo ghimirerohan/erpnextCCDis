@@ -95,31 +95,31 @@
         </div>
         
         <!-- Cash -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #f0fdf4; border: 1px solid #bbf7d0;">
+        <div @click="navigateToSummaryCategory('cash')" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #f0fdf4; border: 1px solid #bbf7d0;">
           <div class="text-xs sm:text-sm mb-1" style="color: #15803d;">Cash</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #16a34a;">{{ formatAmount(summary.cash_amount) }}</div>
         </div>
         
         <!-- QR -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #eff6ff; border: 1px solid #bfdbfe;">
+        <div @click="navigateToSummaryCategory('qr')" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #eff6ff; border: 1px solid #bfdbfe;">
           <div class="text-xs sm:text-sm mb-1" style="color: #1d4ed8;">QR Payment</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #2563eb;">{{ formatAmount(summary.qr_amount) }}</div>
         </div>
         
         <!-- Cheque -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #faf5ff; border: 1px solid #e9d5ff;">
+        <div @click="navigateToSummaryCategory('cheque')" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #faf5ff; border: 1px solid #e9d5ff;">
           <div class="text-xs sm:text-sm mb-1" style="color: #7e22ce;">Cheque</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #9333ea;">{{ formatAmount(summary.cheque_amount) }}</div>
         </div>
         
         <!-- Credit -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #fef2f2; border: 1px solid #fecaca;">
+        <div @click="navigateToSummaryCategory('credit')" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #fef2f2; border: 1px solid #fecaca;">
           <div class="text-xs sm:text-sm mb-1" style="color: #b91c1c;">Credit</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #dc2626;">{{ formatAmount(summary.credit_amount) }}</div>
         </div>
         
         <!-- Return -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #fff7ed; border: 1px solid #fed7aa;">
+        <div @click="navigateToSummaryCategory('return')" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #fff7ed; border: 1px solid #fed7aa;">
           <div class="text-xs sm:text-sm mb-1" style="color: #c2410c;">Return</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #ea580c;">{{ formatAmount(summary.return_amount) }}</div>
         </div>
@@ -131,7 +131,7 @@
         </div>
         
         <!-- Remaining -->
-        <div class="rounded-xl shadow-md p-4 sm:p-6" style="background-color: #ecfeff; border: 2px solid #22d3ee;">
+        <div @click="navigateToSummaryCategory('', true)" class="rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1 active:scale-95" style="background-color: #ecfeff; border: 2px solid #22d3ee;">
           <div class="text-xs sm:text-sm mb-1" style="color: #0e7490;">Remaining</div>
           <div class="text-lg sm:text-2xl font-bold" style="color: #0891b2;">{{ formatAmount(summary.remaining_amount) }}</div>
         </div>
@@ -258,7 +258,18 @@
 
           <!-- Active Filters Display -->
           <div v-if="hasActiveFilters" class="pt-2 border-t border-gray-200">
-            <div class="text-xs font-medium text-gray-600 mb-2">Active Filters:</div>
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-xs font-medium text-gray-600">Active Filters:</div>
+              <button 
+                @click="clearAllFilters" 
+                class="text-xs font-medium text-red-600 hover:text-red-800 hover:underline transition-colors flex items-center gap-1"
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Clear All
+              </button>
+            </div>
             <div class="flex flex-wrap gap-2">
               <span
                 v-if="selectedDriver"
@@ -353,20 +364,37 @@
                     <div class="text-lg font-bold" style="color: #111827;">{{ formatAmount(item.net_total_amount) }}</div>
                   </div>
                 </div>
+                <!-- Additional Info Row -->
+                <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/50">
+                  <div class="flex items-center gap-4 text-xs">
+                    <div>
+                      <span style="color: #6b7280;">Initial: </span>
+                      <span class="font-medium" style="color: #374151;">{{ formatAmountShort(item.initial_total_amount) }}</span>
+                    </div>
+                    <div v-if="item.additional_amount">
+                      <span style="color: #059669;">+Add: </span>
+                      <span class="font-medium" style="color: #059669;">{{ formatAmountShort(item.additional_amount) }}</span>
+                    </div>
+                  </div>
+                  <div class="text-xs">
+                    <span style="color: #6b7280;">Net: </span>
+                    <span class="font-semibold" style="color: #0891b2;">{{ formatAmountShort(item.net_total_amount) }}</span>
+                  </div>
+                </div>
               </div>
               
               <!-- Payment Categories Grid - Mobile First -->
               <div class="p-4">
                 <!-- Row 1: Cash & QR (Primary collections) -->
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                  <div class="category-pill" style="background-color: #dcfce7; border: 1px solid #86efac; border-radius: 0.75rem; padding: 0.75rem;">
+                  <div @click="navigateToDriverCategory(item, 'cash')" class="category-pill cursor-pointer hover:shadow-md transition-all active:scale-95" style="background-color: #dcfce7; border: 1px solid #86efac; border-radius: 0.75rem; padding: 0.75rem;">
                     <div class="flex items-center gap-2 mb-1">
                       <div class="w-2 h-2 rounded-full" style="background-color: #16a34a;"></div>
                       <span class="text-xs font-medium" style="color: #15803d;">Cash</span>
                     </div>
                     <div class="text-base font-bold" style="color: #16a34a;">{{ formatAmount(item.cash_amount) }}</div>
                   </div>
-                  <div class="category-pill" style="background-color: #dbeafe; border: 1px solid #93c5fd; border-radius: 0.75rem; padding: 0.75rem;">
+                  <div @click="navigateToDriverCategory(item, 'qr')" class="category-pill cursor-pointer hover:shadow-md transition-all active:scale-95" style="background-color: #dbeafe; border: 1px solid #93c5fd; border-radius: 0.75rem; padding: 0.75rem;">
                     <div class="flex items-center gap-2 mb-1">
                       <div class="w-2 h-2 rounded-full" style="background-color: #2563eb;"></div>
                       <span class="text-xs font-medium" style="color: #1d4ed8;">QR Payment</span>
@@ -377,14 +405,14 @@
                 
                 <!-- Row 2: Cheque & Credit -->
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                  <div class="category-pill" style="background-color: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 0.75rem; padding: 0.75rem;">
+                  <div @click="navigateToDriverCategory(item, 'cheque')" class="category-pill cursor-pointer hover:shadow-md transition-all active:scale-95" style="background-color: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 0.75rem; padding: 0.75rem;">
                     <div class="flex items-center gap-2 mb-1">
                       <div class="w-2 h-2 rounded-full" style="background-color: #9333ea;"></div>
                       <span class="text-xs font-medium" style="color: #7e22ce;">Cheque</span>
                     </div>
                     <div class="text-base font-bold" style="color: #9333ea;">{{ formatAmount(item.cheque_amount || 0) }}</div>
                   </div>
-                  <div class="category-pill" style="background-color: #fee2e2; border: 1px solid #fca5a5; border-radius: 0.75rem; padding: 0.75rem;">
+                  <div @click="navigateToDriverCategory(item, 'credit')" class="category-pill cursor-pointer hover:shadow-md transition-all active:scale-95" style="background-color: #fee2e2; border: 1px solid #fca5a5; border-radius: 0.75rem; padding: 0.75rem;">
                     <div class="flex items-center gap-2 mb-1">
                       <div class="w-2 h-2 rounded-full" style="background-color: #dc2626;"></div>
                       <span class="text-xs font-medium" style="color: #b91c1c;">Credit</span>
@@ -395,7 +423,7 @@
                 
                 <!-- Row 3: Return & Expense -->
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                  <div class="category-pill" style="background-color: #ffedd5; border: 1px solid #fdba74; border-radius: 0.75rem; padding: 0.75rem;">
+                  <div @click="navigateToDriverCategory(item, 'return')" class="category-pill cursor-pointer hover:shadow-md transition-all active:scale-95" style="background-color: #ffedd5; border: 1px solid #fdba74; border-radius: 0.75rem; padding: 0.75rem;">
                     <div class="flex items-center gap-2 mb-1">
                       <div class="w-2 h-2 rounded-full" style="background-color: #ea580c;"></div>
                       <span class="text-xs font-medium" style="color: #c2410c;">Return</span>
@@ -438,7 +466,8 @@
                 </div>
                 
                 <!-- Remaining Amount Highlight -->
-                <div class="remaining-highlight p-3 rounded-xl" 
+                <div @click="navigateToDriverCategory(item, '', true)" 
+                     class="remaining-highlight p-3 rounded-xl cursor-pointer hover:shadow-md transition-all active:scale-[0.98]" 
                      :style="{ 
                        backgroundColor: (item.remaining_amount || 0) > 0 ? '#ecfeff' : '#f0fdf4',
                        border: (item.remaining_amount || 0) > 0 ? '2px solid #22d3ee' : '2px solid #86efac'
@@ -764,6 +793,9 @@
                    <div class="font-semibold text-gray-900">{{ cheque.customer_name }}</div>
                    <div class="text-xs text-gray-500">Cheque No: {{ cheque.cheque_no }}</div>
                    <div class="text-xs text-gray-500">{{ cheque.bank_name }}</div>
+                   <div v-if="cheque.brought_by_full_name" class="text-xs text-gray-600 mt-1">
+                     Bought by: {{ cheque.brought_by_full_name }}
+                   </div>
                  </div>
                </div>
                
@@ -943,6 +975,11 @@ const formatAmount = (amount) => {
   return 'NPR ' + num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+const formatAmountShort = (amount) => {
+  const num = Number(amount) || 0
+  return 'NPR ' + num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
 const getDriverLabel = (driverValue) => {
   const driver = driverOptions.value.find(d => d.value === driverValue)
   return driver ? driver.label : driverValue
@@ -993,6 +1030,35 @@ const viewDriverDetails = (driverItem) => {
   applyFilters()
 }
 
+// Navigate to details with category filter (from driver card)
+const navigateToDriverCategory = (driverItem, category, isRemaining = false) => {
+  selectedDriver.value = driverItem.driver
+  if (isRemaining) {
+    selectedCategory.value = ''
+    selectedStatus.value = 'pending'
+  } else {
+    selectedCategory.value = category
+    selectedStatus.value = ''
+  }
+  selectedViewMode.value = 'detail'
+  applyFilters()
+}
+
+// Navigate to details with category filter only (from summary cards)
+const navigateToSummaryCategory = (category, isRemaining = false) => {
+  selectedDriver.value = ''
+  selectedCustomer.value = ''
+  if (isRemaining) {
+    selectedCategory.value = ''
+    selectedStatus.value = 'pending'
+  } else {
+    selectedCategory.value = category
+    selectedStatus.value = ''
+  }
+  selectedViewMode.value = 'detail'
+  applyFilters()
+}
+
 const viewCustomerDetails = (customerItem) => {
   // Set the customer filter and switch to detail view
   selectedCustomer.value = customerItem.customer
@@ -1016,6 +1082,14 @@ const clearCategoryFilter = () => {
 }
 
 const clearStatusFilter = () => {
+  selectedStatus.value = ''
+  applyFilters()
+}
+
+const clearAllFilters = () => {
+  selectedDriver.value = ''
+  selectedCustomer.value = ''
+  selectedCategory.value = ''
   selectedStatus.value = ''
   applyFilters()
 }

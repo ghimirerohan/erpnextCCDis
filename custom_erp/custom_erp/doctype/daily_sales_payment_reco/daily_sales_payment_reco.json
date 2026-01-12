@@ -16,6 +16,12 @@
       "options": "Driver"
     },
     {
+      "fieldname": "company",
+      "label": "Company",
+      "fieldtype": "Link",
+      "options": "Company"
+    },
+    {
       "fieldname": "loadsheet_number",
       "label": "Loadsheet Number",
       "fieldtype": "Data"
@@ -131,6 +137,7 @@
   ],
   "indexes": [
     ["driver"],
+    ["company"],
     ["loadsheet_number"],
     ["settled"],
     ["settled_at"]

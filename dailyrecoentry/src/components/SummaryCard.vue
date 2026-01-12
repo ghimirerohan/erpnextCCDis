@@ -7,7 +7,19 @@
         <p class="text-xs sm:text-sm font-semibold truncate" style="color: #ffffff;">{{ formattedBsDate || todayDate }}</p>
         <p v-if="formattedBsDate" class="text-xs mt-0.5 font-medium" style="color: #f0f9ff;">AD: {{ todayDate }}</p>
       </div>
-      <div class="flex gap-2 flex-shrink-0">
+      <div class="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+        <!-- Process QR Logs Button -->
+        <button
+          v-if="unprocessedQrCount > 0"
+          @click="openProcessQrDialog"
+          class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl animate-pulse"
+          style="border: 2px solid #3b82f6; color: #ffffff; background-color: #3b82f6;"
+        >
+          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+          QR ({{ unprocessedQrCount }})
+        </button>
         <button
           @click="openExpenseDialog"
           class="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -30,8 +42,8 @@
     
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
       <div class="rounded-lg p-2 sm:p-3 shadow-lg" style="background-color: rgba(255, 255, 255, 0.25); border: 2px solid rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);">
-        <p class="text-[10px] sm:text-xs font-bold mb-1" style="color: #ffffff;">Initial Total</p>
-        <p class="text-sm sm:text-base lg:text-lg font-bold truncate" style="color: #ffffff;">{{ formatCurrency(summary.initial_total_amount) }}</p>
+        <p class="text-[10px] sm:text-xs font-bold mb-1" style="color: #ffffff;">Net Total</p>
+        <p class="text-sm sm:text-base lg:text-lg font-bold truncate" style="color: #ffffff;">{{ formatCurrency(summary.net_total_amount) }}</p>
       </div>
       
       <div class="rounded-lg p-2 sm:p-3 shadow-lg" style="background-color: rgba(255, 255, 255, 0.25); border: 2px solid rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);">
@@ -179,6 +191,127 @@
     </div>
   </div>
   
+  <!-- Process QR Logs Dialog -->
+  <div v-if="showProcessQrDialog" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="qr-process-modal" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeProcessQrDialog"></div>
+
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-4">
+          <h3 class="text-lg font-bold text-white flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            Process QR Payments
+          </h3>
+          <p class="text-blue-100 text-sm mt-1">Process successful QR transactions</p>
+        </div>
+        
+        <div class="bg-white px-4 py-5 sm:p-6">
+          <!-- Before Processing -->
+          <div v-if="!qrProcessResults" class="space-y-4">
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex justify-between items-center">
+                <span class="text-blue-700 font-medium">Unprocessed QR Logs</span>
+                <span class="text-2xl font-bold text-blue-600">{{ unprocessedQrCount }}</span>
+              </div>
+              <div class="flex justify-between items-center mt-2">
+                <span class="text-blue-600 text-sm">Total Amount</span>
+                <span class="font-semibold text-blue-700">{{ formatCurrency(unprocessedQrAmount) }}</span>
+              </div>
+            </div>
+            
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p class="text-sm text-amber-800">
+                <strong>Note:</strong> If QR amount exceeds the line's initial amount, 
+                the difference will be added to the <strong>Additional Amount</strong> field.
+              </p>
+            </div>
+          </div>
+          
+          <!-- After Processing - Results -->
+          <div v-else class="space-y-4">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div class="flex items-center mb-2">
+                <svg class="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="font-bold text-green-700">Processing Complete!</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span class="text-green-600">Success:</span>
+                  <span class="font-semibold text-green-700">{{ qrProcessResults.summary?.success_count || 0 }}</span>
+                </div>
+                <div v-if="qrProcessResults.summary?.error_count > 0">
+                  <span class="text-red-600">Errors:</span>
+                  <span class="font-semibold text-red-700">{{ qrProcessResults.summary.error_count }}</span>
+                </div>
+                <div>
+                  <span class="text-green-600">QR Applied:</span>
+                  <span class="font-semibold">{{ formatCurrency(qrProcessResults.summary?.total_qr_applied || 0) }}</span>
+                </div>
+                <div v-if="qrProcessResults.summary?.total_additional > 0">
+                  <span class="text-indigo-600">Additional:</span>
+                  <span class="font-semibold text-indigo-700">{{ formatCurrency(qrProcessResults.summary.total_additional) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Processed Items List -->
+            <div v-if="qrProcessResults.processed?.length > 0" class="max-h-48 overflow-y-auto">
+              <p class="text-sm font-semibold text-gray-700 mb-2">Processed Transactions:</p>
+              <div class="space-y-2">
+                <div v-for="item in qrProcessResults.processed" :key="item.qr_name" 
+                     :class="['p-2 rounded-lg text-sm', item.status === 'success' ? 'bg-green-50' : 'bg-red-50']">
+                  <div class="flex justify-between">
+                    <span class="font-medium">{{ item.customer_name || item.customer }}</span>
+                    <span :class="item.status === 'success' ? 'text-green-600' : 'text-red-600'">
+                      {{ formatCurrency(item.qr_amount) }}
+                    </span>
+                  </div>
+                  <div v-if="item.additional_from_qr > 0" class="text-xs text-indigo-600">
+                    +{{ formatCurrency(item.additional_from_qr) }} additional
+                  </div>
+                  <div v-if="item.status === 'error'" class="text-xs text-red-600">
+                    Error: {{ item.error }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="qrProcessError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">{{ qrProcessError }}</p>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 flex flex-col sm:flex-row-reverse gap-2">
+          <button
+            v-if="!qrProcessResults"
+            type="button"
+            @click="processQrLogs"
+            :disabled="processingQr || unprocessedQrCount === 0"
+            class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-blue-600 text-base font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <svg v-if="processingQr" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ processingQr ? 'Processing...' : 'Process QR Logs' }}
+          </button>
+          <button
+            type="button"
+            @click="closeProcessQrDialog"
+            class="w-full sm:w-auto inline-flex justify-center rounded-lg border-2 border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all"
+          >
+            {{ qrProcessResults ? 'Close' : 'Cancel' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- Cash Received Input Dialog -->
   <div v-if="showCashReceivedDialog" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="cash-received-modal" role="dialog" aria-modal="true">
     <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -291,7 +424,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['view-all', 'expense-updated'])
+const emit = defineEmits(['view-all', 'expense-updated', 'qr-processed'])
 
 const formattedBsDate = ref('')
 const showExpenseDialog = ref(false)
@@ -304,6 +437,14 @@ const showCashReceivedDialog = ref(false)
 const cashReceivedInput = ref(0)
 const savingCashReceived = ref(false)
 const cashReceivedError = ref('')
+
+// QR Processing state
+const showProcessQrDialog = ref(false)
+const unprocessedQrCount = ref(0)
+const unprocessedQrAmount = ref(0)
+const processingQr = ref(false)
+const qrProcessError = ref('')
+const qrProcessResults = ref(null)
 
 const todayDate = computed(() => {
   const date = new Date()
@@ -446,8 +587,72 @@ const loadNepaliDate = async () => {
   }
 }
 
+// QR Processing functions
+const loadQrCount = async () => {
+  try {
+    const response = await call('custom_erp.api.payment_reco.get_unprocessed_qr_count_for_reco', {
+      reco_name: props.recoName
+    })
+    if (response.success) {
+      unprocessedQrCount.value = response.data.count || 0
+      unprocessedQrAmount.value = response.data.total_amount || 0
+    }
+  } catch (error) {
+    console.warn('Failed to load QR count:', error)
+  }
+}
+
+const openProcessQrDialog = () => {
+  qrProcessError.value = ''
+  qrProcessResults.value = null
+  showProcessQrDialog.value = true
+}
+
+const closeProcessQrDialog = () => {
+  showProcessQrDialog.value = false
+  qrProcessError.value = ''
+  // If we processed something, emit event to refresh parent
+  if (qrProcessResults.value && qrProcessResults.value.summary?.success_count > 0) {
+    emit('qr-processed', qrProcessResults.value)
+  }
+  qrProcessResults.value = null
+  // Reload the count
+  loadQrCount()
+}
+
+const processQrLogs = async () => {
+  processingQr.value = true
+  qrProcessError.value = ''
+  
+  try {
+    const response = await call('custom_erp.api.payment_reco.process_qr_logs_for_reco', {
+      reco_name: props.recoName
+    })
+    
+    if (response.success) {
+      qrProcessResults.value = response.data
+      // Emit to update parent summary
+      if (response.data.summary?.success_count > 0) {
+        emit('expense-updated', {
+          qr_amount: response.data.summary.new_qr_amount,
+          additional_amount: response.data.summary.new_additional_amount,
+          remaining_amount: response.data.summary.new_remaining_amount
+        })
+      }
+    } else {
+      qrProcessError.value = response.message || 'Failed to process QR logs'
+    }
+  } catch (error) {
+    console.error('Error processing QR logs:', error)
+    qrProcessError.value = 'Failed to process QR logs. Please try again.'
+  } finally {
+    processingQr.value = false
+  }
+}
+
 onMounted(() => {
   loadNepaliDate()
+  loadQrCount()
 })
 </script>
 

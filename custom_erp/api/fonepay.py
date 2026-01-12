@@ -240,7 +240,8 @@ def search_customers(query: str = "", limit: int = 10000) -> Dict[str, Any]:
 
 @frappe.whitelist()
 def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
-                      remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None) -> Dict[str, Any]:
+                      remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None,
+                      daily_sales_payment_reco_line: Optional[str] = None) -> Dict[str, Any]:
     if not customer:
         frappe.throw("Customer is required for Fonepay QR")
     cfg = _get_cfg()
@@ -304,6 +305,7 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
         "timeout_at": timeout_at,
         "env": env,
         "metadata": metadata or None,
+        "daily_sales_payment_reco_line": daily_sales_payment_reco_line or None,
     })
     tx.insert(ignore_permissions=True)
     frappe.db.commit()

@@ -342,11 +342,12 @@ def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, 
             if d_id not in driver_data:
                 driver_data[d_id] = {
                     "driver": d_id, "driver_name": frappe.db.get_value("Driver", d_id, "full_name") or d_id,
-                    "net_total_amount": 0, "cash_amount": 0, "qr_amount": 0, "cheque_amount": 0,
+                    "initial_total_amount": 0, "additional_amount": 0, "net_total_amount": 0, 
+                    "cash_amount": 0, "qr_amount": 0, "cheque_amount": 0,
                     "credit_amount": 0, "return_amount": 0, "expense_amount": 0, "remaining_amount": 0,
                     "cash_received": 0, "cash_difference": 0, "line_count": 0, "parent_names": []
                 }
-            for field in ["net_total_amount", "cash_amount", "qr_amount", "cheque_amount", "credit_amount", "return_amount", "expense_amount", "remaining_amount", "cash_received", "cash_difference"]:
+            for field in ["initial_total_amount", "additional_amount", "net_total_amount", "cash_amount", "qr_amount", "cheque_amount", "credit_amount", "return_amount", "expense_amount", "remaining_amount", "cash_received", "cash_difference"]:
                 driver_data[d_id][field] += float(parent.get(field) or 0)
             driver_data[d_id]["parent_names"].append(parent.name)
             
@@ -519,7 +520,13 @@ def get_due_cheques(filters: str = None) -> Dict[str, Any]:
                 if extra.get("customer"): conditions["customer"] = extra["customer"]
             except: pass
         cheques = frappe.get_all("Cheques Taageta", fields=["*"], filters=conditions, order_by="cheque_date_nepali asc", ignore_permissions=True)
-        for c in cheques: c["customer_name"] = frappe.db.get_value("Customer", c.customer, "customer_name")
+        for c in cheques: 
+            c["customer_name"] = frappe.db.get_value("Customer", c.customer, "customer_name")
+            # Get the full name of the user who brought the cheque
+            if c.get("brought_by"):
+                c["brought_by_full_name"] = frappe.db.get_value("User", c.brought_by, "full_name") or c.brought_by
+            else:
+                c["brought_by_full_name"] = None
         return {"success": True, "data": cheques}
     except Exception as e:
         frappe.log_error(f"Error in due_cheques: {str(e)}")
@@ -1111,3 +1118,493 @@ def get_reco_lines_for_driver(driver_name: str = None) -> Dict[str, Any]:
     except Exception as e:
         frappe.log_error(f"Error in get_reco_lines_for_driver: {str(e)}\n{traceback.format_exc()}")
         return {"success": False, "data": None, "message": str(e)}
+
+
+@frappe.whitelist()
+def get_unprocessed_qr_count_for_reco(reco_name: str) -> Dict[str, Any]:
+    """
+    Get count of unprocessed Fonepay QR Transactions linked to a reco's lines.
+    Returns count of QRs with status=SUCCESS and processed=0.
+    """
+    try:
+        if not reco_name:
+            raise ValueError("Reco name is required")
+        
+        reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        line_names = [line.name for line in reco_doc.daily_sales_payment_reco_line]
+        
+        if not line_names:
+            return {"success": True, "data": {"count": 0, "total_amount": 0}, "message": "No lines in reco"}
+        
+        # Get unprocessed QR transactions with SUCCESS status linked to these lines
+        qr_count = frappe.db.sql("""
+            SELECT COUNT(*) as count, IFNULL(SUM(amount), 0) as total_amount
+            FROM `tabFonepay QR Transaction`
+            WHERE daily_sales_payment_reco_line IN ({})
+              AND status = 'SUCCESS'
+              AND processed = 0
+        """.format(','.join(['%s'] * len(line_names))), tuple(line_names), as_dict=True)[0]
+        
+        return {
+            "success": True,
+            "data": {
+                "count": int(qr_count.count or 0),
+                "total_amount": float(qr_count.total_amount or 0)
+            },
+            "message": f"Found {qr_count.count} unprocessed QR transactions"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error in get_unprocessed_qr_count_for_reco: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
+@frappe.whitelist()
+def process_qr_logs_for_reco(reco_name: str) -> Dict[str, Any]:
+    """
+    Process unprocessed Fonepay QR Transactions linked to a reco's lines.
+    
+    For each successful QR transaction:
+    - If QR amount = line's initial_total_amount: normal QR payment process
+    - If QR amount > line's initial_total_amount: difference goes to additional_amount
+    
+    Returns details of processed QR logs.
+    """
+    try:
+        if not reco_name:
+            raise ValueError("Reco name is required")
+        
+        reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        line_names = [line.name for line in reco_doc.daily_sales_payment_reco_line]
+        
+        if not line_names:
+            return {"success": True, "data": {"processed": []}, "message": "No lines in reco"}
+        
+        # Get unprocessed QR transactions with SUCCESS status linked to these lines
+        qr_transactions = frappe.db.sql("""
+            SELECT name, amount, daily_sales_payment_reco_line, customer, prn
+            FROM `tabFonepay QR Transaction`
+            WHERE daily_sales_payment_reco_line IN ({})
+              AND status = 'SUCCESS'
+              AND processed = 0
+            ORDER BY creation ASC
+        """.format(','.join(['%s'] * len(line_names))), tuple(line_names), as_dict=True)
+        
+        if not qr_transactions:
+            return {"success": True, "data": {"processed": []}, "message": "No unprocessed QR transactions found"}
+        
+        processed_results = []
+        
+        for qr_tx in qr_transactions:
+            try:
+                line_name = qr_tx.daily_sales_payment_reco_line
+                qr_amount = float(qr_tx.amount or 0)
+                
+                # Get the line document
+                line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
+                initial_amount = float(line_doc.initial_total_amount or 0)
+                
+                # Calculate amounts
+                additional_from_qr = 0
+                qr_to_apply = qr_amount
+                
+                if qr_amount > initial_amount:
+                    # QR amount is more than initial - difference goes to additional
+                    additional_from_qr = qr_amount - initial_amount
+                    qr_to_apply = initial_amount
+                
+                # Update line amounts
+                current_qr = float(line_doc.qr_amount or 0)
+                current_additional = float(line_doc.additional_amount or 0)
+                
+                line_doc.qr_amount = current_qr + qr_to_apply
+                line_doc.additional_amount = current_additional + additional_from_qr
+                
+                # Recalculate net and remaining
+                line_doc.net_total_amount = float(line_doc.initial_total_amount or 0) + line_doc.additional_amount - float(line_doc.return_amount or 0)
+                total_paid = line_doc.qr_amount + float(line_doc.cash_amount or 0) + float(line_doc.cheque_amount or 0) + float(line_doc.credit_amount or 0)
+                line_doc.remaining_amount = line_doc.net_total_amount - total_paid
+                
+                # Check if settled
+                line_doc.settled = 1 if line_doc.remaining_amount == 0 else 0
+                
+                # Link the QR transaction
+                line_doc.fonepay_qr_transaction = qr_tx.name
+                
+                # Update remarks
+                existing_remarks = line_doc.remarks or ""
+                line_doc.remarks = f"{existing_remarks} [QR processed: {qr_tx.name}]".strip()
+                
+                line_doc.save(ignore_permissions=True)
+                
+                # Mark QR transaction as processed
+                frappe.db.set_value("Fonepay QR Transaction", qr_tx.name, "processed", 1)
+                
+                processed_results.append({
+                    "qr_name": qr_tx.name,
+                    "prn": qr_tx.prn,
+                    "line_name": line_name,
+                    "customer": qr_tx.customer,
+                    "customer_name": frappe.db.get_value("Customer", qr_tx.customer, "customer_name") or qr_tx.customer,
+                    "qr_amount": qr_amount,
+                    "qr_applied": qr_to_apply,
+                    "additional_from_qr": additional_from_qr,
+                    "initial_amount": initial_amount,
+                    "new_qr_amount": line_doc.qr_amount,
+                    "new_additional": line_doc.additional_amount,
+                    "new_remaining": line_doc.remaining_amount,
+                    "settled": line_doc.settled,
+                    "status": "success"
+                })
+                
+            except Exception as line_error:
+                processed_results.append({
+                    "qr_name": qr_tx.name,
+                    "prn": qr_tx.prn,
+                    "line_name": qr_tx.daily_sales_payment_reco_line,
+                    "status": "error",
+                    "error": str(line_error)
+                })
+        
+        # Recalculate parent totals
+        reco_doc.reload()
+        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
+            setattr(reco_doc, field, sum([float(l.get(field) or 0) for l in reco_doc.daily_sales_payment_reco_line]))
+        reco_doc.net_total_amount = reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
+        reco_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
+        reco_doc.save(ignore_permissions=True)
+        
+        frappe.db.commit()
+        
+        success_count = sum(1 for r in processed_results if r.get("status") == "success")
+        error_count = sum(1 for r in processed_results if r.get("status") == "error")
+        total_qr_applied = sum(r.get("qr_applied", 0) for r in processed_results if r.get("status") == "success")
+        total_additional = sum(r.get("additional_from_qr", 0) for r in processed_results if r.get("status") == "success")
+        
+        return {
+            "success": True,
+            "data": {
+                "processed": processed_results,
+                "summary": {
+                    "success_count": success_count,
+                    "error_count": error_count,
+                    "total_qr_applied": total_qr_applied,
+                    "total_additional": total_additional,
+                    "new_qr_amount": float(reco_doc.qr_amount or 0),
+                    "new_additional_amount": float(reco_doc.additional_amount or 0),
+                    "new_remaining_amount": float(reco_doc.remaining_amount or 0)
+                }
+            },
+            "message": f"Processed {success_count} QR transactions, {error_count} errors"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error in process_qr_logs_for_reco: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
+@frappe.whitelist()
+def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
+    """
+    Recalculate amounts for a single line based on Initial Total Amount.
+    
+    Formula:
+    1. Net Total = Initial Total + Additional Amount
+    2. Remaining = Net Total - (QR + Cash + Return + Cheque + Credit)
+    
+    Returns error if remaining would go negative (doesn't update in that case).
+    """
+    try:
+        if not line_name:
+            raise ValueError("Line name is required")
+        
+        line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
+        
+        # Get current values
+        initial = float(line_doc.initial_total_amount or 0)
+        additional = float(line_doc.additional_amount or 0)
+        return_amt = float(line_doc.return_amount or 0)
+        qr = float(line_doc.qr_amount or 0)
+        cash = float(line_doc.cash_amount or 0)
+        cheque = float(line_doc.cheque_amount or 0)
+        credit = float(line_doc.credit_amount or 0)
+        
+        # Step 1: Calculate Net Total = Initial + Additional
+        net_total = initial + additional
+        
+        # Step 2: Calculate Remaining = Net Total - sum(QR, Cash, Return, Cheque, Credit)
+        total_deductions = qr + cash + return_amt + cheque + credit
+        remaining = net_total - total_deductions
+        
+        # Check if remaining would be negative - if so, return error and DON'T update
+        if remaining < 0:
+            return {
+                "success": False,
+                "message": f"Cannot recalculate: Remaining amount would be negative (Rs. {remaining:.2f}).\n\n" +
+                          f"Net Total: Rs. {net_total:.2f} (Initial: {initial:.2f} + Additional: {additional:.2f})\n" +
+                          f"Total Deductions: Rs. {total_deductions:.2f} (QR: {qr:.2f} + Cash: {cash:.2f} + Return: {return_amt:.2f} + Cheque: {cheque:.2f} + Credit: {credit:.2f})"
+            }
+        
+        # Update line document
+        line_doc.net_total_amount = net_total
+        line_doc.remaining_amount = remaining
+        line_doc.settled = 1 if remaining == 0 else 0
+        
+        line_doc.save(ignore_permissions=True)
+        
+        # Also update parent summary
+        parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
+        
+        # Sum all line amounts for parent
+        parent_doc.initial_total_amount = sum([float(l.initial_total_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.additional_amount = sum([float(l.additional_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.return_amount = sum([float(l.return_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.qr_amount = sum([float(l.qr_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.cheque_amount = sum([float(l.cheque_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.cash_amount = sum([float(l.cash_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.credit_amount = sum([float(l.credit_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        
+        # Parent net total and remaining follow same formula
+        parent_doc.net_total_amount = parent_doc.initial_total_amount + parent_doc.additional_amount
+        parent_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        
+        # Update cash expected and difference
+        expense_amount = float(parent_doc.expense_amount or 0)
+        parent_doc.cash_expected = parent_doc.cash_amount - expense_amount
+        cash_received = float(parent_doc.cash_received or 0)
+        parent_doc.cash_difference = cash_received - parent_doc.cash_expected
+        
+        parent_doc.save(ignore_permissions=True)
+        
+        frappe.db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "initial_total_amount": initial,
+                "additional_amount": additional,
+                "net_total_amount": net_total,
+                "return_amount": return_amt,
+                "qr_amount": qr,
+                "cash_amount": cash,
+                "cheque_amount": cheque,
+                "credit_amount": credit,
+                "remaining_amount": remaining,
+                "settled": line_doc.settled
+            },
+            "message": f"Line recalculated: Net Total = Rs. {net_total:.2f}, Remaining = Rs. {remaining:.2f}"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error in recalculate_line_amounts: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "message": str(e)}
+
+
+@frappe.whitelist()
+def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
+    """
+    Recalculate all summary-level amounts in the Daily Sales Payment Reco
+    by summing up all individual line amounts.
+    
+    Formula for each line:
+    1. Net Total = Initial Total + Additional Amount
+    2. Remaining = Net Total - (QR + Cash + Return + Cheque + Credit)
+    
+    Parent totals are sums of all line totals.
+    """
+    try:
+        if not reco_name:
+            raise ValueError("Reco name is required")
+        
+        reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        
+        # Sum up all line amounts
+        totals = {
+            "initial_total_amount": 0,
+            "additional_amount": 0,
+            "return_amount": 0,
+            "qr_amount": 0,
+            "cheque_amount": 0,
+            "cash_amount": 0,
+            "credit_amount": 0,
+            "remaining_amount": 0
+        }
+        
+        for line in reco_doc.daily_sales_payment_reco_line:
+            totals["initial_total_amount"] += float(line.initial_total_amount or 0)
+            totals["additional_amount"] += float(line.additional_amount or 0)
+            totals["return_amount"] += float(line.return_amount or 0)
+            totals["qr_amount"] += float(line.qr_amount or 0)
+            totals["cheque_amount"] += float(line.cheque_amount or 0)
+            totals["cash_amount"] += float(line.cash_amount or 0)
+            totals["credit_amount"] += float(line.credit_amount or 0)
+            totals["remaining_amount"] += float(line.remaining_amount or 0)
+        
+        # Calculate net total: Net Total = Initial + Additional
+        totals["net_total_amount"] = totals["initial_total_amount"] + totals["additional_amount"]
+        
+        # Update reco document
+        for field, value in totals.items():
+            setattr(reco_doc, field, value)
+        
+        # Recalculate cash expected and difference
+        expense_amount = float(reco_doc.expense_amount or 0)
+        reco_doc.cash_expected = totals["cash_amount"] - expense_amount
+        cash_received = float(reco_doc.cash_received or 0)
+        reco_doc.cash_difference = cash_received - reco_doc.cash_expected
+        
+        reco_doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                **totals,
+                "expense_amount": expense_amount,
+                "cash_expected": reco_doc.cash_expected,
+                "cash_received": cash_received,
+                "cash_difference": reco_doc.cash_difference
+            },
+            "message": "Reco summary recalculated successfully"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error in recalculate_reco_summary: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "message": str(e)}
+
+
+@frappe.whitelist()
+def get_unprocessed_qr_count_for_line(line_name: str) -> Dict[str, Any]:
+    """
+    Get count of unprocessed Fonepay QR Transactions linked to a specific line.
+    Returns count of QRs with status=SUCCESS and processed=0.
+    """
+    try:
+        if not line_name:
+            raise ValueError("Line name is required")
+        
+        # Get unprocessed QR transactions with SUCCESS status linked to this line
+        qr_count = frappe.db.sql("""
+            SELECT COUNT(*) as count, IFNULL(SUM(amount), 0) as total_amount
+            FROM `tabFonepay QR Transaction`
+            WHERE daily_sales_payment_reco_line = %s
+              AND status = 'SUCCESS'
+              AND processed = 0
+        """, (line_name,), as_dict=True)[0]
+        
+        return {
+            "success": True,
+            "data": {
+                "count": int(qr_count.count or 0),
+                "total_amount": float(qr_count.total_amount or 0)
+            },
+            "message": f"Found {qr_count.count} unprocessed QR transactions"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error in get_unprocessed_qr_count_for_line: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": str(e)}
+
+
+@frappe.whitelist()
+def process_qr_logs_for_line(line_name: str) -> Dict[str, Any]:
+    """
+    Process unprocessed Fonepay QR Transactions linked to a specific line.
+    Same logic as process_qr_logs_for_reco but for a single line.
+    """
+    try:
+        if not line_name:
+            raise ValueError("Line name is required")
+        
+        line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
+        
+        # Get unprocessed QR transactions with SUCCESS status linked to this line
+        qr_transactions = frappe.db.sql("""
+            SELECT name, amount, customer, prn
+            FROM `tabFonepay QR Transaction`
+            WHERE daily_sales_payment_reco_line = %s
+              AND status = 'SUCCESS'
+              AND processed = 0
+            ORDER BY creation ASC
+        """, (line_name,), as_dict=True)
+        
+        if not qr_transactions:
+            return {"success": True, "data": {"processed": []}, "message": "No unprocessed QR transactions found for this line"}
+        
+        processed_results = []
+        initial_amount = float(line_doc.initial_total_amount or 0)
+        
+        for qr_tx in qr_transactions:
+            try:
+                qr_amount = float(qr_tx.amount or 0)
+                
+                # Calculate amounts
+                additional_from_qr = 0
+                qr_to_apply = qr_amount
+                
+                if qr_amount > initial_amount:
+                    additional_from_qr = qr_amount - initial_amount
+                    qr_to_apply = initial_amount
+                
+                # Update line amounts
+                current_qr = float(line_doc.qr_amount or 0)
+                current_additional = float(line_doc.additional_amount or 0)
+                
+                line_doc.qr_amount = current_qr + qr_to_apply
+                line_doc.additional_amount = current_additional + additional_from_qr
+                
+                # Recalculate
+                line_doc.net_total_amount = float(line_doc.initial_total_amount or 0) + line_doc.additional_amount - float(line_doc.return_amount or 0)
+                total_paid = line_doc.qr_amount + float(line_doc.cash_amount or 0) + float(line_doc.cheque_amount or 0) + float(line_doc.credit_amount or 0)
+                line_doc.remaining_amount = line_doc.net_total_amount - total_paid
+                line_doc.settled = 1 if line_doc.remaining_amount == 0 else 0
+                
+                line_doc.fonepay_qr_transaction = qr_tx.name
+                
+                # Mark QR as processed
+                frappe.db.set_value("Fonepay QR Transaction", qr_tx.name, "processed", 1)
+                
+                processed_results.append({
+                    "qr_name": qr_tx.name,
+                    "prn": qr_tx.prn,
+                    "customer": qr_tx.customer,
+                    "qr_amount": qr_amount,
+                    "qr_applied": qr_to_apply,
+                    "additional_from_qr": additional_from_qr,
+                    "status": "success"
+                })
+                
+            except Exception as qr_error:
+                processed_results.append({
+                    "qr_name": qr_tx.name,
+                    "status": "error",
+                    "error": str(qr_error)
+                })
+        
+        line_doc.save(ignore_permissions=True)
+        
+        # Update parent
+        parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
+        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
+            setattr(parent_doc, field, sum([float(l.get(field) or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.net_total_amount = parent_doc.initial_total_amount + parent_doc.additional_amount - parent_doc.return_amount
+        parent_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.save(ignore_permissions=True)
+        
+        frappe.db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "processed": processed_results,
+                "line_data": {
+                    "qr_amount": float(line_doc.qr_amount or 0),
+                    "additional_amount": float(line_doc.additional_amount or 0),
+                    "remaining_amount": float(line_doc.remaining_amount or 0),
+                    "settled": line_doc.settled
+                }
+            },
+            "message": f"Processed {len([r for r in processed_results if r.get('status') == 'success'])} QR transactions"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error in process_qr_logs_for_line: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "message": str(e)}

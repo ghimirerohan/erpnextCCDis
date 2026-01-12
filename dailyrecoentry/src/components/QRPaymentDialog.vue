@@ -33,6 +33,11 @@
                 </svg>
                 <span class="text-xs sm:text-sm font-medium">Waiting for payment...</span>
               </div>
+              
+              <!-- Manual check message -->
+              <p v-if="manualCheckMessage" class="mt-2 text-xs sm:text-sm text-amber-600 font-medium">
+                {{ manualCheckMessage }}
+              </p>
             </div>
             
             <!-- Success State -->
@@ -68,14 +73,29 @@
           >
             Done
           </button>
-          <button
-            v-else
-            type="button"
-            @click="close"
-            class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border-2 border-gray-300 shadow-md px-5 py-3 sm:px-4 sm:py-2 bg-white text-base sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 touch-manipulation"
-          >
-            Cancel
-          </button>
+          <template v-else>
+            <button
+              type="button"
+              @click="close"
+              class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border-2 border-gray-300 shadow-md px-5 py-3 sm:px-4 sm:py-2 bg-white text-base sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 touch-manipulation"
+            >
+              Cancel
+            </button>
+            <!-- Manual Check Payment Button - appears after 5 seconds -->
+            <button
+              v-if="showManualCheck && status === 'PENDING' && qrCode"
+              type="button"
+              @click="checkPaymentManually"
+              :disabled="checkingPayment"
+              class="w-full sm:w-auto inline-flex justify-center items-center rounded-lg border-2 border-blue-500 shadow-md px-5 py-3 sm:px-4 sm:py-2 bg-blue-50 text-base sm:text-sm font-semibold text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 touch-manipulation disabled:opacity-50"
+            >
+              <svg v-if="checkingPayment" class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ checkingPayment ? 'Checking...' : 'Check Payment' }}
+            </button>
+          </template>
         </div>
       </div>
     </div>
@@ -103,6 +123,10 @@ const props = defineProps({
   amount: {
     type: Number,
     required: true
+  },
+  lineName: {
+    type: String,
+    default: null
   }
 })
 
@@ -116,6 +140,10 @@ const status = ref('PENDING')
 const errorMessage = ref('')
 const websocketUrl = ref('')
 const merchantSocket = ref(null)
+const showManualCheck = ref(false)
+const checkingPayment = ref(false)
+const manualCheckMessage = ref('')
+let manualCheckTimer = null
 
 // Get current username from session
 const currentUser = session.user || 'Unknown'
@@ -144,7 +172,8 @@ const generateQR = async () => {
       amount: props.amount,
       customer: props.customer,
       remarks1: `${currentUser}`,
-      remarks2: `${props.customerName}`
+      remarks2: `${props.customerName}`,
+      daily_sales_payment_reco_line: props.lineName || null
     })
 
     console.log('🟢 Fonepay API response:', response)
@@ -167,6 +196,11 @@ const generateQR = async () => {
       
       // Connect to WebSocket for real-time status updates
       await connectToWebSocket(response.websocket_url || response.merchant_websocket_url)
+      
+      // Start 5-second timer to show manual check button
+      manualCheckTimer = setTimeout(() => {
+        showManualCheck.value = true
+      }, 5000)
     } else {
       console.error('❌ No QR message in response:', response)
       status.value = 'ERROR'
@@ -369,6 +403,52 @@ const renderQRCode = async (qrMessage) => {
   }
 }
 
+const checkPaymentManually = async () => {
+  checkingPayment.value = true
+  manualCheckMessage.value = ''
+  
+  try {
+    console.log('🔍 [MANUAL CHECK] Checking payment status...')
+    const verify = await call('custom_erp.api.fonepay.check_status', {
+      txn_ref_id: prn.value || transactionId.value
+    })
+    
+    console.log('🔍 [MANUAL CHECK] Result:', verify)
+    
+    if (verify && verify.status === 'SUCCESS') {
+      status.value = 'SUCCESS'
+      closeWebSocket()
+      clearManualCheckTimer()
+      emit('success', {
+        transactionId: transactionId.value,
+        prn: prn.value,
+        amount: props.amount
+      })
+    } else {
+      manualCheckMessage.value = 'Not confirmed yet'
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        manualCheckMessage.value = ''
+      }, 3000)
+    }
+  } catch (error) {
+    console.error('❌ [MANUAL CHECK] Error:', error)
+    manualCheckMessage.value = 'Not confirmed yet'
+    setTimeout(() => {
+      manualCheckMessage.value = ''
+    }, 3000)
+  } finally {
+    checkingPayment.value = false
+  }
+}
+
+const clearManualCheckTimer = () => {
+  if (manualCheckTimer) {
+    clearTimeout(manualCheckTimer)
+    manualCheckTimer = null
+  }
+}
+
 const confirmSuccess = () => {
   emit('success', transactionId.value)
   close()
@@ -381,6 +461,7 @@ const close = () => {
 
 const resetState = () => {
   closeWebSocket()
+  clearManualCheckTimer()
   loading.value = false
   qrCode.value = null
   transactionId.value = null
@@ -388,6 +469,9 @@ const resetState = () => {
   status.value = 'PENDING'
   errorMessage.value = ''
   websocketUrl.value = ''
+  showManualCheck.value = false
+  checkingPayment.value = false
+  manualCheckMessage.value = ''
 }
 
 const formatAmount = (amount) => {
