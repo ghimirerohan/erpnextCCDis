@@ -1312,6 +1312,7 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
     2. Remaining = Net Total - (QR + Cash + Return + Cheque + Credit)
     
     Returns error if remaining would go negative (doesn't update in that case).
+    Returns no_changes=True if values are already correct.
     """
     try:
         if not line_name:
@@ -1328,12 +1329,42 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
         cheque = float(line_doc.cheque_amount or 0)
         credit = float(line_doc.credit_amount or 0)
         
+        # Get existing calculated values
+        old_net_total = float(line_doc.net_total_amount or 0)
+        old_remaining = float(line_doc.remaining_amount or 0)
+        old_settled = line_doc.settled
+        
         # Step 1: Calculate Net Total = Initial + Additional
         net_total = initial + additional
         
         # Step 2: Calculate Remaining = Net Total - sum(QR, Cash, Return, Cheque, Credit)
         total_deductions = qr + cash + return_amt + cheque + credit
         remaining = net_total - total_deductions
+        
+        # Calculate what settled should be
+        new_settled = 1 if remaining == 0 else 0
+        
+        # Check if values are already correct (no changes needed)
+        if (abs(old_net_total - net_total) < 0.01 and 
+            abs(old_remaining - remaining) < 0.01 and 
+            old_settled == new_settled):
+            return {
+                "success": True,
+                "no_changes": True,
+                "data": {
+                    "initial_total_amount": initial,
+                    "additional_amount": additional,
+                    "net_total_amount": net_total,
+                    "return_amount": return_amt,
+                    "qr_amount": qr,
+                    "cash_amount": cash,
+                    "cheque_amount": cheque,
+                    "credit_amount": credit,
+                    "remaining_amount": remaining,
+                    "settled": new_settled
+                },
+                "message": "All values are already correct. No changes needed."
+            }
         
         # Check if remaining would be negative - if so, return error and DON'T update
         if remaining < 0:
@@ -1347,7 +1378,7 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
         # Update line document
         line_doc.net_total_amount = net_total
         line_doc.remaining_amount = remaining
-        line_doc.settled = 1 if remaining == 0 else 0
+        line_doc.settled = new_settled
         
         line_doc.save(ignore_permissions=True)
         
@@ -1379,6 +1410,7 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
         
         return {
             "success": True,
+            "no_changes": False,
             "data": {
                 "initial_total_amount": initial,
                 "additional_amount": additional,
@@ -1389,7 +1421,7 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
                 "cheque_amount": cheque,
                 "credit_amount": credit,
                 "remaining_amount": remaining,
-                "settled": line_doc.settled
+                "settled": new_settled
             },
             "message": f"Line recalculated: Net Total = Rs. {net_total:.2f}, Remaining = Rs. {remaining:.2f}"
         }
@@ -1410,12 +1442,28 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
     2. Remaining = Net Total - (QR + Cash + Return + Cheque + Credit)
     
     Parent totals are sums of all line totals.
+    Returns no_changes=True if all values are already correct.
     """
     try:
         if not reco_name:
             raise ValueError("Reco name is required")
         
         reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        
+        # Store old values to check for changes
+        old_values = {
+            "initial_total_amount": float(reco_doc.initial_total_amount or 0),
+            "additional_amount": float(reco_doc.additional_amount or 0),
+            "return_amount": float(reco_doc.return_amount or 0),
+            "qr_amount": float(reco_doc.qr_amount or 0),
+            "cheque_amount": float(reco_doc.cheque_amount or 0),
+            "cash_amount": float(reco_doc.cash_amount or 0),
+            "credit_amount": float(reco_doc.credit_amount or 0),
+            "remaining_amount": float(reco_doc.remaining_amount or 0),
+            "net_total_amount": float(reco_doc.net_total_amount or 0),
+            "cash_expected": float(reco_doc.cash_expected or 0),
+            "cash_difference": float(reco_doc.cash_difference or 0)
+        }
         
         # Sum up all line amounts
         totals = {
@@ -1442,21 +1490,52 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
         # Calculate net total: Net Total = Initial + Additional
         totals["net_total_amount"] = totals["initial_total_amount"] + totals["additional_amount"]
         
+        # Recalculate cash expected and difference
+        expense_amount = float(reco_doc.expense_amount or 0)
+        new_cash_expected = totals["cash_amount"] - expense_amount
+        cash_received = float(reco_doc.cash_received or 0)
+        new_cash_difference = cash_received - new_cash_expected
+        
+        # Check if any values would change
+        has_changes = False
+        for field, new_value in totals.items():
+            if abs(old_values[field] - new_value) >= 0.01:
+                has_changes = True
+                break
+        
+        if not has_changes:
+            if abs(old_values["cash_expected"] - new_cash_expected) >= 0.01:
+                has_changes = True
+            elif abs(old_values["cash_difference"] - new_cash_difference) >= 0.01:
+                has_changes = True
+        
+        if not has_changes:
+            return {
+                "success": True,
+                "no_changes": True,
+                "data": {
+                    **totals,
+                    "expense_amount": expense_amount,
+                    "cash_expected": new_cash_expected,
+                    "cash_received": cash_received,
+                    "cash_difference": new_cash_difference
+                },
+                "message": "All summary values are already correct. No changes needed."
+            }
+        
         # Update reco document
         for field, value in totals.items():
             setattr(reco_doc, field, value)
         
-        # Recalculate cash expected and difference
-        expense_amount = float(reco_doc.expense_amount or 0)
-        reco_doc.cash_expected = totals["cash_amount"] - expense_amount
-        cash_received = float(reco_doc.cash_received or 0)
-        reco_doc.cash_difference = cash_received - reco_doc.cash_expected
+        reco_doc.cash_expected = new_cash_expected
+        reco_doc.cash_difference = new_cash_difference
         
         reco_doc.save(ignore_permissions=True)
         frappe.db.commit()
         
         return {
             "success": True,
+            "no_changes": False,
             "data": {
                 **totals,
                 "expense_amount": expense_amount,

@@ -125,6 +125,15 @@ function recalculate_line_amounts(frm, cdt, cdn) {
                 freeze_message: __('Recalculating...'),
                 callback: function(r) {
                     if (r.message && r.message.success) {
+                        // Check if no changes were needed
+                        if (r.message.no_changes) {
+                            frappe.show_alert({
+                                message: __('All values are already correct. No changes needed.'),
+                                indicator: 'blue'
+                            });
+                            return;
+                        }
+                        
                         // Update the row values in-place without closing the form
                         if (r.message.data) {
                             update_line_values(frm, cdt, cdn, r.message.data);
@@ -231,6 +240,15 @@ function recalculate_reco_summary(frm) {
                 freeze_message: __('Recalculating...'),
                 callback: function(r) {
                     if (r.message && r.message.success) {
+                        // Check if no changes were needed
+                        if (r.message.no_changes) {
+                            frappe.show_alert({
+                                message: __('All summary values are already correct. No changes needed.'),
+                                indicator: 'blue'
+                            });
+                            return;
+                        }
+                        
                         frappe.show_alert({
                             message: __('Summary recalculated successfully'),
                             indicator: 'green'
