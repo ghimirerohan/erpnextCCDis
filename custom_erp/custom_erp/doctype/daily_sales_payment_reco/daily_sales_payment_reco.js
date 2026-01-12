@@ -116,10 +116,24 @@ function recalculate_line_amounts(frm, cdt, cdn) {
     frappe.confirm(
         __('Recalculate amounts for this line based on Initial Total Amount?<br><br>Formula: Remaining = Net Total - QR - Cash - Cheque - Credit<br>Where: Net Total = Initial + Additional - Return'),
         function() {
+            // Pass current UI values (unsaved) to API instead of reading from DB
             frappe.call({
                 method: 'custom_erp.api.payment_reco.recalculate_line_amounts',
                 args: {
-                    line_name: row.name
+                    line_name: row.name,
+                    // Pass current UI values so API uses these instead of DB values
+                    current_values: {
+                        initial_total_amount: flt(row.initial_total_amount),
+                        additional_amount: flt(row.additional_amount),
+                        return_amount: flt(row.return_amount),
+                        qr_amount: flt(row.qr_amount),
+                        cash_amount: flt(row.cash_amount),
+                        cheque_amount: flt(row.cheque_amount),
+                        credit_amount: flt(row.credit_amount),
+                        net_total_amount: flt(row.net_total_amount),
+                        remaining_amount: flt(row.remaining_amount),
+                        settled: row.settled
+                    }
                 },
                 freeze: true,
                 freeze_message: __('Recalculating...'),

@@ -1303,7 +1303,7 @@ def process_qr_logs_for_reco(reco_name: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
+def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict[str, Any]:
     """
     Recalculate amounts for a single line based on Initial Total Amount.
     
@@ -1313,26 +1313,53 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
     
     Returns error if remaining would go negative (doesn't update in that case).
     Returns no_changes=True if values are already correct.
+    
+    Args:
+        line_name: Name of the line document
+        current_values: JSON string of current UI values (unsaved) to use instead of DB values
     """
+    import json
+    
     try:
         if not line_name:
             raise ValueError("Line name is required")
         
         line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
         
-        # Get current values
-        initial = float(line_doc.initial_total_amount or 0)
-        additional = float(line_doc.additional_amount or 0)
-        return_amt = float(line_doc.return_amount or 0)
-        qr = float(line_doc.qr_amount or 0)
-        cash = float(line_doc.cash_amount or 0)
-        cheque = float(line_doc.cheque_amount or 0)
-        credit = float(line_doc.credit_amount or 0)
+        # Parse current_values if provided (UI values override DB values)
+        ui_values = None
+        if current_values:
+            if isinstance(current_values, str):
+                ui_values = json.loads(current_values)
+            else:
+                ui_values = current_values
         
-        # Get existing calculated values
-        old_net_total = float(line_doc.net_total_amount or 0)
-        old_remaining = float(line_doc.remaining_amount or 0)
-        old_settled = line_doc.settled
+        # Get input values - use UI values if provided, otherwise use DB values
+        if ui_values:
+            initial = float(ui_values.get('initial_total_amount') or 0)
+            additional = float(ui_values.get('additional_amount') or 0)
+            return_amt = float(ui_values.get('return_amount') or 0)
+            qr = float(ui_values.get('qr_amount') or 0)
+            cash = float(ui_values.get('cash_amount') or 0)
+            cheque = float(ui_values.get('cheque_amount') or 0)
+            credit = float(ui_values.get('credit_amount') or 0)
+            # Get existing calculated values from UI
+            old_net_total = float(ui_values.get('net_total_amount') or 0)
+            old_remaining = float(ui_values.get('remaining_amount') or 0)
+            old_settled = ui_values.get('settled') or 0
+        else:
+            # Fallback to DB values
+            initial = float(line_doc.initial_total_amount or 0)
+            additional = float(line_doc.additional_amount or 0)
+            return_amt = float(line_doc.return_amount or 0)
+            qr = float(line_doc.qr_amount or 0)
+            cash = float(line_doc.cash_amount or 0)
+            cheque = float(line_doc.cheque_amount or 0)
+            credit = float(line_doc.credit_amount or 0)
+            # Get existing calculated values from DB
+            old_net_total = float(line_doc.net_total_amount or 0)
+            old_remaining = float(line_doc.remaining_amount or 0)
+            old_settled = line_doc.settled
         
         # Step 1: Calculate Net Total = Initial + Additional
         net_total = initial + additional
@@ -1375,7 +1402,14 @@ def recalculate_line_amounts(line_name: str) -> Dict[str, Any]:
                           f"Total Deductions: Rs. {total_deductions:.2f} (QR: {qr:.2f} + Cash: {cash:.2f} + Return: {return_amt:.2f} + Cheque: {cheque:.2f} + Credit: {credit:.2f})"
             }
         
-        # Update line document
+        # Update line document with all values (including input values from UI)
+        line_doc.initial_total_amount = initial
+        line_doc.additional_amount = additional
+        line_doc.return_amount = return_amt
+        line_doc.qr_amount = qr
+        line_doc.cash_amount = cash
+        line_doc.cheque_amount = cheque
+        line_doc.credit_amount = credit
         line_doc.net_total_amount = net_total
         line_doc.remaining_amount = remaining
         line_doc.settled = new_settled
