@@ -5,5 +5,5 @@ import frappe
 from frappe.model.document import Document
 
 
-class FonepayQrTransaction(Document):
+class FonepayQRTransaction(Document):
     pass
