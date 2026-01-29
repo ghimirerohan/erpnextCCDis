@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const apps = [
 	'qrpay',
+	'qrpay-horlicks',
 	'qrpay-admin',
 	'scanner',
 	'pay-dashboard',
@@ -27,6 +28,7 @@ const apps = [
 // App-specific theme colors
 const appThemes = {
 	'qrpay': { theme: '#10b981', bg: '#ffffff', name: 'QRPay', desc: 'Dynamic Fonepay QR Code Generator' },
+	'qrpay-horlicks': { theme: '#f97316', bg: '#ffffff', name: 'QRPay Horlicks', desc: 'Horlicks Fonepay QR Code Generator' },
 	'qrpay-admin': { theme: '#7c3aed', bg: '#ffffff', name: 'QRPay Admin', desc: 'QRPay Administration Dashboard' },
 	'scanner': { theme: '#f59e0b', bg: '#ffffff', name: 'Scanner', desc: 'Invoice and Document Scanner' },
 	'pay-dashboard': { theme: '#2563eb', bg: '#ffffff', name: 'Pay Dashboard', desc: 'Payment Statistics Dashboard' },
