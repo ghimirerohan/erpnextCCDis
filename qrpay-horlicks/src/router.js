@@ -25,7 +25,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory("/qrpayhorlicks"),
+  history: createWebHistory("/qrpay-horlicks"),
   routes,
 })
 
@@ -44,9 +44,9 @@ setNavigationCallbacks({
     let targetRoute = intendedRoute || "/"
     
     // If defaultRoute is provided and it's within our app scope
-    if (defaultRoute && defaultRoute.startsWith('/qrpayhorlicks')) {
-      // Extract relative path from /qrpayhorlicks/...
-      targetRoute = defaultRoute.replace('/qrpayhorlicks', '') || "/"
+    if (defaultRoute && defaultRoute.startsWith('/qrpay-horlicks')) {
+      // Extract relative path from /qrpay-horlicks/...
+      targetRoute = defaultRoute.replace('/qrpay-horlicks', '') || "/"
     }
     
     intendedRoute = null

@@ -11,7 +11,7 @@
               </svg>
             </div>
             <div class="min-w-0 flex-1">
-              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">QRPayHorlicks</h1>
+              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">QRPay Horlicks</h1>
               <p class="text-xs sm:text-sm text-gray-600 truncate">Horlicks Fonepay QR Generator • {{ session.user }}</p>
             </div>
           </div>

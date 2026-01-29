@@ -16,7 +16,7 @@ const route = useRoute()
 
 const updateManifest = () => {
   // Use API endpoint for manifest with proper headers
-  const manifestPath = '/api/method/custom_erp.api.pwa.get_manifest?app_name=qrpayhorlicks'
+  const manifestPath = '/api/method/custom_erp.api.pwa.get_manifest?app_name=qrpay-horlicks'
   
   const existingLinks = document.querySelectorAll('link[rel="manifest"]')
   existingLinks.forEach(link => link.remove())
@@ -44,7 +44,7 @@ onMounted(() => {
   
   const manifestLink = document.querySelector('link[rel="manifest"]')
   if (manifestLink) {
-    console.log(`📱 PWA Manifest loaded: ${manifestLink.href} for app: qrpayhorlicks`)
+    console.log(`📱 PWA Manifest loaded: ${manifestLink.href} for app: qrpay-horlicks`)
   }
 })
 </script>
