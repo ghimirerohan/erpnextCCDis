@@ -1556,40 +1556,51 @@ def get_transaction_list(
 
 
 @frappe.whitelist()
-def get_filter_customers_today(date: Optional[str] = None) -> Dict[str, Any]:
+def get_filter_customers_today(date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return list of customers with at least one success transaction for the specified date (or today).
     Used for customer filter dropdown.
     Includes both QR transactions and Payment Entries with Fonepay mode.
     date: optional date in YYYY-MM-DD format (AD), None = today
+    company: optional company filter
     """
     bounds = _today_bounds(date)
     target_date = date if date else frappe.utils.today()
     
+    # Build QR transaction filters
+    qr_filters = {
+        "status": "SUCCESS",
+        "customer": ["is", "set"],
+        "creation": [">=", bounds["start"]],
+    }
+    if company:
+        qr_filters["company"] = company
+    
     # Get customers from QR transactions using ORM
     qr_rows = frappe.get_all(
         "Fonepay QR Transaction",
-        filters={
-            "status": "SUCCESS",
-            "customer": ["is", "set"],
-            "creation": [">=", bounds["start"]],
-        },
+        filters=qr_filters,
         fields=["customer", "creation"],
         distinct=True,
     )
     # Filter by end date in Python
     qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
     
+    # Build Payment Entry filters
+    pe_filters = {
+        "mode_of_payment": "Fonepay",
+        "party_type": "Customer",
+        "party": ["is", "set"],
+        "posting_date": target_date,
+        "docstatus": 1,
+    }
+    if company:
+        pe_filters["company"] = company
+    
     # Get customers from Payment Entries with Fonepay mode using ORM
     pe_rows = frappe.get_all(
         "Payment Entry",
-        filters={
-            "mode_of_payment": "Fonepay",
-            "party_type": "Customer",
-            "party": ["is", "set"],
-            "posting_date": target_date,
-            "docstatus": 1,
-        },
+        filters=pe_filters,
         fields=["party"],
         distinct=True,
     )
@@ -1616,36 +1627,47 @@ def get_filter_customers_today(date: Optional[str] = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_filter_usernames_today(date: Optional[str] = None) -> Dict[str, Any]:
+def get_filter_usernames_today(date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return list of usernames who created at least one transaction for the specified date (or today).
     Used for username filter dropdown.
     Includes both QR transactions and Payment Entries with Fonepay mode.
     date: optional date in YYYY-MM-DD format (AD), None = today
+    company: optional company filter
     """
     bounds = _today_bounds(date)
     target_date = date if date else frappe.utils.today()
     
+    # Build QR transaction filters
+    qr_filters = {
+        "creation": [">=", bounds["start"]],
+    }
+    if company:
+        qr_filters["company"] = company
+    
     # Get owners from QR transactions using ORM
     qr_rows = frappe.get_all(
         "Fonepay QR Transaction",
-        filters={
-            "creation": [">=", bounds["start"]],
-        },
+        filters=qr_filters,
         fields=["owner", "creation"],
         distinct=True,
     )
     # Filter by end date in Python
     qr_rows = [r for r in qr_rows if r.get("creation") < bounds["end"]]
     
+    # Build Payment Entry filters
+    pe_filters = {
+        "mode_of_payment": "Fonepay",
+        "posting_date": target_date,
+        "docstatus": 1,
+    }
+    if company:
+        pe_filters["company"] = company
+    
     # Get owners from Payment Entries with Fonepay mode using ORM
     pe_rows = frappe.get_all(
         "Payment Entry",
-        filters={
-            "mode_of_payment": "Fonepay",
-            "posting_date": target_date,
-            "docstatus": 1,
-        },
+        filters=pe_filters,
         fields=["owner"],
         distinct=True,
     )
@@ -1672,20 +1694,26 @@ def get_filter_usernames_today(date: Optional[str] = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_today_unprocessed_count(date: Optional[str] = None) -> Dict[str, Any]:
+def get_today_unprocessed_count(date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return count of unprocessed transactions for the specified date (or today) (all users).
     date: optional date in YYYY-MM-DD format (AD), None = today
+    company: optional company filter
     """
     bounds = _today_bounds(date)
+    
+    # Build filters
+    filters = {
+        "processed": 0,
+        "creation": [">=", bounds["start"]],
+    }
+    if company:
+        filters["company"] = company
     
     # Get unprocessed transactions using ORM
     rows = frappe.get_all(
         "Fonepay QR Transaction",
-        filters={
-            "processed": 0,
-            "creation": [">=", bounds["start"]],
-        },
+        filters=filters,
         fields=["creation"],
     )
     # Filter by end date in Python
@@ -1751,24 +1779,32 @@ def process_all_today_unprocessed(date: Optional[str] = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_payment_entries_for_date(date: Optional[str] = None) -> Dict[str, Any]:
+def get_payment_entries_for_date(date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return Payment Entries with mode of payment "Fonepay" for the specified date (or today).
     date: optional date in YYYY-MM-DD format (AD), None = today
+    company: optional company filter
     """
     target_date = date if date else frappe.utils.today()
+    
+    # Build filters
+    filters = {
+        "mode_of_payment": "Fonepay",
+        "posting_date": target_date,
+        "docstatus": 1,
+    }
+    
+    # Add company filter if provided
+    if company:
+        filters["company"] = company
     
     # Get Payment Entries with mode of payment "Fonepay" for the specified date using ORM
     payment_entries = frappe.get_all(
         "Payment Entry",
-        filters={
-            "mode_of_payment": "Fonepay",
-            "posting_date": target_date,
-            "docstatus": 1,
-        },
+        filters=filters,
         fields=[
             "name", "party", "party_name", "paid_amount", "received_amount",
-            "posting_date", "creation", "owner", "reference_no", "mode_of_payment"
+            "posting_date", "creation", "owner", "reference_no", "mode_of_payment", "company"
         ],
         order_by="posting_date desc, creation desc",
         limit_page_length=500,
@@ -1798,6 +1834,7 @@ def get_payment_entries_for_date(date: Optional[str] = None) -> Dict[str, Any]:
             "creation": pe.get("creation"),
             "posting_date": pe.get("posting_date"),
             "reference_no": pe.get("reference_no"),
+            "company": pe.get("company"),
             "type": "payment_entry",  # To distinguish from QR transactions
         })
     
