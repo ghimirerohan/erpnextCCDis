@@ -1,0 +1,28 @@
+{
+  "id": "/qrpayhorlicks/",
+  "name": "QRPayHorlicks",
+  "short_name": "QRPayHorlicks",
+  "description": "Horlicks Fonepay QR Code Generator",
+  "start_url": "/qrpayhorlicks/",
+  "scope": "/qrpayhorlicks/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/assets/custom_erp/icons/qrpay/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/custom_erp/icons/qrpay/icon-512x512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance"],
+  "prefer_related_applications": false
+}

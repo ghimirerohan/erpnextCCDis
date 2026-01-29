@@ -5,14 +5,14 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center py-5 sm:py-6">
           <div class="flex items-center space-x-3 sm:space-x-4">
-            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-lg flex-shrink-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-orange-600 rounded-lg flex-shrink-0">
               <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
             </div>
             <div class="min-w-0 flex-1">
-              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">QRPay</h1>
-              <p class="text-xs sm:text-sm text-gray-600 truncate">Dynamic Fonepay QR Generator • {{ session.user }}</p>
+              <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">QRPayHorlicks</h1>
+              <p class="text-xs sm:text-sm text-gray-600 truncate">Horlicks Fonepay QR Generator • {{ session.user }}</p>
             </div>
           </div>
           <button
@@ -39,9 +39,9 @@
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 flex-1 lg:max-w-3xl lg:mx-auto">
-            <div class="p-4 rounded-lg bg-blue-50 border border-blue-200 min-h-[90px] flex flex-col justify-between">
-              <div class="text-xs uppercase text-blue-600 tracking-wide leading-tight mb-2">Today's QR Total</div>
-              <div class="text-xl font-bold text-blue-700 mt-auto">Rs. {{ formatAmount(dashboard.successTotal) }}</div>
+            <div class="p-4 rounded-lg bg-orange-50 border border-orange-200 min-h-[90px] flex flex-col justify-between">
+              <div class="text-xs uppercase text-orange-600 tracking-wide leading-tight mb-2">Today's QR Total</div>
+              <div class="text-xl font-bold text-orange-700 mt-auto">Rs. {{ formatAmount(dashboard.successTotal) }}</div>
             </div>
             <div class="p-4 rounded-lg bg-amber-50 border border-amber-200 min-h-[90px] flex flex-col justify-between">
               <div class="text-xs uppercase text-amber-700 tracking-wide leading-tight mb-2">Unprocessed Logs</div>
@@ -60,7 +60,8 @@
           <div class="flex flex-col sm:flex-row gap-3 flex-shrink-0">
             <button
               @click="refreshDashboardAndList"
-              class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 active:scale-95 transition"
+              class="inline-flex items-center px-5 py-2.5 font-bold rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95 transition-all border-2"
+              style="background-color: #ea580c; color: white; border-color: #c2410c;"
               :disabled="refreshingDashboard"
             >
               <svg v-if="refreshingDashboard" class="animate-spin w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75"/></svg>
@@ -145,6 +146,8 @@
             ref="customerSearchRef"
             v-model="selectedCustomerValue"
             label="Customer"
+            apiUrl="custom_erp.api.fonepay.search_customers_horlicks"
+            helpText="Search Horlicks customers by name or code."
             @select="handleCustomerSelect"
           />
           <div v-if="selectedCustomer" class="space-y-3">
@@ -162,7 +165,7 @@
                 Clear
               </button>
             </div>
-            <div class="p-5 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg space-y-2">
+            <div class="p-5 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg space-y-2">
               <div class="text-lg font-semibold text-gray-900">{{ selectedCustomer.customer_name }}</div>
               <div class="text-sm text-gray-600">Customer Code: {{ selectedCustomer.name }}</div>
               <div v-if="selectedCustomer.customer_group" class="text-sm text-gray-600">Group: {{ selectedCustomer.customer_group }}</div>
@@ -220,11 +223,14 @@
           @click="showConfirmationDialog = true"
           :disabled="!canGenerate || generating"
           :class="[
-            'inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200',
+            'inline-flex items-center px-10 py-5 border-2 text-xl font-bold rounded-xl focus:outline-none focus:ring-4 focus:ring-offset-2 transition-all duration-200',
             canGenerate && !generating
-              ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-lg hover:shadow-xl'
-              : 'bg-gray-400 cursor-not-allowed'
+              ? 'shadow-xl hover:shadow-2xl transform hover:scale-105'
+              : 'cursor-not-allowed'
           ]"
+          :style="canGenerate && !generating 
+            ? 'background-color: #ea580c; color: white; border-color: #9a3412;' 
+            : 'background-color: #9ca3af; color: white; border-color: #6b7280;'"
         >
           <svg v-if="generating" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -246,10 +252,10 @@
           
           <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
             <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 pt-6 pb-4">
+            <div class="bg-gradient-to-r from-orange-500 to-amber-600 px-6 pt-6 pb-4">
               <div class="flex items-center justify-center mb-4">
                 <div class="flex items-center justify-center h-16 w-16 rounded-full bg-white shadow-lg">
-                  <svg class="h-10 w-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-10 w-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
                 </div>
@@ -291,7 +297,7 @@
                 <!-- Amount (Bold, Mandatory) -->
                 <div class="flex justify-between items-start pt-3 border-t border-gray-300">
                   <span class="text-base font-semibold text-gray-900">Amount:</span>
-                  <span class="text-lg font-bold text-blue-600 text-right">NPR {{ formatAmount(paymentAmount) }}</span>
+                  <span class="text-lg font-bold text-orange-600 text-right">NPR {{ formatAmount(paymentAmount) }}</span>
                 </div>
               </div>
             </div>
@@ -301,7 +307,8 @@
               <button 
                 type="button"
                 @click="confirmGenerateQR"
-                class="w-full inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto transition-all duration-200"
+                class="w-full inline-flex justify-center items-center rounded-lg border-2 shadow-lg px-6 py-3 text-base font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto transition-all duration-200"
+                style="background-color: #ea580c; color: white; border-color: #9a3412;"
               >
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -311,7 +318,8 @@
               <button 
                 type="button"
                 @click="showConfirmationDialog = false"
-                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-6 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto transition-all duration-200"
+                class="mt-3 w-full inline-flex justify-center rounded-lg border-2 shadow-md px-6 py-3 text-base font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 sm:mt-0 sm:w-auto transition-all duration-200"
+                style="background-color: #374151; color: white; border-color: #1f2937;"
               >
                 Cancel
               </button>
@@ -339,7 +347,8 @@
           </p>
           <button 
             @click="resetForNextPayment" 
-            class="inline-flex items-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-lg hover:shadow-xl"
+            class="inline-flex items-center px-8 py-4 text-lg font-bold rounded-lg focus:outline-none focus:ring-4 transition-all duration-200 shadow-lg hover:shadow-xl border-2"
+            style="background-color: #ea580c; color: white; border-color: #9a3412;"
           >
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -360,12 +369,12 @@
           <!-- Dialog content -->
           <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
             <!-- Header -->
-            <div class="bg-blue-500 px-6 pt-6 pb-4">
+            <div class="bg-orange-500 px-6 pt-6 pb-4">
               <div class="flex items-center justify-between">
                 <h3 class="text-2xl font-bold text-white" id="qr-dialog-title">QR Code Payment</h3>
                 <button
                   @click="regenerateQR"
-                  class="bg-white text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white rounded-full p-2 transition-all duration-200 shadow-md"
+                  class="bg-white text-orange-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white rounded-full p-2 transition-all duration-200 shadow-md"
                   aria-label="Close"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -525,7 +534,8 @@
               <button 
                 type="button"
                 @click="resetForNextPayment"
-                class="w-full inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto transition-all duration-200"
+                class="w-full inline-flex justify-center items-center rounded-lg border-2 shadow-lg px-6 py-3 text-base font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto transition-all duration-200"
+                style="background-color: #ea580c; color: white; border-color: #9a3412;"
               >
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -535,7 +545,8 @@
               <button 
                 type="button"
                 @click="showSuccessDialog = false"
-                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-6 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto transition-all duration-200"
+                class="mt-3 w-full inline-flex justify-center rounded-lg border-2 shadow-md px-6 py-3 text-base font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 sm:mt-0 sm:w-auto transition-all duration-200"
+                style="background-color: #16a34a; color: white; border-color: #15803d;"
               >
                 OK
               </button>
@@ -557,13 +568,15 @@
           <div class="flex gap-3 justify-center">
             <button 
               @click="regenerateQRFromDialog" 
-              class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              class="inline-flex items-center px-6 py-3 rounded-lg border-2 shadow-lg font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200"
+              style="background-color: #2563eb; color: white; border-color: #1d4ed8;"
             >
               Regenerate QR
             </button>
             <button 
               @click="resetAll" 
-              class="inline-flex items-center px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200"
+              class="inline-flex items-center px-6 py-3 rounded-lg border-2 shadow-md font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200"
+              style="background-color: #374151; color: white; border-color: #1f2937;"
             >
               Reset All
             </button>
@@ -591,7 +604,7 @@
             <p class="text-sm text-gray-600">Please check/connect to the internet first and try again.</p>
           </div>
           <div class="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse">
-            <button type="button" @click="showOfflineDialog = false" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-6 py-3 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:w-auto">OK</button>
+            <button type="button" @click="showOfflineDialog = false" class="w-full inline-flex justify-center rounded-lg border-2 shadow-lg px-6 py-3 text-base font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto" style="background-color: #ea580c; color: white; border-color: #9a3412;">OK</button>
           </div>
         </div>
       </div>
@@ -640,7 +653,7 @@ const showOfflineDialog = ref(false)
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 const showConfirmationDialog = ref(false)
 
-const qrCreateResource = createResource({ url: 'custom_erp.api.fonepay.create_dynamic_qr', auto: false })
+const qrCreateResource = createResource({ url: 'custom_erp.api.fonepay.create_dynamic_qr_padmashree', auto: false })
 const dashboardResource = createResource({ url: 'custom_erp.api.fonepay.get_user_today_summary', auto: false })
 const processTodayResource = createResource({ url: 'custom_erp.api.fonepay.process_user_unprocessed_today', auto: false })
 const listTodayTxnsResource = createResource({ url: 'custom_erp.api.fonepay.list_user_transactions_today', auto: false })

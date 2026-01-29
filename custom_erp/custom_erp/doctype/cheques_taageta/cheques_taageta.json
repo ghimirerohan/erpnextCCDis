@@ -4,6 +4,7 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
+    "company",
     "customer",
     "cheque_no",
     "cheque_date_nepali",
@@ -16,6 +17,16 @@
     "payment_entry"
   ],
   "fields": [
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Company",
+      "options": "Company",
+      "reqd": 1,
+      "search_index": 1
+    },
     {
       "fieldname": "customer",
       "fieldtype": "Link",

@@ -129,7 +129,22 @@
           </div>
 
           <!-- Filters -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-200">
+            <!-- Company Filter -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Filter by Company</label>
+              <select
+                v-model="selectedCompany"
+                @change="applyFilters"
+                class="w-full px-3 py-2 h-[44px] border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Companies</option>
+                <option v-for="company in companyOptions" :key="company.name" :value="company.name">
+                  {{ company.company_name || company.name }}
+                </option>
+              </select>
+            </div>
+
             <!-- Username Filter -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Filter by Username</label>
@@ -164,6 +179,17 @@
           <div v-if="hasActiveFilters" class="pt-2 border-t border-gray-200">
             <div class="text-xs font-medium text-gray-600 mb-2">Active Filters:</div>
             <div class="flex flex-wrap gap-2">
+              <span
+                v-if="selectedCompany"
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+              >
+                Company: {{ selectedCompany }}
+                <button @click="clearCompanyFilter" class="ml-2 hover:text-purple-600">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </span>
               <span
                 v-if="selectedUsername"
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -404,8 +430,10 @@ const selectedViewMode = ref('username')
 const selectedUsername = ref('')
 const selectedCustomerValue = ref(null)
 const selectedCustomer = ref(null)
+const selectedCompany = ref('')
 const usernameOptions = ref([])
 const customerOptions = ref([])
+const companyOptions = ref([])
 
 // Data
 const usernameData = ref([])
@@ -461,7 +489,7 @@ const paymentEntriesResource = createResource({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Boolean(selectedUsername.value || selectedCustomer.value)
+  return Boolean(selectedUsername.value || selectedCustomer.value || selectedCompany.value)
 })
 
 const hasData = computed(() => {
@@ -499,6 +527,11 @@ const clearUsernameFilter = () => {
   applyFilters()
 }
 
+const clearCompanyFilter = () => {
+  selectedCompany.value = ''
+  applyFilters()
+}
+
 const clearCustomerFilter = () => {
   selectedCustomerValue.value = null
   selectedCustomer.value = null
@@ -510,9 +543,11 @@ const loadSummary = async () => {
     const [summaryRes, unprocessedRes] = await Promise.all([
       summaryResource.fetch({
         date: selectedDate.value || undefined,
+        company: selectedCompany.value || undefined,
       }),
       unprocessedCountResource.fetch({
         date: selectedDate.value || undefined,
+        company: selectedCompany.value || undefined,
       }),
     ])
     summary.value = {
@@ -534,6 +569,7 @@ const loadUsernameData = async () => {
     // QR transactions create Payment Entries when successful, so we only count Payment Entries
     const peRes = await paymentEntriesResource.fetch({
       date: selectedDate.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const paymentEntries = peRes?.payment_entries || []
@@ -542,6 +578,10 @@ const loadUsernameData = async () => {
     const peByOwner = {}
     for (const pe of paymentEntries) {
       if (selectedUsername.value && pe.owner !== selectedUsername.value) {
+        continue
+      }
+      // Filter by company if not already filtered in API
+      if (selectedCompany.value && pe.company !== selectedCompany.value) {
         continue
       }
       const owner = pe.owner || 'Unknown'
@@ -573,6 +613,7 @@ const loadCustomerData = async () => {
     // QR transactions create Payment Entries when successful, so we only count Payment Entries
     const peRes = await paymentEntriesResource.fetch({
       date: selectedDate.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const paymentEntries = peRes?.payment_entries || []
@@ -585,6 +626,10 @@ const loadCustomerData = async () => {
         continue
       }
       if (selectedUsername.value && pe.owner !== selectedUsername.value) {
+        continue
+      }
+      // Filter by company if not already filtered in API
+      if (selectedCompany.value && pe.company !== selectedCompany.value) {
         continue
       }
       const customer = pe.customer
@@ -616,17 +661,21 @@ const loadTransactionData = async () => {
     // QR transactions create Payment Entries when successful, so we only show Payment Entries
     const peRes = await paymentEntriesResource.fetch({
       date: selectedDate.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const paymentEntries = peRes?.payment_entries || []
     
-    // Filter payment entries by username/customer if filters are active
+    // Filter payment entries by username/customer/company if filters are active
     let filteredPaymentEntries = paymentEntries
     if (selectedUsername.value) {
       filteredPaymentEntries = filteredPaymentEntries.filter(pe => pe.owner === selectedUsername.value)
     }
     if (selectedCustomer.value?.value) {
       filteredPaymentEntries = filteredPaymentEntries.filter(pe => pe.customer === selectedCustomer.value.value)
+    }
+    if (selectedCompany.value) {
+      filteredPaymentEntries = filteredPaymentEntries.filter(pe => pe.company === selectedCompany.value)
     }
     
     // Sort by creation time (most recent first)
@@ -643,14 +692,31 @@ const loadTransactionData = async () => {
   }
 }
 
+const loadCompanies = async () => {
+  try {
+    const res = await $call('frappe.client.get_list', {
+      doctype: 'Company',
+      fields: ['name', 'company_name'],
+      limit_page_length: 100,
+      order_by: 'company_name asc',
+    })
+    companyOptions.value = res || []
+  } catch (error) {
+    console.error('Failed to load companies', error)
+    companyOptions.value = []
+  }
+}
+
 const loadFilterOptions = async () => {
   try {
     const [customersRes, usernamesRes] = await Promise.all([
       filterCustomersResource.fetch({
         date: selectedDate.value || undefined,
+        company: selectedCompany.value || undefined,
       }),
       filterUsernamesResource.fetch({
         date: selectedDate.value || undefined,
+        company: selectedCompany.value || undefined,
       }),
     ])
     
@@ -775,6 +841,7 @@ onMounted(async () => {
   await Promise.all([
     loadSummary(),
     loadFilterOptions(),
+    loadCompanies(),
     tryLoadNepaliScriptAndSetBSToday(),
   ])
   await applyFilters()

@@ -31,6 +31,22 @@ def _get_cfg() -> Dict[str, Any]:
     return cfg
 
 
+def _get_cfg_padmashree() -> Dict[str, Any]:
+    """Get Fonepay configuration for Padmashree Tradelink from site_config.json."""
+    cfg = frappe.get_site_config().get("fonepay_padmashree", {}) if frappe else {}
+    # env fallbacks with FONEPAY_PADMASHREE_ prefix
+    cfg.setdefault("merchant_code", os.environ.get("FONEPAY_PADMASHREE_MERCHANT_CODE"))
+    cfg.setdefault("secret_key", os.environ.get("FONEPAY_PADMASHREE_SECRET_KEY"))
+    cfg.setdefault("username", os.environ.get("FONEPAY_PADMASHREE_USERNAME"))
+    cfg.setdefault("password", os.environ.get("FONEPAY_PADMASHREE_PASSWORD"))
+    cfg.setdefault("env", os.environ.get("FONEPAY_PADMASHREE_ENV", "live"))
+    cfg.setdefault("ws_worker", os.environ.get("FONEPAY_PADMASHREE_WS_WORKER", "inprocess"))
+    cfg.setdefault("ws_timeout_seconds", int(float(os.environ.get("FONEPAY_PADMASHREE_WS_TIMEOUT", "300"))))
+    cfg.setdefault("scheduled_batch_size", int(float(os.environ.get("FONEPAY_PADMASHREE_SCHEDULED_BATCH_SIZE", "50"))))
+    cfg.setdefault("scheduled_sleep_between", float(os.environ.get("FONEPAY_PADMASHREE_SCHEDULED_SLEEP", "0.2")))
+    return cfg
+
+
 def _base_urls(env: str) -> Dict[str, str]:
     # ADDED BY AI: FONEPAY LIVE SOCKET - Live endpoints for production
     if env == "live":
@@ -86,12 +102,13 @@ def _payment_entry_reference_keys() -> Dict[str, str]:
     }
 
 
-def _create_payment_entry(customer: str, amount: float, sales_invoice: Optional[str] = None) -> str:
+def _create_payment_entry(customer: str, amount: float, sales_invoice: Optional[str] = None, company: Optional[str] = None) -> str:
     _ensure_mode_of_payment()
     
-    # Get customer's default company
-    customer_doc = frappe.get_doc("Customer", customer)
-    company = customer_doc.get("default_company") or frappe.defaults.get_defaults().get("company")
+    # Use provided company, or get customer's default company
+    if not company:
+        customer_doc = frappe.get_doc("Customer", customer)
+        company = customer_doc.get("default_company") or frappe.defaults.get_defaults().get("company")
     
     if not company:
         # Fallback: get first company
@@ -239,6 +256,44 @@ def search_customers(query: str = "", limit: int = 10000) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+def search_customers_horlicks(query: str = "", limit: int = 10000) -> Dict[str, Any]:
+    """Return up to ``limit`` customers filtered by Horlicks customer group."""
+    # Allow very high limit to ensure all customers are available
+    limit = min(int(limit or 10000), 50000)
+    like = f"%{query.strip()}%" if query else None
+    filters = {"disabled": 0, "customer_group": "Horlicks"}  # Filter by Horlicks group
+    or_filters = []
+    if like:
+        or_filters = [
+            ["Customer", "name", "like", like],
+            ["Customer", "customer_name", "like", like],
+            ["Customer", "mobile_no", "like", like],
+            ["Customer", "email_id", "like", like],
+        ]
+    fields = [
+        "name",
+        "customer_name",
+        "customer_group",
+        "territory",
+        "customer_primary_address",
+        "mobile_no",
+        "email_id",
+        "tax_id",
+    ]
+    customers = frappe.get_all(
+        "Customer",
+        fields=fields,
+        filters=filters,
+        or_filters=or_filters,
+        limit_page_length=limit,
+        order_by="customer_name asc",
+    )
+    for row in customers:
+        row["address_display"] = _address_display(row.get("customer_primary_address"))
+    return {"customers": customers}
+
+
+@frappe.whitelist()
 def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
                       remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None,
                       daily_sales_payment_reco_line: Optional[str] = None) -> Dict[str, Any]:
@@ -325,6 +380,102 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
         "status": status,
         "amount": amount,
         "customer": customer,
+        "merchant_websocket_url": merchant_ws_url,
+        "raw_response": resp,
+    }
+
+
+@frappe.whitelist()
+def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
+                      remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None,
+                      daily_sales_payment_reco_line: Optional[str] = None) -> Dict[str, Any]:
+    """Create dynamic QR using Padmashree Tradelink Fonepay credentials."""
+    if not customer:
+        frappe.throw("Customer is required for Fonepay QR")
+    cfg = _get_cfg_padmashree()
+    env = cfg.get("env", "live")
+    urls = _base_urls(env)
+    merchant_code = cfg.get("merchant_code")
+    secret_key = cfg.get("secret_key")
+    username = cfg.get("username")
+    password = cfg.get("password")
+    if not all([merchant_code, secret_key, username, password]):
+        frappe.throw("Fonepay Padmashree configuration missing in site_config (fonepay_padmashree)")
+
+    # default remarks with customer name, amount, and date
+    customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
+
+    if not remarks2:
+        remarks2 = f"{customer_name} - NPR {amount}"
+    else:
+        remarks2 = f"{remarks2} {customer_name}"
+    if not remarks1:
+        remarks1 = now_datetime().strftime("%Y-%m-%d %H:%M:%S")
+
+    prn = str(uuid.uuid4())
+    message = f"{amount},{prn},{merchant_code},{remarks1},{remarks2}"
+    data_validation = generate_hmac(secret_key, message)
+    payload = {
+        "amount": str(amount),
+        "remarks1": remarks1 or "",
+        "remarks2": remarks2 or "",
+        "prn": prn,
+        "merchantCode": merchant_code,
+        "dataValidation": data_validation,
+        "username": username,
+        "password": password,
+    }
+    resp = _post_json(urls["create"], payload)
+
+    qr_message = resp.get("qrMessage") or resp.get("message") or ""
+    merchant_ws_url = resp.get("merchantWebSocketUrl") or resp.get("merchantwebSocketUrl")
+    ws_url = resp.get("thirdpartyQrWebSocketUrl") or resp.get("thirdPartyQrWebSocketUrl") or merchant_ws_url
+    status = (resp.get("status") or "CREATED").upper()
+
+    timeout_secs = int(cfg.get("ws_timeout_seconds", 300))
+    timeout_at = now_datetime() + timedelta(seconds=timeout_secs)
+
+    # Create transaction with PadmaShree Trade Link company
+    tx = frappe.get_doc({
+        "doctype": "Fonepay QR Transaction",
+        "prn": prn,
+        "merchant_code": merchant_code,
+        "amount": amount,
+        "currency": "NPR",
+        "customer": customer,
+        "company": "PadmaShree Trade Link",  # Set company for Padmashree
+        "sales_invoice": None,
+        "username": username,
+        "data_validation": data_validation,
+        "qr_message": qr_message,
+        "thirdparty_qr_websocket_url": ws_url,
+        "response_json": json.dumps(resp, default=str),
+        "status": status,
+        "processed": 0,
+        "timeout_at": timeout_at,
+        "env": env,
+        "metadata": metadata or None,
+        "daily_sales_payment_reco_line": daily_sales_payment_reco_line or None,
+    })
+    tx.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    # enqueue listener if using inprocess worker
+    if cfg.get("ws_worker", "inprocess") == "inprocess" and ws_url:
+        try:
+            frappe.enqueue("custom_erp.api.fonepay.listen_to_ws", queue="long", tx_name=tx.name, now=False)
+        except Exception:
+            pass
+
+    return {
+        "tx_name": tx.name,
+        "prn": prn,
+        "qr_message": qr_message,
+        "websocket_url": ws_url,
+        "status": status,
+        "amount": amount,
+        "customer": customer,
+        "company": "PadmaShree Trade Link",
         "merchant_websocket_url": merchant_ws_url,
         "raw_response": resp,
     }
@@ -459,8 +610,9 @@ def listen_to_ws(tx_name: str):
 
 
 @frappe.whitelist()
-def check_qr_status(prn: str) -> Dict[str, Any]:
-    cfg = _get_cfg()
+def check_qr_status(prn: str, use_padmashree: bool = False) -> Dict[str, Any]:
+    """Check QR status with Fonepay API. If use_padmashree=True, uses Padmashree credentials."""
+    cfg = _get_cfg_padmashree() if use_padmashree else _get_cfg()
     env = cfg.get("env", "dev")
     urls = _base_urls(env)
     merchant_code = cfg.get("merchant_code")
@@ -468,7 +620,8 @@ def check_qr_status(prn: str) -> Dict[str, Any]:
     username = cfg.get("username")
     password = cfg.get("password")
     if not all([merchant_code, secret_key, username, password]):
-        frappe.throw("Fonepay configuration missing")
+        config_name = "fonepay_padmashree" if use_padmashree else "fonepay"
+        frappe.throw(f"Fonepay configuration missing ({config_name})")
     message = f"{prn},{merchant_code}"
     data_validation = generate_hmac(secret_key, message)
     payload = {
@@ -513,10 +666,16 @@ def check_status(txn_ref_id: str) -> Dict[str, Any]:
             "payment_entry": None,
         }
     
+    # Determine if this is a Padmashree transaction (needs different Fonepay credentials)
+    use_padmashree = False
+    if tx and tx.company == "PadmaShree Trade Link":
+        use_padmashree = True
+        frappe.logger().info(f"check_status: Using Padmashree config for company={tx.company}")
+    
     # Call Fonepay API to check status
     try:
-        frappe.logger().info(f"check_status: Checking PRN={prn}")
-        response = check_qr_status(prn)
+        frappe.logger().info(f"check_status: Checking PRN={prn}, use_padmashree={use_padmashree}")
+        response = check_qr_status(prn, use_padmashree=use_padmashree)
         frappe.logger().info(f"check_status: Fonepay API response: {json.dumps(response, default=str)}")
     except Exception as e:
         error_msg = f"Error checking status for {prn}: {str(e)}"
@@ -607,11 +766,12 @@ def check_status(txn_ref_id: str) -> Dict[str, Any]:
     }
 
 
-def safe_check_qr_status(prn: str, attempts: int = 3, sleep_seconds: float = 0.5) -> Dict[str, Any]:
+def safe_check_qr_status(prn: str, attempts: int = 3, sleep_seconds: float = 0.5, use_padmashree: bool = False) -> Dict[str, Any]:
+    """Safely check QR status with retries. If use_padmashree=True, uses Padmashree credentials."""
     last = {}
     for i in range(attempts):
         try:
-            last = check_qr_status(prn)  # type: ignore
+            last = check_qr_status(prn, use_padmashree=use_padmashree)  # type: ignore
             return last
         except Exception as e:  # pragma: no cover
             last = {"error": str(e)}
@@ -627,7 +787,9 @@ def finalize_payment_from_ws(tx_name: str) -> Dict[str, Any]:
     if not acquire_tx_lock(tx_name):
         return {"status": tx.status or "PENDING", "message": "Lock busy"}
     try:
-        res = safe_check_qr_status(tx.prn)
+        # Use Padmashree config if transaction is for PadmaShree Trade Link
+        use_padmashree = tx.company == "PadmaShree Trade Link"
+        res = safe_check_qr_status(tx.prn, use_padmashree=use_padmashree)
         # Normalize status
         payment_status = (res.get("paymentStatus") or res.get("status") or "").lower()
         if not payment_status and isinstance(res.get("data"), dict):
@@ -702,7 +864,8 @@ def finalize_payment_from_ws(tx_name: str) -> Dict[str, Any]:
             return {"status": "SUCCESS", "payment_entry": tx.payment_entry}
 
         try:
-            pe_name = _create_payment_entry(customer, float(amount), tx.sales_invoice)
+            # Use company from transaction if set, otherwise fall back to default logic
+            pe_name = _create_payment_entry(customer, float(amount), tx.sales_invoice, company=tx.company)
         except Exception as e:
             tx.last_error = f"Payment Entry error: {e}"
             tx.response_json = json.dumps(res)
@@ -778,7 +941,7 @@ def _today_bounds(date: Optional[str] = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_user_today_summary() -> Dict[str, Any]:
+def get_user_today_summary(company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return today's QR stats for the logged-in user:
     - full_name
@@ -786,36 +949,45 @@ def get_user_today_summary() -> Dict[str, Any]:
     - unprocessed_count
     - success_count
     - failed_count
+    Optionally filter by company.
     """
     user = frappe.session.user
     bounds = _today_bounds()
 
+    # Build company filter for SQL queries
+    company_filter = ""
+    company_params = []
+    if company:
+        company_filter = " and company = %s"
+        company_params = [company]
+
     # Successful total amount
     success_total = frappe.db.sql(
-        """
+        f"""
         select coalesce(sum(amount), 0) from `tabFonepay QR Transaction`
         where owner = %s and status = 'SUCCESS'
           and creation >= %s and creation < %s
+          {company_filter}
         """,
-        (user, bounds["start"], bounds["end"]) ,
+        (user, bounds["start"], bounds["end"], *company_params),
     )[0][0]
 
+    # Build filters for count queries
+    base_filters = {
+        "owner": user,
+        "creation": ["between", [bounds["start"], bounds["end"]]]
+    }
+    if company:
+        base_filters["company"] = company
+
     # Counts
-    unprocessed_count = frappe.db.count("Fonepay QR Transaction", {
-        "owner": user,
-        "processed": 0,
-        "creation": ["between", [bounds["start"], bounds["end"]]]
-    })
-    success_count = frappe.db.count("Fonepay QR Transaction", {
-        "owner": user,
-        "status": "SUCCESS",
-        "creation": ["between", [bounds["start"], bounds["end"]]]
-    })
-    failed_count = frappe.db.count("Fonepay QR Transaction", {
-        "owner": user,
-        "status": "FAILED",
-        "creation": ["between", [bounds["start"], bounds["end"]]]
-    })
+    unprocessed_filters = {**base_filters, "processed": 0}
+    success_filters = {**base_filters, "status": "SUCCESS"}
+    failed_filters = {**base_filters, "status": "FAILED"}
+
+    unprocessed_count = frappe.db.count("Fonepay QR Transaction", unprocessed_filters)
+    success_count = frappe.db.count("Fonepay QR Transaction", success_filters)
+    failed_count = frappe.db.count("Fonepay QR Transaction", failed_filters)
 
     return {
         "full_name": frappe.utils.get_fullname(user),
@@ -905,6 +1077,88 @@ def get_previous_transactions(filter_type="today", status_filter="All"):
             "error": str(e)
         }
 
+
+@frappe.whitelist()
+def get_previous_transactions_padmashree(filter_type="today", status_filter="All"):
+    """
+    Get previous Fonepay transactions for Padmashree Tradelink company.
+    
+    Args:
+        filter_type: 'today', 'week', or 'month'
+        status_filter: 'All', 'SUCCESS', 'FAILED', 'PENDING'
+    
+    Returns:
+        List of transactions filtered by Padmashree Tradelink company
+    """
+    try:
+        user = frappe.session.user
+        
+        filters = {
+            "owner": user,
+            "company": "PadmaShree Trade Link",  # Filter by Padmashree company
+        }
+        
+        # Apply status filter
+        if status_filter and status_filter != "All":
+            filters["status"] = status_filter
+        
+        # Apply date filters
+        from frappe.utils import today, get_first_day_of_week, get_first_day
+        
+        current_date = today()
+        
+        if filter_type == "today":
+            filters["creation"] = [">=", current_date]
+        elif filter_type == "week":
+            week_start = get_first_day_of_week(current_date)
+            filters["creation"] = [">=", week_start]
+        elif filter_type == "month":
+            month_start = get_first_day(current_date)
+            filters["creation"] = [">=", month_start]
+            
+        # Fetch transactions
+        transactions = frappe.get_all(
+            "Fonepay QR Transaction",
+            filters=filters,
+            fields=["name", "creation", "amount", "customer", "status", "payment_entry", "currency", "company"],
+            order_by="creation desc"
+        )
+        
+        # Format data
+        formatted_transactions = []
+        for tx in transactions:
+            # Get customer name if available
+            customer_name = tx.customer
+            if tx.customer:
+                customer_name = frappe.db.get_value("Customer", tx.customer, "customer_name") or tx.customer
+                
+            formatted_transactions.append({
+                "name": tx.name,
+                "customer_id": tx.customer,
+                "date": tx.creation.date(),
+                "amount": tx.amount,
+                "customer": customer_name,
+                "status": tx.status,
+                "payment_entry": tx.payment_entry,
+                "time": tx.creation.strftime("%I:%M %p"),
+                "full_datetime": tx.creation,
+                "currency": tx.currency,
+                "company": tx.company,
+            })
+            
+        return {
+            "success": True,
+            "transactions": formatted_transactions
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error getting Padmashree transactions: {str(e)}", "QRPayHorlicks History")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
     # Unprocessed today count
     unprocessed_count = frappe.db.sql(
         """
@@ -992,10 +1246,11 @@ def process_user_unprocessed_today() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def list_user_transactions_today(filter_status: str = "all", limit: int = 5) -> Dict[str, Any]:
+def list_user_transactions_today(filter_status: str = "all", limit: int = 5, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return last N transactions for today by logged-in user.
     filter_status in {all, success, failed}
+    Optionally filter by company.
     """
     user = frappe.session.user
     bounds = _today_bounds()
@@ -1006,11 +1261,15 @@ def list_user_transactions_today(filter_status: str = "all", limit: int = 5) -> 
         filters["status"] = "SUCCESS"
     elif filter_status.lower() == "failed":
         filters["status"] = "FAILED"
+    
+    # Add company filter if specified
+    if company:
+        filters["company"] = company
 
     rows = frappe.get_all(
         "Fonepay QR Transaction",
         filters=filters,
-        fields=["name", "customer", "amount", "status", "creation"],
+        fields=["name", "customer", "amount", "status", "creation", "company"],
         order_by="creation desc",
         limit=50,  # temp cap; we'll trim by date and then limit
     )
@@ -1032,6 +1291,7 @@ def list_user_transactions_today(filter_status: str = "all", limit: int = 5) -> 
             "amount": float(r.get("amount") or 0),
             "status": r.get("status") or "",
             "time": frappe.utils.format_time(r.get("creation")),
+            "company": r.get("company") or "",
         })
 
     return {"transactions": result}
@@ -1043,32 +1303,49 @@ def list_user_transactions_today(filter_status: str = "all", limit: int = 5) -> 
 
 
 @frappe.whitelist()
-def get_pay_dashboard_summary(date: Optional[str] = None) -> Dict[str, Any]:
+def get_pay_dashboard_summary(date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return stats for the specified date (or today) for all users:
     - total_success_amount (NPR) - sum of all successful payments for the date
     - total_success_count - count of all successful payments for the date
     - current_user - logged in user info
+    - unprocessed_count - count of unprocessed QR transactions
     
     Uses only Payment Entries with Fonepay mode to avoid double counting
     (since successful QR transactions create Payment Entries).
+    Optionally filter by company.
     """
     user = frappe.session.user
     target_date = date if date else frappe.utils.today()
+    bounds = _today_bounds(target_date)
+    
+    # Build filters for Payment Entries
+    pe_filters = {
+        "mode_of_payment": "Fonepay",
+        "posting_date": target_date,
+        "docstatus": 1,
+    }
+    if company:
+        pe_filters["company"] = company
     
     # Get Payment Entries with Fonepay mode using ORM
     # This is the canonical source - successful QR transactions create Payment Entries
     pe_rows = frappe.get_all(
         "Payment Entry",
-        filters={
-            "mode_of_payment": "Fonepay",
-            "posting_date": target_date,
-            "docstatus": 1,
-        },
+        filters=pe_filters,
         fields=["paid_amount"],
     )
     pe_total = sum(float(r.get("paid_amount") or 0) for r in pe_rows)
     pe_count = len(pe_rows)
+    
+    # Get unprocessed count from QR Transactions
+    qr_filters = {
+        "processed": 0,
+        "creation": ["between", [bounds["start"], bounds["end"]]]
+    }
+    if company:
+        qr_filters["company"] = company
+    unprocessed_count = frappe.db.count("Fonepay QR Transaction", qr_filters)
     
     full_name = frappe.db.get_value("User", user, "full_name") or user
     
@@ -1077,15 +1354,17 @@ def get_pay_dashboard_summary(date: Optional[str] = None) -> Dict[str, Any]:
         "current_user_full_name": full_name,
         "total_success_amount": pe_total,
         "total_success_count": pe_count,
+        "unprocessed_count": unprocessed_count,
     }
 
 
 @frappe.whitelist()
-def get_username_grouped_totals(username_filter: Optional[str] = None, date: Optional[str] = None) -> Dict[str, Any]:
+def get_username_grouped_totals(username_filter: Optional[str] = None, date: Optional[str] = None, company: Optional[str] = None) -> Dict[str, Any]:
     """
     Return success amounts grouped by username for the specified date (or today).
     username_filter: optional username to filter by, None/empty = all users
     date: optional date in YYYY-MM-DD format (AD), None = today
+    company: optional company to filter by
     """
     bounds = _today_bounds(date)
     
@@ -1098,11 +1377,14 @@ def get_username_grouped_totals(username_filter: Optional[str] = None, date: Opt
     if username_filter and username_filter.strip():
         filters["owner"] = username_filter.strip()
     
+    if company:
+        filters["company"] = company
+    
     # Get all records within date range using ORM
     all_rows = frappe.get_all(
         "Fonepay QR Transaction",
         filters=filters,
-        fields=["owner", "amount", "creation"],
+        fields=["owner", "amount", "creation", "company"],
         order_by="owner asc",
         limit_page_length=10000,
     )

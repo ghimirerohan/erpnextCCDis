@@ -8,6 +8,7 @@ import fs from "fs-extra"
 // Define all apps
 const apps = [
 	'qrpay',
+	'qrpayHorlicks',
 	'qrpay-admin',
 	'scanner',
 	'pay-dashboard',
