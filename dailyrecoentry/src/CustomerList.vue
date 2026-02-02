@@ -101,6 +101,29 @@
 
       <!-- Main Content -->
       <template v-else>
+        <!-- Company Header Banner -->
+        <div v-if="currentCompany" 
+             class="rounded-xl border-2 p-4 shadow-md flex items-center justify-between"
+             :class="isPadmashree ? 'bg-blue-50 border-blue-400' : 'bg-red-50 border-red-400'">
+          <div class="flex items-center gap-4">
+            <CompanyBadge :company="currentCompany" size="lg" />
+            <div>
+              <h2 class="text-lg font-bold" :class="isPadmashree ? 'text-blue-900' : 'text-red-900'">
+                {{ currentCompany }}
+              </h2>
+              <p class="text-sm" :class="isPadmashree ? 'text-blue-700' : 'text-red-700'">
+                {{ isPadmashree ? 'Horlicks Distribution' : 'General Distribution' }}
+              </p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-medium px-3 py-1 rounded-full"
+                  :class="isPadmashree ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'">
+              {{ isPadmashree ? 'PS' : 'RS' }}
+            </span>
+          </div>
+        </div>
+
         <!-- Admin: Driver Switcher -->
         <div v-if="isAdmin && availableDrivers.length > 1" class="bg-blue-50 rounded-xl border-2 border-blue-300 p-4 shadow-md">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -661,11 +684,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { session } from '../../shared/data/session'
 import { call } from 'frappe-ui'
 import SummaryCard from './components/SummaryCard.vue'
+import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 
 const router = useRouter()
 
@@ -678,6 +702,9 @@ const showAllDialog = ref(false)
 const isAdmin = ref(false)
 const availableDrivers = ref([])
 const selectedDriver = ref(null)
+// Company state
+const currentCompany = ref('')
+const isPadmashree = computed(() => currentCompany.value === 'PadmaShree Trade Link')
 
 const showSettleAllDialog = ref(false)
 const settlingAll = ref(false)
@@ -763,6 +790,8 @@ const loadData = async () => {
       recoData.value = response.data
       driverName.value = response.data.reco.driver_name || session.user
       selectedDriver.value = driverName.value
+      // Extract company from response
+      currentCompany.value = response.data.reco.company || ''
       
       // If admin, also make sure available drivers are loaded
       if (isAdmin.value && availableDrivers.value.length === 0) {
@@ -771,9 +800,11 @@ const loadData = async () => {
     } else if (isAdmin.value) {
       // Admin user but no driver data for selection - load all drivers list
       recoData.value = null
+      currentCompany.value = ''
       await loadAllDrivers()
     } else {
       recoData.value = null
+      currentCompany.value = ''
     }
   } catch (error) {
     console.error('Error loading data:', error)
@@ -883,16 +914,18 @@ const openAddEntryDialog = async () => {
   filteredCustomersList.value = []
   showCustomerDropdown.value = false
   
-  // Load all customers if not already loaded
-  if (allCustomers.value.length === 0) {
-    try {
-      const response = await call('custom_erp.api.payment_reco.get_all_customers')
-      if (response.success) {
-        allCustomers.value = response.data
-      }
-    } catch (error) {
-      console.error('Error loading customers:', error)
+  // Load customers appropriate for the company
+  // Padmashree: Horlicks customers only
+  // Riya: Non-Horlicks customers only
+  try {
+    const response = await call('custom_erp.api.payment_reco.get_customers_for_company', {
+      company: currentCompany.value
+    })
+    if (response.success) {
+      allCustomers.value = response.data
     }
+  } catch (error) {
+    console.error('Error loading customers:', error)
   }
 }
 

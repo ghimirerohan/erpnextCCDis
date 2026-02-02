@@ -30,8 +30,70 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <!-- Today's Summary Section -->
-      <div v-if="hasTodayRecords" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 space-y-6">
+      <!-- Company Selection Section (Required) -->
+      <div class="bg-white rounded-xl shadow-lg border-2 p-6" :class="selectedCompany ? 'border-gray-200' : 'border-purple-500'">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center space-x-3">
+            <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="lg" />
+            <div v-else class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-gray-900">Select Company</h3>
+              <p class="text-sm text-gray-600">{{ selectedCompany ? companyDescription : 'Choose company to continue' }}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <select
+              v-model="selectedCompany"
+              @change="handleCompanyChange"
+              class="rounded-lg border-2 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 min-w-[250px]"
+              :class="selectedCompany ? 'border-gray-300 bg-white' : 'border-purple-500 bg-purple-50'"
+            >
+              <option :value="null">-- Select Company --</option>
+              <option value="PadmaShree Trade Link">PadmaShree Trade Link (Horlicks)</option>
+              <option value="Riya Trades and Suppliers">Riya Trades and Suppliers</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Company-specific info -->
+        <div v-if="selectedCompany" class="mt-4 pt-4 border-t border-gray-200">
+          <div v-if="isPadmashree" class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="text-sm text-blue-800">
+              <p class="font-semibold">Padmashree Mode:</p>
+              <ul class="mt-1 space-y-1 list-disc list-inside text-blue-700">
+                <li>Works only with Horlicks customer group</li>
+                <li>Single driver for entire upload file</li>
+                <li>No loadsheet number required</li>
+                <li>Invoice numbers stored as Sales Reference</li>
+              </ul>
+            </div>
+          </div>
+          <div v-else class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+            <svg class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="text-sm text-red-800">
+              <p class="font-semibold">Riya Mode:</p>
+              <ul class="mt-1 space-y-1 list-disc list-inside text-red-700">
+                <li>Works with all customers except Horlicks</li>
+                <li>Driver assigned per loadsheet</li>
+                <li>CSV Format: Outlet Code, Outlet Name, Reference No, Amount</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Summary Section (only show when company selected) -->
+      <div v-if="selectedCompany && hasTodayRecords" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h3 class="text-xl font-bold text-gray-900 flex items-center">
             <svg class="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +172,7 @@
       </div>
 
       <!-- View/Edit Reco Lines Section -->
-      <div v-if="hasTodayRecords && !csvParsed" class="bg-white rounded-xl shadow-lg border-2 border-indigo-500 p-6 space-y-4">
+      <div v-if="selectedCompany && hasTodayRecords && !csvParsed" class="bg-white rounded-xl shadow-lg border-2 border-indigo-500 p-6 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h3 class="text-xl font-bold text-gray-900 flex items-center">
             <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,10 +289,11 @@
         </div>
       </div>
 
-      <!-- CSV Upload Section -->
+      <!-- CSV Upload Section (only show when company selected) -->
       <CsvUploadSection
-        v-if="!csvParsed"
+        v-if="selectedCompany && !csvParsed"
         :loading="uploading"
+        :company="selectedCompany"
         @file-selected="handleFileUpload"
       />
 
@@ -265,6 +328,7 @@
         v-if="csvParsed"
         :unmatched-customers="parsedData.unmatched_customers || []"
         :created-customers="newlyCreatedCustomers"
+        :company="selectedCompany"
         @customer-created="handleCustomerCreated"
         @all-customers-created="handleAllCustomersCreated"
       />
@@ -313,7 +377,53 @@
           </div>
         </div>
 
-        <!-- Driver Assignment Component -->
+        <!-- Driver Assignment - Different for Padmashree vs Riya -->
+        
+        <!-- Padmashree: Single driver selector -->
+        <template v-else-if="isPadmashree">
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <CompanyBadge company="PadmaShree Trade Link" size="lg" />
+              <div>
+                <h3 class="text-lg font-bold text-blue-900">Select Driver</h3>
+                <p class="text-sm text-blue-700">Single driver for entire upload ({{ parsedData.row_count || 0 }} invoice rows, {{ uniqueCustomerCount }} unique customers)</p>
+              </div>
+            </div>
+            
+            <!-- Driver info from CSV if available -->
+            <div v-if="padmashreeDriverInfo" class="mb-4 p-3 bg-white rounded-lg border border-blue-200">
+              <p class="text-sm text-blue-800">
+                <span class="font-medium">Driver from CSV:</span> {{ padmashreeDriverInfo.driver_name }}
+                <span v-if="padmashreeDriverInfo.driver_mobile" class="ml-2">({{ padmashreeDriverInfo.driver_mobile }})</span>
+              </p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+              <label class="text-sm font-medium text-blue-800">Assign Driver:</label>
+              <select
+                v-model="selectedDriverPadmashree"
+                class="flex-1 rounded-lg border-2 border-blue-300 px-4 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option :value="null">-- Select Driver --</option>
+                <option v-for="driver in drivers" :key="driver.name" :value="driver.driver_name">
+                  {{ driver.driver_name }}
+                </option>
+              </select>
+            </div>
+            
+            <div v-if="selectedDriverPadmashree" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p class="text-sm text-green-800 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span><strong>{{ selectedDriverPadmashree }}</strong> will receive <strong>{{ uniqueCustomerCount }}</strong> unique customers (from {{ parsedData.row_count || 0 }} invoices)</span>
+              </p>
+              <p class="text-sm text-green-700 mt-1">Total Amount: Rs. {{ (parsedData.total_amount || 0).toLocaleString() }}</p>
+            </div>
+          </div>
+        </template>
+        
+        <!-- Riya: Per-loadsheet driver assignment -->
         <DriverAssignment
           v-else
           :loadsheets="loadsheetList"
@@ -336,7 +446,8 @@
               <h3 class="text-sm font-medium text-yellow-800">Cannot Create Records Yet</h3>
               <div class="mt-2 text-sm text-yellow-700 space-y-1">
                 <p v-if="!csvParsed">❌ CSV not uploaded</p>
-                <p v-if="csvParsed && !assignmentsValid">❌ Driver assignment incomplete (all load sheets must have a selection, and at least one must have a driver)</p>
+                <p v-if="csvParsed && isPadmashree && !selectedDriverPadmashree">❌ Please select a driver for the upload</p>
+                <p v-if="csvParsed && !isPadmashree && !assignmentsValid">❌ Driver assignment incomplete (all load sheets must have a selection, and at least one must have a driver)</p>
                 <p v-if="csvParsed && remainingUnmatchedCount > 0">❌ {{ remainingUnmatchedCount }} unmatched customers need to be created</p>
                 <p class="font-medium mt-2">Please complete the requirements above to enable the button.</p>
               </div>
@@ -368,8 +479,11 @@
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div class="sm:flex sm:items-start">
-              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div 
+                class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10"
+                :class="isPadmashree ? 'bg-blue-100' : 'bg-red-100'"
+              >
+                <svg :class="isPadmashree ? 'text-blue-600' : 'text-red-600'" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -379,18 +493,54 @@
                 </h3>
                 <div class="mt-4">
                   <p class="text-sm text-gray-500 mb-4">
-                    You are about to create payment reconciliation records for the following drivers:
+                    You are about to create payment reconciliation records for the following:
                   </p>
                   <div class="bg-gray-50 rounded-lg p-4 space-y-2 max-h-64 overflow-y-auto">
-                    <div v-for="(loadsheets, driver) in groupedAssignments" :key="driver" class="text-sm">
-                      <span class="font-medium text-gray-900">{{ driver }}</span>
-                      <span class="text-gray-600"> → {{ loadsheets.join(', ') }}</span>
-                    </div>
-                    <!-- Show skipped loadsheets if any -->
-                    <div v-if="skippedLoadsheets.length > 0" class="text-sm pt-2 border-t border-gray-200 mt-2">
-                      <span class="font-medium text-gray-500">⏭️ Skipped (None)</span>
-                      <span class="text-gray-400"> → {{ skippedLoadsheets.join(', ') }}</span>
-                    </div>
+                    <!-- Padmashree Mode: Single driver with all customers -->
+                    <template v-if="isPadmashree">
+                      <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
+                        <CompanyBadge company="PadmaShree Trade Link" size="md" />
+                        <span class="text-sm font-medium text-blue-800">PadmaShree Trade Link</span>
+                      </div>
+                      <div class="text-sm space-y-2">
+                        <div class="flex justify-between">
+                          <span class="text-gray-600">Driver:</span>
+                          <span class="font-medium text-gray-900">{{ selectedDriverPadmashree }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600">Invoice Rows:</span>
+                          <span class="font-medium text-gray-900">{{ parsedData.row_count || 0 }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-gray-600">Unique Customers:</span>
+                          <span class="font-medium text-blue-600">{{ uniqueCustomerCount }}</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t border-gray-200">
+                          <span class="text-gray-600">Total Amount:</span>
+                          <span class="font-bold text-blue-600">Rs. {{ (parsedData.total_amount || 0).toLocaleString() }}</span>
+                        </div>
+                        <p v-if="parsedData.row_count !== uniqueCustomerCount" class="text-xs text-gray-500 mt-2 italic">
+                          * Multiple invoices for the same customer will be combined into single payment entries
+                        </p>
+                      </div>
+                    </template>
+                    
+                    <!-- Riya Mode: Per-loadsheet driver assignment -->
+                    <template v-else>
+                      <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
+                        <CompanyBadge company="Riya Trades and Suppliers" size="md" />
+                        <span class="text-sm font-medium text-red-800">Riya Trades and Suppliers</span>
+                      </div>
+                      <div v-for="(loadsheets, driver) in groupedAssignments" :key="driver" class="text-sm">
+                        <span class="font-medium text-gray-900">{{ driver }}</span>
+                        <span class="text-gray-600"> → {{ loadsheets.join(', ') }}</span>
+                      </div>
+                      <!-- Show skipped loadsheets if any -->
+                      <div v-if="skippedLoadsheets.length > 0" class="text-sm pt-2 border-t border-gray-200 mt-2">
+                        <span class="font-medium text-gray-500">⏭️ Skipped (None)</span>
+                        <span class="text-gray-400"> → {{ skippedLoadsheets.join(', ') }}</span>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -401,7 +551,10 @@
               type="button"
               @click="createRecords"
               :disabled="creating"
-              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+              :class="isPadmashree 
+                ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' 
+                : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'"
             >
               <svg v-if="creating" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -413,7 +566,8 @@
               type="button"
               @click="showConfirmDialog = false"
               :disabled="creating"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              :class="isPadmashree ? 'focus:ring-blue-500' : 'focus:ring-red-500'"
             >
               Cancel
             </button>
@@ -630,13 +784,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { session } from '../../shared/data/session'
 import { call } from 'frappe-ui'
 import CsvUploadSection from './components/CsvUploadSection.vue'
 import DataPreview from './components/DataPreview.vue'
 import DriverAssignment from './components/DriverAssignment.vue'
 import UnmatchedList from './components/UnmatchedList.vue'
+import CompanyBadge from '../../shared/components/CompanyBadge.vue'
+
+// Company Selection State
+const selectedCompany = ref(null)
+const isPadmashree = computed(() => selectedCompany.value === 'PadmaShree Trade Link')
+const companyDescription = computed(() => {
+  if (isPadmashree.value) return 'Horlicks customers only'
+  if (selectedCompany.value) return 'All customers except Horlicks'
+  return ''
+})
+
+// Padmashree-specific state
+const selectedDriverPadmashree = ref(null)
+const padmashreeDriverInfo = ref(null)
 
 // State
 const uploading = ref(false)
@@ -693,9 +861,23 @@ const remainingUnmatchedCount = computed(() => {
 })
 
 const canCreate = computed(() => {
-  return csvParsed.value && 
-         assignmentsValid.value && 
-         remainingUnmatchedCount.value === 0
+  if (!csvParsed.value) return false
+  if (remainingUnmatchedCount.value > 0) return false
+  
+  if (isPadmashree.value) {
+    // Padmashree: Only need a driver selected (single driver for all)
+    return !!selectedDriverPadmashree.value
+  } else {
+    // Riya: Need all loadsheets assigned
+    return assignmentsValid.value
+  }
+})
+
+// Count unique customers from parsed rows (for Padmashree)
+const uniqueCustomerCount = computed(() => {
+  if (!parsedData.value?.parsed_rows) return 0
+  const uniqueCustomers = new Set(parsedData.value.parsed_rows.map(r => r.outlet_code))
+  return uniqueCustomers.size
 })
 
 // Group assignments by driver (excluding __none__ assignments)
@@ -736,16 +918,39 @@ const canProceedToConfirmReco = computed(() => {
 
 // Lifecycle
 onMounted(() => {
-  fetchSummary()
   loadDrivers()
 })
 
+// Watch for company changes
+watch(selectedCompany, () => {
+  if (selectedCompany.value) {
+    fetchSummary()
+  }
+})
+
 // Methods
+const handleCompanyChange = () => {
+  // Clear file data when company changes
+  clearFile()
+  // Reset Padmashree-specific state
+  selectedDriverPadmashree.value = null
+  padmashreeDriverInfo.value = null
+  // Clear cached customers (will be reloaded with company filter when needed)
+  allCustomersReco.value = []
+  // Fetch summary for new company
+  if (selectedCompany.value) {
+    fetchSummary()
+  }
+}
+
 const fetchSummary = async () => {
+  if (!selectedCompany.value) return
+  
   loadingSummary.value = true
   try {
     const response = await call('custom_erp.api.payment_reco.get_today_reco_summary', {
-      driver: summaryDriver.value
+      driver: summaryDriver.value,
+      company: selectedCompany.value
     })
     if (response.success) {
       todaySummary.value = response.data
@@ -766,13 +971,23 @@ const fetchSummary = async () => {
 const handleFileUpload = async (csvContent) => {
   uploading.value = true
   try {
-    const response = await call('custom_erp.api.payment_reco.parse_and_validate_csv', {
+    // Use different parsing based on company
+    const apiMethod = isPadmashree.value 
+      ? 'custom_erp.api.payment_reco.parse_and_validate_csv_padmashree'
+      : 'custom_erp.api.payment_reco.parse_and_validate_csv'
+    
+    const response = await call(apiMethod, {
       csv_content: csvContent
     })
 
     if (response.success) {
       parsedData.value = response.data
       csvParsed.value = true
+      
+      // For Padmashree, extract driver info from CSV
+      if (isPadmashree.value && response.data.driver_info) {
+        padmashreeDriverInfo.value = response.data.driver_info
+      }
       
       // Drivers are already loaded in onMounted, but we can refresh just in case
       await loadDrivers()
@@ -809,15 +1024,30 @@ const clearFile = () => {
   driverAssignments.value = {}
   assignmentsValid.value = false
   newlyCreatedCustomers.value = []
+  // Reset Padmashree-specific state
+  selectedDriverPadmashree.value = null
+  padmashreeDriverInfo.value = null
 }
 
 const createRecords = async () => {
   creating.value = true
   try {
-    const response = await call('custom_erp.api.payment_reco.create_payment_recos', {
-      driver_assignments: JSON.stringify(groupedAssignments.value),
-      csv_data: JSON.stringify(parsedData.value.grouped_by_loadsheet)
-    })
+    let response
+    
+    if (isPadmashree.value) {
+      // Padmashree: Single driver, no loadsheet grouping
+      response = await call('custom_erp.api.payment_reco.create_payment_recos_padmashree', {
+        driver: selectedDriverPadmashree.value,
+        csv_data: JSON.stringify(parsedData.value.parsed_rows)
+      })
+    } else {
+      // Riya: Driver per loadsheet
+      response = await call('custom_erp.api.payment_reco.create_payment_recos', {
+        driver_assignments: JSON.stringify(groupedAssignments.value),
+        csv_data: JSON.stringify(parsedData.value.grouped_by_loadsheet),
+        company: selectedCompany.value
+      })
+    }
 
     if (response.success) {
       successMessage.value = response.message
@@ -891,7 +1121,8 @@ const loadRecoLines = async () => {
   recoLinesError.value = ''
   try {
     const response = await call('custom_erp.api.payment_reco.get_reco_lines_for_driver', {
-      driver_name: viewRecoDriver.value
+      driver_name: viewRecoDriver.value,
+      company: selectedCompany.value
     })
     
     if (response.success) {
@@ -921,16 +1152,18 @@ const openAddEntryDialogForReco = async () => {
   filteredCustomersListReco.value = []
   showCustomerDropdownReco.value = false
   
-  // Load all customers if not already loaded
-  if (allCustomersReco.value.length === 0) {
-    try {
-      const response = await call('custom_erp.api.payment_reco.get_all_customers')
-      if (response.success) {
-        allCustomersReco.value = response.data
-      }
-    } catch (error) {
-      console.error('Error loading customers:', error)
+  // Load customers filtered by company
+  // Padmashree: Only Horlicks customers
+  // Riya: All customers except Horlicks
+  try {
+    const response = await call('custom_erp.api.payment_reco.get_customers_for_company', {
+      company: selectedCompany.value
+    })
+    if (response.success) {
+      allCustomersReco.value = response.data
     }
+  } catch (error) {
+    console.error('Error loading customers:', error)
   }
 }
 

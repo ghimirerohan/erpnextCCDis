@@ -415,6 +415,7 @@
       :customer-name="customerName"
       :amount="pendingQRAmount"
       :line-name="lineData?.name"
+      :company="company"
       @close="handleQRDialogClose"
       @success="handleQRSuccess"
     />
@@ -425,6 +426,7 @@
       :customer="customerCode"
       :customer-name="customerName"
       :amount="pendingChequeAmount"
+      :company="company"
       @close="handleChequeDialogClose"
       @success="handleChequeSuccess"
     />
@@ -480,6 +482,100 @@
         </button>
       </div>
     </div>
+
+    <!-- Payment Confirmation Dialog -->
+    <div v-if="showConfirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+        <!-- Icon -->
+        <div class="flex justify-center mb-4">
+          <div :class="[
+            'rounded-full p-3',
+            confirmDialogData.type === 'cash' ? 'bg-green-100' :
+            confirmDialogData.type === 'credit' ? 'bg-red-100' :
+            confirmDialogData.type === 'return' ? 'bg-orange-100' : 'bg-gray-100'
+          ]">
+            <!-- Cash Icon -->
+            <svg v-if="confirmDialogData.type === 'cash'" class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <!-- Credit Icon -->
+            <svg v-else-if="confirmDialogData.type === 'credit'" class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <!-- Return Icon -->
+            <svg v-else-if="confirmDialogData.type === 'return'" class="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Title -->
+        <h2 class="text-xl font-bold text-gray-900 text-center mb-2">
+          {{ confirmDialogData.title }}
+        </h2>
+        
+        <!-- Subtitle -->
+        <p class="text-gray-600 text-center mb-4">
+          {{ confirmDialogData.message }}
+        </p>
+
+        <!-- Payment Details -->
+        <div class="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600 font-medium">Customer</span>
+            <span class="font-semibold text-gray-900">{{ customerName }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600 font-medium">Customer Code</span>
+            <span class="font-mono text-gray-700">{{ customerCode }}</span>
+          </div>
+          <div class="flex justify-between items-center border-t pt-3">
+            <span class="text-gray-600 font-medium">Amount</span>
+            <span :class="[
+              'text-2xl font-bold',
+              confirmDialogData.type === 'cash' ? 'text-green-600' :
+              confirmDialogData.type === 'credit' ? 'text-red-600' :
+              confirmDialogData.type === 'return' ? 'text-orange-600' : 'text-gray-900'
+            ]">{{ formatCurrency(confirmDialogData.amount) }}</span>
+          </div>
+        </div>
+
+        <!-- Warning Note -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <p class="text-sm text-yellow-800">
+              This action will be saved immediately and cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+          <button
+            @click="closeConfirmDialog"
+            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="executeConfirmedPayment"
+            :disabled="paymentInProgress"
+            :class="[
+              'flex-1 font-semibold py-3 px-6 rounded-lg transition-colors shadow-lg text-white',
+              confirmDialogData.type === 'cash' ? 'bg-green-600 hover:bg-green-700' :
+              confirmDialogData.type === 'credit' ? 'bg-red-600 hover:bg-red-700' :
+              confirmDialogData.type === 'return' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700',
+              paymentInProgress ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
+          >
+            {{ paymentInProgress ? 'Processing...' : 'Confirm' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -497,6 +593,7 @@ const lineData = ref(null)
 const customerName = ref('')
 const customerCode = ref('')
 const entryMode = ref('whole')
+const company = ref('')  // Track company for Fonepay API selection
 
 // Payment state
 const paymentCompleted = ref(false)
@@ -527,6 +624,18 @@ const successDialogData = ref({
   paymentMethod: '',
   amount: '',
   transactionId: ''
+})
+
+// Confirmation dialog for Cash/Credit/Return
+const showConfirmDialog = ref(false)
+const confirmDialogData = ref({
+  type: '',
+  title: '',
+  message: '',
+  amount: 0,
+  icon: '',
+  iconColor: '',
+  buttonColor: ''
 })
 
 // References
@@ -569,6 +678,8 @@ const loadLineData = async () => {
         lineData.value = line
         customerName.value = line.customer_name
         customerCode.value = line.customer
+        // Extract company from reco for Fonepay API selection
+        company.value = response.data.reco?.company || ''
         
         // Update payment amounts from server to ensure UI is in sync
         cashAmount.value = line.cash_amount || 0
@@ -613,10 +724,13 @@ const handleWholeEntry = async (type) => {
       break
       
     case 'cash':
-      if (confirm(`Confirm CASH payment of ${formatCurrency(amount)}?\n\nThis will be saved immediately.`)) {
-        paymentInProgress.value = true
-        await saveWholePayment('cash', amount)
+      confirmDialogData.value = {
+        type: 'cash',
+        title: 'Confirm Cash Payment',
+        message: 'Are you sure you want to record this as a cash payment?',
+        amount: amount
       }
+      showConfirmDialog.value = true
       break
       
     case 'cheque':
@@ -625,18 +739,51 @@ const handleWholeEntry = async (type) => {
       break
       
     case 'credit':
-      if (confirm(`Mark ${formatCurrency(amount)} as CREDIT?\n\nThis will be saved immediately.`)) {
-        paymentInProgress.value = true
-        await saveWholePayment('credit', amount)
+      confirmDialogData.value = {
+        type: 'credit',
+        title: 'Confirm Credit Entry',
+        message: 'Are you sure you want to mark this amount as credit (pay later)?',
+        amount: amount
       }
+      showConfirmDialog.value = true
       break
       
     case 'return':
-      if (confirm(`Mark ${formatCurrency(amount)} as RETURN?\n\nThis will be saved immediately.`)) {
-        paymentInProgress.value = true
-        await saveWholePayment('return', amount)
+      confirmDialogData.value = {
+        type: 'return',
+        title: 'Confirm Full Return',
+        message: 'Are you sure you want to mark this as a full return?',
+        amount: amount
       }
+      showConfirmDialog.value = true
       break
+  }
+}
+
+const closeConfirmDialog = () => {
+  showConfirmDialog.value = false
+  confirmDialogData.value = {
+    type: '',
+    title: '',
+    message: '',
+    amount: 0
+  }
+}
+
+const executeConfirmedPayment = async () => {
+  const type = confirmDialogData.value.type
+  const amount = confirmDialogData.value.amount
+  
+  paymentInProgress.value = true
+  showConfirmDialog.value = false
+  
+  await saveWholePayment(type, amount)
+  
+  confirmDialogData.value = {
+    type: '',
+    title: '',
+    message: '',
+    amount: 0
   }
 }
 

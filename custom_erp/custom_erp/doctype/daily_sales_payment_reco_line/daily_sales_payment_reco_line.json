@@ -17,6 +17,7 @@
     "remaining_amount",
     "settled",
     "remarks",
+    "sales_reference_no",
     "fonepay_qr_transaction",
     "cheques_taageta",
     "updated_later"
@@ -96,6 +97,12 @@
       "fieldtype": "Small Text",
       "in_list_view": 1,
       "label": "Remarks"
+    },
+    {
+      "description": "Invoice/Sales reference number (used for Padmashree)",
+      "fieldname": "sales_reference_no",
+      "fieldtype": "Data",
+      "label": "Sales Reference No"
     },
     {
       "fieldname": "fonepay_qr_transaction",

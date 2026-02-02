@@ -127,12 +127,12 @@
                 <!-- Tax ID -->
                 <div>
                   <label class="block text-xs font-medium text-gray-700 mb-1">
-                    Tax ID / PAN <span class="text-red-500">*</span>
+                    Tax ID / PAN <span v-if="!isPadmashree" class="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     v-model="customerForms[customer.outlet_code].tax_id"
-                    placeholder="Enter Tax ID"
+                    :placeholder="isPadmashree ? 'Enter Tax ID (optional)' : 'Enter Tax ID'"
                     :class="[
                       'w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500',
                       customerForms[customer.outlet_code]?.errors?.tax_id ? 'border-red-500 bg-red-50' : 'border-gray-300'
@@ -147,12 +147,12 @@
                 <!-- Phone Number -->
                 <div>
                   <label class="block text-xs font-medium text-gray-700 mb-1">
-                    Phone Number <span class="text-red-500">*</span>
+                    Phone Number <span v-if="!isPadmashree" class="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     v-model="customerForms[customer.outlet_code].phone_number"
-                    placeholder="10 digit number"
+                    :placeholder="isPadmashree ? '10 digit number (optional)' : '10 digit number'"
                     maxlength="10"
                     :class="[
                       'w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500',
@@ -169,10 +169,38 @@
                 </div>
               </div>
 
+              <!-- Padmashree-specific fields -->
+              <template v-if="isPadmashree">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- Shipping Address (prefilled from CSV) -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Shipping Address</label>
+                    <input
+                      type="text"
+                      v-model="customerForms[customer.outlet_code].shipping_address"
+                      placeholder="Shipping address"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <!-- Area (prefilled from CSV) -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Area</label>
+                    <input
+                      type="text"
+                      v-model="customerForms[customer.outlet_code].area"
+                      placeholder="Area"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </template>
+
               <!-- Info about customer type -->
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p class="text-xs text-blue-700">
-                  <span class="font-medium">Note:</span> Customer will be created as <span class="font-semibold">Company</span> type with default customer group.
+              <div :class="isPadmashree ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200'" class="border rounded-lg p-3">
+                <p class="text-xs" :class="isPadmashree ? 'text-blue-700' : 'text-blue-700'">
+                  <span class="font-medium">Note:</span> Customer will be created as <span class="font-semibold">Company</span> type with 
+                  <span class="font-semibold">{{ isPadmashree ? 'Horlicks' : 'Commercial' }}</span> customer group.
                 </p>
               </div>
 
@@ -229,7 +257,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { call } from 'frappe-ui'
 
 const props = defineProps({
@@ -240,10 +268,17 @@ const props = defineProps({
   createdCustomers: {
     type: Array,
     default: () => []
+  },
+  company: {
+    type: String,
+    default: ''
   }
 })
 
 const emit = defineEmits(['customer-created', 'all-customers-created'])
+
+// Computed
+const isPadmashree = computed(() => props.company === 'PadmaShree Trade Link')
 
 // State
 const territories = ref([])
@@ -276,11 +311,18 @@ const loadTerritories = async () => {
 
 const initializeForm = (outletCode) => {
   if (!customerForms[outletCode]) {
+    // Find customer data for prefilling
+    const customer = props.unmatchedCustomers.find(c => c.outlet_code === outletCode)
+    
     customerForms[outletCode] = {
       expanded: false,
       territory: '',
-      tax_id: '',
+      // Prefill tax_id from CSV (pan field for Padmashree)
+      tax_id: customer?.pan || '',
       phone_number: '',
+      // Padmashree-specific fields (prefilled from CSV)
+      shipping_address: customer?.shipping_address || '',
+      area: customer?.area || '',
       saving: false,
       error: null,
       errors: {}
@@ -334,16 +376,28 @@ const validateForm = (outletCode) => {
   if (!form.territory) {
     errors.territory = 'Territory is required'
   }
-  if (!form.tax_id || !form.tax_id.trim()) {
+  
+  // For Riya, Tax ID is required; for Padmashree, it's optional
+  if (!isPadmashree.value && (!form.tax_id || !form.tax_id.trim())) {
     errors.tax_id = 'Tax ID is required'
   }
   
-  // Phone number validation - must be exactly 10 digits
+  // Phone number validation
+  // For Riya: required and must be exactly 10 digits
+  // For Padmashree: optional, but if provided must be 10 digits
   const phoneDigits = (form.phone_number || '').replace(/\D/g, '')
-  if (!phoneDigits) {
-    errors.phone_number = 'Phone Number is required'
-  } else if (phoneDigits.length !== 10) {
-    errors.phone_number = `Phone Number must be exactly 10 digits (currently ${phoneDigits.length})`
+  if (isPadmashree.value) {
+    // Optional for Padmashree, but validate if provided
+    if (phoneDigits && phoneDigits.length !== 10) {
+      errors.phone_number = `Phone Number must be exactly 10 digits (currently ${phoneDigits.length})`
+    }
+  } else {
+    // Required for Riya
+    if (!phoneDigits) {
+      errors.phone_number = 'Phone Number is required'
+    } else if (phoneDigits.length !== 10) {
+      errors.phone_number = `Phone Number must be exactly 10 digits (currently ${phoneDigits.length})`
+    }
   }
 
   form.errors = errors
@@ -363,13 +417,29 @@ const createCustomer = async (customer) => {
   form.error = null
 
   try {
-    const response = await call('custom_erp.api.payment_reco.create_customer_from_csv', {
-      outlet_code: customer.outlet_code,
-      outlet_name: customer.outlet_name,
-      territory: form.territory,
-      tax_id: form.tax_id.trim(),
-      phone_number: form.phone_number.trim()
-    })
+    let response
+    
+    if (isPadmashree.value) {
+      // Use Padmashree API with Horlicks customer group
+      response = await call('custom_erp.api.payment_reco.create_customer_from_csv_padmashree', {
+        outlet_code: customer.outlet_code,
+        outlet_name: customer.outlet_name,
+        territory: form.territory,
+        tax_id: (form.tax_id || '').trim(),
+        phone_number: (form.phone_number || '').trim(),
+        shipping_address: (form.shipping_address || '').trim(),
+        area: (form.area || '').trim()
+      })
+    } else {
+      // Use Riya API with Commercial customer group
+      response = await call('custom_erp.api.payment_reco.create_customer_from_csv', {
+        outlet_code: customer.outlet_code,
+        outlet_name: customer.outlet_name,
+        territory: form.territory,
+        tax_id: form.tax_id.trim(),
+        phone_number: form.phone_number.trim()
+      })
+    }
 
     if (response.success) {
       // Emit event to parent - parent manages the created customers list

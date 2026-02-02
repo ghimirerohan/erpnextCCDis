@@ -286,6 +286,8 @@
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
+                    <!-- Show company badge only when a specific company is selected -->
+                    <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
                     <span class="text-base sm:text-lg font-semibold text-gray-900">{{ item.full_name || item.username }}</span>
                     <span v-if="item.username === session.user" class="px-2 py-0.5 text-xs font-medium bg-blue-600 text-white rounded">
                       You
@@ -313,7 +315,11 @@
             >
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div class="flex-1">
-                  <div class="text-base sm:text-lg font-semibold text-gray-900">{{ item.customer_name }}</div>
+                  <div class="flex items-center gap-2">
+                    <!-- Show company badge only when a specific company is selected -->
+                    <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
+                    <span class="text-base sm:text-lg font-semibold text-gray-900">{{ item.customer_name }}</span>
+                  </div>
                   <div class="text-xs sm:text-sm text-gray-600 mt-1">Code: {{ item.customer }}</div>
                   <div class="text-xs text-gray-500 mt-1">{{ item.count }} payment{{ item.count !== 1 ? 's' : '' }}</div>
                 </div>
@@ -335,7 +341,14 @@
                 :key="txn.name"
                 class="p-4 rounded-lg bg-gray-50 border-2 border-gray-200 hover:shadow-md transition-all"
               >
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+                  <div>
+                    <div class="text-xs text-gray-500 mb-1">Company</div>
+                    <div class="flex items-center gap-2">
+                      <CompanyBadge v-if="txn.company" :company="txn.company" size="sm" />
+                      <span class="text-xs text-gray-600">{{ txn.company === 'PadmaShree Trade Link' ? 'PS' : 'RS' }}</span>
+                    </div>
+                  </div>
                   <div>
                     <div class="text-xs text-gray-500 mb-1">Amount</div>
                     <div class="text-lg font-bold text-blue-600">NPR {{ formatAmount(txn.amount) }}</div>
@@ -381,6 +394,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Autocomplete, createResource, call as $call } from 'frappe-ui'
 import { session } from '../../shared/data/session'
 import NepaliDatePicker from '../../shared/components/NepaliDatePicker.vue'
+import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 import { adToBs, getTodayBs } from '../../shared/utils/nepaliDate'
 
 // State

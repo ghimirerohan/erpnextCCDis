@@ -101,6 +101,10 @@ const props = defineProps({
   amount: {
     type: Number,
     required: true
+  },
+  company: {
+    type: String,
+    default: ''
   }
 })
 
@@ -157,7 +161,8 @@ const saveCheque = async () => {
       cheque_date_nepali: nepaliDateStr, // Nepali BS date as string
       bank_name: instituteName.value,
       amount: parseFloat(props.amount) || 0,
-      promised_date: adDateStr // English AD date for Date field
+      promised_date: adDateStr, // English AD date for Date field
+      company: props.company || '' // Pass company for correct assignment
     })
     
     if (!chequeResponse.success) {

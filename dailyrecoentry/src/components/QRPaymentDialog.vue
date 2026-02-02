@@ -127,8 +127,15 @@ const props = defineProps({
   lineName: {
     type: String,
     default: null
+  },
+  company: {
+    type: String,
+    default: ''
   }
 })
+
+// Check if using Padmashree company (uses different Fonepay credentials)
+const isPadmashree = () => props.company === 'PadmaShree Trade Link'
 
 const emit = defineEmits(['close', 'success'])
 
@@ -164,11 +171,17 @@ const generateQR = async () => {
       amount: props.amount, 
       customer: props.customer,
       customerName: props.customerName,
-      user: currentUser
+      user: currentUser,
+      company: props.company
     })
     
-    // Use the same working Fonepay API as QRPay.vue
-    const response = await call('custom_erp.api.fonepay.create_dynamic_qr', {
+    // Use different Fonepay API based on company
+    // Padmashree uses fonepay_padmashree credentials, Riya uses fonepay credentials
+    const apiMethod = isPadmashree() 
+      ? 'custom_erp.api.fonepay.create_dynamic_qr_padmashree'
+      : 'custom_erp.api.fonepay.create_dynamic_qr'
+    
+    const response = await call(apiMethod, {
       amount: props.amount,
       customer: props.customer,
       remarks1: `${currentUser}`,

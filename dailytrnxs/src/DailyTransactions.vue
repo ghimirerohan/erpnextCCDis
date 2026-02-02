@@ -30,9 +30,10 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-      <!-- Date Selection Card -->
+      <!-- Date & Company Selection Card -->
       <section class="rounded-xl shadow-lg p-6 sm:p-8" style="background-color: #ffffff; border: 1px solid #e5e7eb;">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
+          <!-- Today Info -->
           <div class="space-y-2">
             <div class="text-xs sm:text-sm" style="color: #6b7280;">Today (BS)</div>
             <div class="text-xl sm:text-2xl font-bold" style="color: #111827;">
@@ -44,6 +45,27 @@
             </div>
           </div>
           
+          <!-- Company Filter -->
+          <div class="space-y-2">
+            <div class="text-xs sm:text-sm uppercase tracking-wide" style="color: #4b5563;">Company</div>
+            <select
+              v-model="selectedCompany"
+              @change="handleCompanyChange"
+              class="select-dropdown min-w-[200px]"
+              :style="getCompanySelectStyle()"
+            >
+              <option v-for="company in companyOptions" :key="company.value" :value="company.value">
+                {{ company.label }}
+              </option>
+            </select>
+            <!-- Company Badge Display -->
+            <div v-if="selectedCompany" class="flex items-center gap-2 mt-1">
+              <CompanyBadge :company="selectedCompany" size="md" />
+              <span class="text-xs text-gray-600">{{ selectedCompany === 'PadmaShree Trade Link' ? 'Horlicks' : 'Multi-Brand' }}</span>
+            </div>
+          </div>
+          
+          <!-- Date Picker -->
           <div class="flex-1 sm:text-center space-y-2 lg:max-w-md lg:mx-auto">
             <div class="text-xs sm:text-sm uppercase tracking-wide mb-2" style="color: #4b5563;">Select Date</div>
             <NepaliDatePicker
@@ -65,6 +87,7 @@
             </button>
           </div>
           
+          <!-- Refresh Button -->
           <div class="flex flex-col gap-2">
             <button
               @click="refreshAll"
@@ -272,6 +295,19 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <span
+                v-if="selectedCompany"
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                :class="selectedCompany === 'PadmaShree Trade Link' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'"
+              >
+                <CompanyBadge :company="selectedCompany" size="sm" class="mr-1" />
+                Company: {{ selectedCompany === 'PadmaShree Trade Link' ? 'PadmaShree' : 'Riya' }}
+                <button @click="clearCompanyFilter" class="ml-2 hover:opacity-70">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </span>
+              <span
                 v-if="selectedDriver"
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800"
               >
@@ -350,12 +386,24 @@
               <div class="p-4" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid #e5e7eb;">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" 
-                         :style="{ backgroundColor: getDriverColor(index) }">
-                      {{ getInitials(item.driver_name) }}
+                    <div class="relative">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" 
+                           :style="{ backgroundColor: getDriverColor(index) }">
+                        {{ getInitials(item.driver_name) }}
+                      </div>
+                      <!-- Company Badge - shown when "All Companies" is selected -->
+                      <CompanyBadge 
+                        v-if="!selectedCompany && item.company"
+                        :company="item.company" 
+                        size="sm" 
+                        class="absolute -top-1 -right-1"
+                      />
                     </div>
                     <div>
-                      <div class="font-semibold text-base" style="color: #111827;">{{ item.driver_name }}</div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold text-base" style="color: #111827;">{{ item.driver_name }}</span>
+                        <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
+                      </div>
                       <div class="text-xs" style="color: #6b7280;">{{ item.line_count }} customer{{ item.line_count !== 1 ? 's' : '' }}</div>
                     </div>
                   </div>
@@ -520,12 +568,24 @@
               <div class="p-4" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid #e5e7eb;">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm" 
-                         :style="{ backgroundColor: getCustomerColor(index) }">
-                      {{ getInitials(item.customer_name) }}
+                    <div class="relative">
+                      <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm" 
+                           :style="{ backgroundColor: getCustomerColor(index) }">
+                        {{ getInitials(item.customer_name) }}
+                      </div>
+                      <!-- Company Badge - shown when "All Companies" is selected -->
+                      <CompanyBadge 
+                        v-if="!selectedCompany && item.company"
+                        :company="item.company" 
+                        size="sm" 
+                        class="absolute -top-1 -right-1"
+                      />
                     </div>
                     <div class="min-w-0 flex-1">
-                      <div class="font-semibold text-base truncate" style="color: #111827;">{{ item.customer_name }}</div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold text-base truncate" style="color: #111827;">{{ item.customer_name }}</span>
+                        <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
+                      </div>
                       <div class="text-xs truncate" style="color: #6b7280;">{{ item.customer }}</div>
                       <div class="flex items-center gap-1 mt-1">
                         <svg class="w-3 h-3" style="color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,12 +740,24 @@
               <div class="p-3" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-bottom: 1px solid #e5e7eb;">
                 <div class="flex items-start justify-between gap-2">
                   <div class="flex items-center gap-2 flex-1 min-w-0">
-                    <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                         :style="{ backgroundColor: getCustomerColor(idx) }">
-                      {{ getInitials(line.customer_name || line.customer) }}
+                    <div class="relative">
+                      <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                           :style="{ backgroundColor: getCustomerColor(idx) }">
+                        {{ getInitials(line.customer_name || line.customer) }}
+                      </div>
+                      <!-- Company Badge - shown when "All Companies" is selected -->
+                      <CompanyBadge 
+                        v-if="!selectedCompany && line.company"
+                        :company="line.company" 
+                        size="sm" 
+                        class="absolute -top-1 -right-1"
+                      />
                     </div>
                     <div class="min-w-0 flex-1">
-                      <div class="font-semibold text-sm truncate" style="color: #111827;">{{ line.customer_name || line.customer }}</div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold text-sm truncate" style="color: #111827;">{{ line.customer_name || line.customer }}</span>
+                        <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
+                      </div>
                       <div class="text-xs" style="color: #6b7280;">{{ line.driver_name }}</div>
                     </div>
                   </div>
@@ -786,11 +858,23 @@
            >
              <div class="flex flex-col sm:flex-row justify-between gap-4">
                <div class="flex items-start gap-3">
-                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-rose-500">
-                    {{ getInitials(cheque.customer_name) }}
+                 <div class="relative">
+                   <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-rose-500">
+                      {{ getInitials(cheque.customer_name) }}
+                   </div>
+                   <!-- Company Badge - shown when "All Companies" is selected -->
+                   <CompanyBadge 
+                     v-if="!selectedCompany"
+                     :company="getChequeCompany(cheque)" 
+                     size="sm" 
+                     class="absolute -top-1 -right-1"
+                   />
                  </div>
                  <div>
-                   <div class="font-semibold text-gray-900">{{ cheque.customer_name }}</div>
+                   <div class="flex items-center gap-2">
+                     <span class="font-semibold text-gray-900">{{ cheque.customer_name }}</span>
+                     <CompanyBadge v-if="selectedCompany" :company="selectedCompany" size="sm" />
+                   </div>
                    <div class="text-xs text-gray-500">Cheque No: {{ cheque.cheque_no }}</div>
                    <div class="text-xs text-gray-500">{{ cheque.bank_name }}</div>
                    <div v-if="cheque.brought_by_full_name" class="text-xs text-gray-600 mt-1">
@@ -822,6 +906,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { createResource } from 'frappe-ui'
 import { session } from '../../shared/data/session'
 import NepaliDatePicker from '../../shared/components/NepaliDatePicker.vue'
+import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 import { adToBs, getTodayBs } from '../../shared/utils/nepaliDate'
 
 // State
@@ -882,8 +967,16 @@ const selectedDriver = ref('')
 const selectedCustomer = ref('')
 const selectedCategory = ref('')
 const selectedStatus = ref('')
+const selectedCompany = ref('') // '' = All companies
 const driverOptions = ref([])
 const customerOptions = ref([])
+
+// Company options
+const companyOptions = [
+  { value: '', label: 'All Companies' },
+  { value: 'PadmaShree Trade Link', label: 'PadmaShree Trade Link' },
+  { value: 'Riya Trades and Suppliers', label: 'Riya Trades and Suppliers' },
+]
 
 // Data
 const driverData = ref([])
@@ -928,7 +1021,7 @@ const chequeListResource = createResource({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Boolean(selectedDriver.value || selectedCustomer.value || selectedCategory.value || selectedStatus.value)
+  return Boolean(selectedDriver.value || selectedCustomer.value || selectedCategory.value || selectedStatus.value || selectedCompany.value)
 })
 
 const hasData = computed(() => {
@@ -965,7 +1058,7 @@ const filteredCheques = computed(() => {
 watch(selectedViewMode, (newMode) => {
   if (newMode === 'cheques') {
     loadingCheques.value = true
-    chequeListResource.submit()
+    chequeListResource.submit({ company: selectedCompany.value || undefined })
   }
 })
 
@@ -1086,11 +1179,37 @@ const clearStatusFilter = () => {
   applyFilters()
 }
 
+const clearCompanyFilter = () => {
+  selectedCompany.value = ''
+  applyFilters()
+}
+
+const handleCompanyChange = () => {
+  // Reload all data with the new company filter
+  refreshAll()
+}
+
+// Get style for company select based on selected company
+const getCompanySelectStyle = () => {
+  if (selectedCompany.value === 'PadmaShree Trade Link') {
+    return 'border-color: #0077B6; background-color: #E6F4FA; color: #0077B6;'
+  } else if (selectedCompany.value === 'Riya Trades and Suppliers') {
+    return 'border-color: #F40009; background-color: #FEE6E6; color: #F40009;'
+  }
+  return 'color: #111827; background-color: #ffffff;'
+}
+
+// Get company for cheque (blank = Riya)
+const getChequeCompany = (cheque) => {
+  return cheque.company || 'Riya Trades and Suppliers'
+}
+
 const clearAllFilters = () => {
   selectedDriver.value = ''
   selectedCustomer.value = ''
   selectedCategory.value = ''
   selectedStatus.value = ''
+  selectedCompany.value = ''
   applyFilters()
 }
 
@@ -1119,10 +1238,11 @@ const clearDateFilter = async () => {
 }
 
 const loadSummary = async () => {
-  console.log('DailyTransactions: loadSummary calling with date:', selectedDate.value);
+  console.log('DailyTransactions: loadSummary calling with date:', selectedDate.value, 'company:', selectedCompany.value);
   try {
     const res = await summaryResource.fetch({
       date: selectedDate.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     // Support both raw response and unwrapped data
@@ -1177,6 +1297,7 @@ const loadDriverData = async () => {
       date: selectedDate.value || undefined,
       driver_filter: selectedDriver.value || undefined,
       status_filter: selectedStatus.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const data = res?.success ? res.data : (Array.isArray(res) ? res : null)
@@ -1200,6 +1321,7 @@ const loadCustomerData = async () => {
       driver_filter: selectedDriver.value || undefined,
       customer_filter: selectedCustomer.value || undefined,
       status_filter: selectedStatus.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const data = res?.success ? res.data : (Array.isArray(res) ? res : null)
@@ -1224,6 +1346,7 @@ const loadDetailData = async () => {
       customer_filter: selectedCustomer.value || undefined,
       category_filter: selectedCategory.value || undefined,
       status_filter: selectedStatus.value || undefined,
+      company: selectedCompany.value || undefined,
     })
     
     const data = res?.success ? res.data : (Array.isArray(res) ? res : null)

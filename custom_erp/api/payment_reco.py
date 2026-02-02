@@ -86,6 +86,117 @@ def parse_and_validate_csv(csv_content: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+def parse_and_validate_csv_padmashree(csv_content: str) -> Dict[str, Any]:
+    """
+    Parse Padmashree CSV file format and validate customers exist in the system.
+    CSV columns: Customer ID, Picklist Name, Vehicle, Driver, Driver Mobile No., 
+                 Invoice Number, Date, Customer Ledger, PAN, Shipping Address, 
+                 Salesperson, Area, Payment Mode, Amount Before VAT, Net Amount, Remarks
+    """
+    try:
+        csv_file = io.StringIO(csv_content)
+        csv_reader = csv.DictReader(csv_file)
+        parsed_rows = []
+        unmatched_customers = []
+        driver_info = None
+        
+        for row in csv_reader:
+            # Customer ID maps to outlet_code
+            raw_customer_id = row.get("Customer ID", "").strip().strip('"')
+            customer_id = raw_customer_id.lstrip('0')
+            if not customer_id and raw_customer_id:
+                customer_id = "0"
+            
+            # Customer Ledger is the customer name
+            customer_ledger = row.get("Customer Ledger", "").strip().strip('"')
+            
+            # Other fields
+            picklist_name = row.get("Picklist Name", "").strip().strip('"')
+            vehicle = row.get("Vehicle", "").strip().strip('"')
+            driver_name = row.get("Driver", "").strip().strip('"')
+            driver_mobile = row.get("Driver Mobile No.", "").strip().strip('"')
+            invoice_number = row.get("Invoice Number", "").strip().strip('"')
+            date = row.get("Date", "").strip().strip('"')
+            pan = row.get("PAN", "").strip().strip('"')
+            shipping_address = row.get("Shipping Address", "").strip().strip('"')
+            salesperson = row.get("Salesperson", "").strip().strip('"')
+            area = row.get("Area", "").strip().strip('"')
+            payment_mode = row.get("Payment Mode", "").strip().strip('"')
+            amount_before_vat = row.get("Amount Before VAT", "0").strip().strip('"').replace(',', '')
+            net_amount = row.get("Net Amount", "0").strip().strip('"').replace(',', '')
+            remarks = row.get("Remarks", "").strip().strip('"')
+            
+            # Parse amounts
+            try:
+                amount = float(net_amount) if net_amount else 0
+            except ValueError:
+                amount = 0
+            
+            # Store driver info (same for all rows)
+            if not driver_info and driver_name:
+                driver_info = {
+                    "driver_name": driver_name,
+                    "driver_mobile": driver_mobile,
+                    "vehicle": vehicle,
+                    "picklist_name": picklist_name
+                }
+            
+            # Check if customer exists
+            customer_exists = frappe.db.exists("Customer", customer_id)
+            
+            parsed_row = {
+                "outlet_code": customer_id,
+                "outlet_name": customer_ledger,
+                "amount": amount,
+                "customer_exists": bool(customer_exists),
+                # Padmashree specific fields
+                "invoice_number": invoice_number,
+                "pan": pan,
+                "shipping_address": shipping_address,
+                "salesperson": salesperson,
+                "area": area,
+                "payment_mode": payment_mode,
+                "date": date,
+                "remarks": remarks,
+                "driver_name": driver_name
+            }
+            parsed_rows.append(parsed_row)
+            
+            if not customer_exists:
+                # Include all available data for customer creation
+                unmatched_customers.append({
+                    "outlet_code": customer_id,
+                    "outlet_name": customer_ledger,
+                    "pan": pan,
+                    "shipping_address": shipping_address,
+                    "area": area
+                })
+        
+        # Remove duplicate unmatched customers
+        seen = set()
+        unique_unmatched = []
+        for c in unmatched_customers:
+            if c["outlet_code"] not in seen:
+                seen.add(c["outlet_code"])
+                unique_unmatched.append(c)
+        
+        return {
+            "success": True,
+            "data": {
+                "parsed_rows": parsed_rows,
+                "unmatched_customers": unique_unmatched,
+                "driver_info": driver_info,
+                "total_amount": sum(r["amount"] for r in parsed_rows),
+                "row_count": len(parsed_rows)
+            },
+            "message": f"Parsed {len(parsed_rows)} rows"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error parsing Padmashree CSV: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": f"Error parsing CSV: {str(e)}"}
+
+
+@frappe.whitelist()
 def get_territories_list() -> Dict[str, Any]:
     try:
         territories = frappe.get_all("Territory", fields=["name"], filters={"is_group": 0}, order_by="name")
@@ -122,6 +233,86 @@ def create_customer_from_csv(outlet_code: str, outlet_name: str, territory: str,
 
 
 @frappe.whitelist()
+def create_customer_from_csv_padmashree(
+    outlet_code: str, 
+    outlet_name: str, 
+    territory: str = "Nepal",
+    tax_id: str = "", 
+    phone_number: str = "",
+    shipping_address: str = "",
+    area: str = ""
+) -> Dict[str, Any]:
+    """
+    Create customer for Padmashree with Horlicks customer group.
+    Pre-fills available data from CSV.
+    """
+    try:
+        if not outlet_code or not outlet_name:
+            raise ValueError("Customer ID and Customer Name are required")
+        
+        # Validate phone if provided
+        phone_clean = ""
+        if phone_number:
+            phone_clean = ''.join(filter(str.isdigit, phone_number))
+            if phone_clean and len(phone_clean) != 10:
+                phone_clean = ""  # Reset if not valid, but don't block creation
+        
+        if frappe.db.exists("Customer", outlet_code):
+            return {"success": False, "data": None, "message": f"Customer with code '{outlet_code}' already exists"}
+        
+        # Build customer doc with Horlicks group
+        customer_data = {
+            "doctype": "Customer",
+            "customer_name": outlet_name,
+            "customer_type": "Company",
+            "territory": territory or "Nepal",
+            "customer_group": "Horlicks"  # Important: Horlicks group for Padmashree
+        }
+        
+        # Add optional fields if provided
+        if tax_id:
+            customer_data["tax_id"] = tax_id
+        if phone_clean:
+            customer_data["mobile_no"] = phone_clean
+        
+        customer_doc = frappe.get_doc(customer_data)
+        customer_doc.insert(ignore_permissions=True, set_name=outlet_code)
+        frappe.db.commit()
+        
+        if customer_doc.name != outlet_code:
+            frappe.rename_doc("Customer", customer_doc.name, outlet_code, force=True)
+            frappe.db.commit()
+        
+        # Optionally create address if shipping_address provided
+        if shipping_address:
+            try:
+                address_doc = frappe.get_doc({
+                    "doctype": "Address",
+                    "address_title": outlet_name,
+                    "address_type": "Shipping",
+                    "address_line1": shipping_address,
+                    "city": area or "Nepal",
+                    "country": "Nepal",
+                    "links": [{"link_doctype": "Customer", "link_name": outlet_code}]
+                })
+                address_doc.insert(ignore_permissions=True)
+                frappe.db.commit()
+            except Exception as addr_err:
+                # Log but don't fail if address creation fails
+                frappe.log_error(f"Error creating address for {outlet_code}: {str(addr_err)}")
+        
+        return {
+            "success": True, 
+            "data": {"name": outlet_code, "customer_name": outlet_name, "customer_group": "Horlicks"}, 
+            "message": f"Customer created successfully with Horlicks group"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error creating Padmashree customer: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": f"Error creating customer: {str(e)}"}
+
+
+@frappe.whitelist()
 def get_drivers_list() -> Dict[str, Any]:
     try:
         drivers = frappe.get_all("Driver", fields=["name", "full_name"], filters={"status": "Active"}, order_by="full_name")
@@ -132,7 +323,8 @@ def get_drivers_list() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def create_payment_recos(driver_assignments: str, csv_data: str) -> Dict[str, Any]:
+def create_payment_recos(driver_assignments: str, csv_data: str, company: str = "Riya Trades and Suppliers") -> Dict[str, Any]:
+    """Create payment recos for Riya (with loadsheet grouping and per-driver assignment)."""
     try:
         assignments = json.loads(driver_assignments)
         grouped_data = json.loads(csv_data)
@@ -150,7 +342,10 @@ def create_payment_recos(driver_assignments: str, csv_data: str) -> Dict[str, An
                         customer_amounts[customer] = customer_amounts.get(customer, 0) + amount
                         total_amount += amount
             reco_doc = frappe.get_doc({
-                "doctype": "Daily Sales Payment Reco", "driver": driver, "loadsheet_number": ", ".join(loadsheets),
+                "doctype": "Daily Sales Payment Reco", 
+                "driver": driver, 
+                "loadsheet_number": ", ".join(loadsheets),
+                "company": company,  # Set company
                 "initial_total_amount": total_amount, "net_total_amount": total_amount, "remaining_amount": total_amount,
                 "additional_amount": 0, "return_amount": 0, "qr_amount": 0, "cheque_amount": 0, "cash_amount": 0,
                 "credit_amount": 0, "expense_amount": 0, "settled": 0
@@ -167,6 +362,98 @@ def create_payment_recos(driver_assignments: str, csv_data: str) -> Dict[str, An
     except Exception as e:
         frappe.db.rollback()
         frappe.log_error(f"Error creating payment recos: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": None, "message": f"Error: {str(e)}"}
+
+
+@frappe.whitelist()
+def create_payment_recos_padmashree(driver: str, csv_data: str) -> Dict[str, Any]:
+    """
+    Create payment reco for Padmashree with single driver (no loadsheet grouping).
+    All rows go under one driver for the entire upload.
+    
+    Args:
+        driver: Driver full name (single driver for entire file)
+        csv_data: JSON string of parsed rows from parse_and_validate_csv_padmashree
+    """
+    try:
+        rows = json.loads(csv_data)
+        company = "PadmaShree Trade Link"
+        
+        # Find driver by full name
+        driver_id = frappe.db.get_value("Driver", {"full_name": driver}, "name")
+        if not driver_id:
+            frappe.throw(_(f"Driver not found: {driver}"))
+        
+        # Aggregate amounts by customer, keeping track of invoice numbers
+        customer_data = {}  # {customer_id: {"amount": total, "invoices": [...]}}
+        total_amount = 0
+        
+        for row in rows:
+            customer = row["outlet_code"]
+            amount = float(row.get("amount", 0))
+            invoice_number = row.get("invoice_number", "")
+            
+            if customer not in customer_data:
+                customer_data[customer] = {"amount": 0, "invoices": []}
+            
+            customer_data[customer]["amount"] += amount
+            if invoice_number:
+                customer_data[customer]["invoices"].append(invoice_number)
+            total_amount += amount
+        
+        # Create single reco document (no loadsheet for Padmashree)
+        reco_doc = frappe.get_doc({
+            "doctype": "Daily Sales Payment Reco",
+            "driver": driver_id,
+            "company": company,
+            "loadsheet_number": "",  # No loadsheet for Padmashree
+            "initial_total_amount": total_amount,
+            "net_total_amount": total_amount,
+            "remaining_amount": total_amount,
+            "additional_amount": 0,
+            "return_amount": 0,
+            "qr_amount": 0,
+            "cheque_amount": 0,
+            "cash_amount": 0,
+            "credit_amount": 0,
+            "expense_amount": 0,
+            "settled": 0
+        })
+        
+        # Add lines for each customer
+        for customer, data in customer_data.items():
+            # Join multiple invoices with comma for reference
+            sales_ref = ", ".join(data["invoices"]) if data["invoices"] else ""
+            
+            reco_doc.append("daily_sales_payment_reco_line", {
+                "customer": customer,
+                "initial_total_amount": data["amount"],
+                "net_total_amount": data["amount"],
+                "remaining_amount": data["amount"],
+                "sales_reference_no": sales_ref,  # Store invoice numbers
+                "settled": 0
+            })
+        
+        reco_doc.insert()
+        frappe.db.commit()
+        
+        # Count total invoices processed
+        invoice_count = len(rows)
+        
+        return {
+            "success": True,
+            "data": {
+                "created_recos": [reco_doc.name],
+                "total_amount": total_amount,
+                "customer_count": len(customer_data),
+                "invoice_count": invoice_count,
+                "company": company
+            },
+            "message": f"Created Padmashree reco with {len(customer_data)} customers (from {invoice_count} invoices)"
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error creating Padmashree payment reco: {str(e)}\n{traceback.format_exc()}")
         return {"success": False, "data": None, "message": f"Error: {str(e)}"}
 
 
@@ -200,25 +487,38 @@ def settle_all_pending_as_cash(reco_name: str) -> Dict[str, Any]:
 
 # --- DASHBOARD API METHODS ---
 
-def get_cheque_settlement_summary():
+def get_cheque_settlement_summary(company: str = None):
     """Helper to get cheque settlement info using direct SQL for reliability and performance"""
     try:
         # Get today's date in BS
         today_bs = nepali_datetime.date.today().strftime('%Y-%m-%d')
         
+        # Build company condition
+        company_condition = ""
+        params = []
+        if company:
+            # Handle blank company as Riya
+            company_condition = " AND (company = %s OR (company IS NULL OR company = ''))"
+            if company == "Riya Trades and Suppliers":
+                company_condition = " AND (company = %s OR company IS NULL OR company = '')"
+            params.append(company)
+        
         # 1. Total pending cheques
-        pending_res = frappe.db.sql("""
+        pending_query = f"""
             SELECT COUNT(*) as count, IFNULL(SUM(amount), 0) as amount
             FROM `tabCheques Taageta`
-            WHERE settled = 0
-        """, as_dict=True)[0]
+            WHERE settled = 0{company_condition}
+        """
+        pending_res = frappe.db.sql(pending_query, tuple(params), as_dict=True)[0]
         
         # 2. Due today or late (pending)
-        due_res = frappe.db.sql("""
+        due_params = params + [today_bs] if company else [today_bs]
+        due_query = f"""
             SELECT COUNT(*) as count, IFNULL(SUM(amount), 0) as amount
             FROM `tabCheques Taageta`
-            WHERE settled = 0 AND cheque_date_nepali <= %s
-        """, (today_bs,), as_dict=True)[0]
+            WHERE settled = 0{company_condition} AND cheque_date_nepali <= %s
+        """
+        due_res = frappe.db.sql(due_query, tuple(due_params), as_dict=True)[0]
         
         return {
             "total_pending_count": int(pending_res.count),
@@ -239,13 +539,20 @@ def get_cheque_settlement_summary():
 
 
 @frappe.whitelist()
-def get_daily_transactions_summary(date: str = None) -> Dict[str, Any]:
+def get_daily_transactions_summary(date: str = None, company: str = None) -> Dict[str, Any]:
     try:
         from frappe.utils import nowdate
         if not date: date = nowdate()
         
+        # Build company filter
+        company_condition = ""
+        params = [f"{date} 00:00:00", f"{date} 23:59:59"]
+        if company:
+            company_condition = " AND company = %s"
+            params.append(company)
+        
         # SQL for fast aggregation, ignoring timezone/permission complexities for the summary
-        query = """
+        query = f"""
             SELECT 
                 IFNULL(SUM(net_total_amount), 0) as net_total_amount,
                 IFNULL(SUM(cash_amount), 0) as cash_amount,
@@ -257,16 +564,18 @@ def get_daily_transactions_summary(date: str = None) -> Dict[str, Any]:
                 IFNULL(SUM(remaining_amount), 0) as remaining_amount,
                 COUNT(*) as total_count
             FROM `tabDaily Sales Payment Reco`
-            WHERE creation >= %s AND creation <= %s
+            WHERE creation >= %s AND creation <= %s{company_condition}
         """
-        params = (f"{date} 00:00:00", f"{date} 23:59:59")
-        summary_res = frappe.db.sql(query, params, as_dict=True)[0]
+        summary_res = frappe.db.sql(query, tuple(params), as_dict=True)[0]
         
         # Get parent names for child aggregation
-        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=[["creation", ">=", f"{date} 00:00:00"], ["creation", "<=", f"{date} 23:59:59"]], fields=["name", "driver"], ignore_permissions=True)
+        parent_filters = [["creation", ">=", f"{date} 00:00:00"], ["creation", "<=", f"{date} 23:59:59"]]
+        if company:
+            parent_filters.append(["company", "=", company])
+        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=parent_filters, fields=["name", "driver"], ignore_permissions=True)
         
         if not parent_records:
-            return {"success": True, "data": {"net_total_amount": 0, "total_records": 0, "cheque_settlement_info": get_cheque_settlement_summary()}, "message": "No records"}
+            return {"success": True, "data": {"net_total_amount": 0, "total_records": 0, "cheque_settlement_info": get_cheque_settlement_summary(company)}, "message": "No records"}
 
         parent_names = [p.name for p in parent_records]
         
@@ -315,7 +624,7 @@ def get_daily_transactions_summary(date: str = None) -> Dict[str, Any]:
                 "return_count": int(counts_res.return_count),
                 "drivers": drivers_list,
                 "customers": [{"customer": c.customer, "customer_name": c.customer_name or c.customer} for c in customers_res],
-                "cheque_settlement_info": get_cheque_settlement_summary()
+                "cheque_settlement_info": get_cheque_settlement_summary(company)
             }
         }
     except Exception as e:
@@ -324,7 +633,7 @@ def get_daily_transactions_summary(date: str = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, status_filter: str = None) -> Dict[str, Any]:
+def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, status_filter: str = None, company: str = None) -> Dict[str, Any]:
     try:
         from frappe.utils import nowdate
         if not date: date = nowdate()
@@ -332,6 +641,7 @@ def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, 
         if driver_filter: filters.append(["driver", "=", driver_filter])
         if status_filter == "settled": filters.append(["settled", "=", 1])
         elif status_filter == "pending": filters.append(["settled", "=", 0])
+        if company: filters.append(["company", "=", company])
         
         parent_records = frappe.get_all("Daily Sales Payment Reco", filters=filters, fields=["*"], ignore_permissions=True)
         if not parent_records: return {"success": True, "data": []}
@@ -342,6 +652,7 @@ def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, 
             if d_id not in driver_data:
                 driver_data[d_id] = {
                     "driver": d_id, "driver_name": frappe.db.get_value("Driver", d_id, "full_name") or d_id,
+                    "company": parent.company or "",
                     "initial_total_amount": 0, "additional_amount": 0, "net_total_amount": 0, 
                     "cash_amount": 0, "qr_amount": 0, "cheque_amount": 0,
                     "credit_amount": 0, "return_amount": 0, "expense_amount": 0, "remaining_amount": 0,
@@ -350,6 +661,9 @@ def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, 
             for field in ["initial_total_amount", "additional_amount", "net_total_amount", "cash_amount", "qr_amount", "cheque_amount", "credit_amount", "return_amount", "expense_amount", "remaining_amount", "cash_received", "cash_difference"]:
                 driver_data[d_id][field] += float(parent.get(field) or 0)
             driver_data[d_id]["parent_names"].append(parent.name)
+            # Update company (in case driver has records from multiple companies, use the first one found)
+            if not driver_data[d_id]["company"]:
+                driver_data[d_id]["company"] = parent.company or ""
             
         for d_id, data in driver_data.items():
             data["line_count"] = frappe.db.count("Daily Sales Payment Reco Line", filters={"parent": ["in", data["parent_names"]]})
@@ -362,18 +676,20 @@ def get_daily_transactions_by_user(date: str = None, driver_filter: str = None, 
 
 
 @frappe.whitelist()
-def get_daily_transactions_by_customer(date: str = None, driver_filter: str = None, customer_filter: str = None, status_filter: str = None) -> Dict[str, Any]:
+def get_daily_transactions_by_customer(date: str = None, driver_filter: str = None, customer_filter: str = None, status_filter: str = None, company: str = None) -> Dict[str, Any]:
     try:
         from frappe.utils import nowdate
         if not date: date = nowdate()
         p_filters = [["creation", ">=", f"{date} 00:00:00"], ["creation", "<=", f"{date} 23:59:59"]]
         if driver_filter: p_filters.append(["driver", "=", driver_filter])
+        if company: p_filters.append(["company", "=", company])
         
-        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=p_filters, fields=["name", "driver"], ignore_permissions=True)
+        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=p_filters, fields=["name", "driver", "company"], ignore_permissions=True)
         if not parent_records: return {"success": True, "data": []}
         
         p_names = [p.name for p in parent_records]
         driver_lookup = {p.name: p.driver for p in parent_records}
+        company_lookup = {p.name: p.company for p in parent_records}
         
         l_filters = [["parent", "in", p_names]]
         if customer_filter: l_filters.append(["customer", "=", customer_filter])
@@ -387,6 +703,7 @@ def get_daily_transactions_by_customer(date: str = None, driver_filter: str = No
             result.append({
                 "name": l.name, "customer": l.customer, "customer_name": frappe.db.get_value("Customer", l.customer, "customer_name") or l.customer,
                 "driver": d_id, "driver_name": frappe.db.get_value("Driver", d_id, "full_name") or "Unknown",
+                "company": company_lookup.get(l.parent, ""),
                 "net_total_amount": float(l.net_total_amount or 0), "cash_amount": float(l.cash_amount or 0),
                 "qr_amount": float(l.qr_amount or 0), "cheque_amount": float(l.cheque_amount or 0),
                 "credit_amount": float(l.credit_amount or 0), "return_amount": float(l.return_amount or 0),
@@ -399,18 +716,20 @@ def get_daily_transactions_by_customer(date: str = None, driver_filter: str = No
 
 
 @frappe.whitelist()
-def get_daily_transactions_details(date: str = None, driver_filter: str = None, customer_filter: str = None, category_filter: str = None, status_filter: str = None, limit: int = 200) -> Dict[str, Any]:
+def get_daily_transactions_details(date: str = None, driver_filter: str = None, customer_filter: str = None, category_filter: str = None, status_filter: str = None, company: str = None, limit: int = 200) -> Dict[str, Any]:
     try:
         from frappe.utils import nowdate
         if not date: date = nowdate()
         p_filters = [["creation", ">=", f"{date} 00:00:00"], ["creation", "<=", f"{date} 23:59:59"]]
         if driver_filter: p_filters.append(["driver", "=", driver_filter])
+        if company: p_filters.append(["company", "=", company])
         
-        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=p_filters, fields=["name", "driver"], ignore_permissions=True)
+        parent_records = frappe.get_all("Daily Sales Payment Reco", filters=p_filters, fields=["name", "driver", "company"], ignore_permissions=True)
         if not parent_records: return {"success": True, "data": []}
         
         p_names = [p.name for p in parent_records]
         driver_lookup = {p.name: p.driver for p in parent_records}
+        company_lookup = {p.name: p.company for p in parent_records}
         
         l_filters = [["parent", "in", p_names]]
         if customer_filter: l_filters.append(["customer", "=", customer_filter])
@@ -427,6 +746,7 @@ def get_daily_transactions_details(date: str = None, driver_filter: str = None, 
             result.append({
                 "name": l.name, "parent": l.parent, "customer": l.customer, "customer_name": frappe.db.get_value("Customer", l.customer, "customer_name") or l.customer,
                 "driver": d_id, "driver_name": frappe.db.get_value("Driver", d_id, "full_name") or "Unknown",
+                "company": company_lookup.get(l.parent, ""),
                 "initial_total_amount": float(l.initial_total_amount or 0), "additional_amount": float(l.additional_amount or 0),
                 "net_total_amount": float(l.net_total_amount or 0), "cash_amount": float(l.cash_amount or 0),
                 "qr_amount": float(l.qr_amount or 0), "cheque_amount": float(l.cheque_amount or 0),
@@ -441,10 +761,10 @@ def get_daily_transactions_details(date: str = None, driver_filter: str = None, 
 
 
 @frappe.whitelist()
-def get_today_reco_summary(driver: str = None) -> Dict[str, Any]:
+def get_today_reco_summary(driver: str = None, company: str = None) -> Dict[str, Any]:
     """
     Get summary of today's payment reconciliation records.
-    Filterable by driver.
+    Filterable by driver and company.
     """
     try:
         from frappe.utils import nowdate
@@ -456,6 +776,8 @@ def get_today_reco_summary(driver: str = None) -> Dict[str, Any]:
         ]
         if driver:
             filters.append(["driver", "=", driver])
+        if company:
+            filters.append(["company", "=", company])
             
         recos = frappe.get_all("Daily Sales Payment Reco", filters=filters, fields=["name"], ignore_permissions=True)
         
@@ -511,7 +833,7 @@ def get_today_reco_summary(driver: str = None) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_due_cheques(filters: str = None) -> Dict[str, Any]:
+def get_due_cheques(filters: str = None, company: str = None) -> Dict[str, Any]:
     try:
         conditions = {"settled": 0}
         if filters:
@@ -519,6 +841,11 @@ def get_due_cheques(filters: str = None) -> Dict[str, Any]:
                 extra = json.loads(filters)
                 if extra.get("customer"): conditions["customer"] = extra["customer"]
             except: pass
+        
+        # Apply company filter
+        if company:
+            conditions["company"] = company
+        
         cheques = frappe.get_all("Cheques Taageta", fields=["*"], filters=conditions, order_by="cheque_date_nepali asc", ignore_permissions=True)
         for c in cheques: 
             c["customer_name"] = frappe.db.get_value("Customer", c.customer, "customer_name")
@@ -527,6 +854,9 @@ def get_due_cheques(filters: str = None) -> Dict[str, Any]:
                 c["brought_by_full_name"] = frappe.db.get_value("User", c.brought_by, "full_name") or c.brought_by
             else:
                 c["brought_by_full_name"] = None
+            # Ensure company is set (blank = Riya)
+            if not c.get("company"):
+                c["company"] = "Riya Trades and Suppliers"
         return {"success": True, "data": cheques}
     except Exception as e:
         frappe.log_error(f"Error in due_cheques: {str(e)}")
@@ -677,7 +1007,7 @@ def compress_and_attach_image(image_data: str, reference_doctype: str, reference
 
 
 @frappe.whitelist()
-def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str, bank_name: str, amount: float, promised_date: str = None) -> Dict[str, Any]:
+def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str, bank_name: str, amount: float, promised_date: str = None, company: str = None) -> Dict[str, Any]:
     """
     Create a new Cheques Taageta record.
     
@@ -688,6 +1018,7 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         bank_name: Institute/Bank name (required)
         amount: Cheque amount (required)
         promised_date: AD date for promised date field (optional)
+        company: Company name (optional, defaults to Riya Trades and Suppliers)
     
     Returns:
         Success response with cheque record name or error message
@@ -708,6 +1039,10 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         if not frappe.db.exists("Customer", customer):
             raise ValueError(f"Customer '{customer}' does not exist")
         
+        # Default company if not provided
+        if not company:
+            company = "Riya Trades and Suppliers"
+        
         # Create the Cheques Taageta document
         cheque_doc = frappe.get_doc({
             "doctype": "Cheques Taageta",
@@ -719,7 +1054,8 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
             "promised_date": promised_date if promised_date else None,
             "brought_by": frappe.session.user,
             "settled": 0,
-            "attempts": 0
+            "attempts": 0,
+            "company": company
         })
         
         cheque_doc.insert(ignore_permissions=True)
@@ -741,23 +1077,31 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         return {"success": False, "data": None, "message": str(e)}
 
 @frappe.whitelist()
-def get_all_active_recos() -> Dict[str, Any]:
+def get_all_active_recos(company: str = None) -> Dict[str, Any]:
     """
     Get all unsettled payment reconciliation records grouped by driver.
+    Optionally filter by company.
     """
     try:
-        recos = frappe.db.sql("""
+        company_filter = ""
+        params = []
+        if company:
+            company_filter = "AND r.company = %s"
+            params = [company]
+        
+        recos = frappe.db.sql(f"""
             SELECT 
                 d.full_name as driver_name,
                 r.driver,
+                r.company,
                 COUNT(l.name) as count
             FROM `tabDaily Sales Payment Reco` r
             JOIN `tabDriver` d ON r.driver = d.name
             LEFT JOIN `tabDaily Sales Payment Reco Line` l ON l.parent = r.name
-            WHERE r.settled = 0
+            WHERE r.settled = 0 {company_filter}
             GROUP BY r.name
             ORDER BY d.full_name ASC
-        """, as_dict=True)
+        """, tuple(params) if params else None, as_dict=True)
         
         return {
             "success": True,
@@ -767,6 +1111,89 @@ def get_all_active_recos() -> Dict[str, Any]:
     except Exception as e:
         frappe.log_error(f"Error in get_all_active_recos: {str(e)}\n{traceback.format_exc()}")
         return {"success": False, "data": [], "message": str(e)}
+
+
+@frappe.whitelist()
+def get_companies_list() -> Dict[str, Any]:
+    """
+    Get list of companies for dropdown.
+    """
+    try:
+        companies = frappe.get_all("Company", fields=["name", "company_name"], order_by="company_name")
+        return {
+            "success": True,
+            "data": [{"name": c.name, "company_name": c.company_name} for c in companies],
+            "message": f"Retrieved {len(companies)} companies"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting companies: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": [], "message": f"Error: {str(e)}"}
+
+
+@frappe.whitelist()
+def get_horlicks_customers() -> Dict[str, Any]:
+    """
+    Get customers in the Horlicks customer group (for Padmashree).
+    """
+    try:
+        customers = frappe.get_all(
+            "Customer",
+            filters={"customer_group": "Horlicks", "disabled": 0},
+            fields=["name", "customer_name"],
+            order_by="customer_name",
+            limit=5000
+        )
+        return {
+            "success": True,
+            "data": [{"name": c.name, "customer_name": c.customer_name or c.name} for c in customers],
+            "message": f"Retrieved {len(customers)} Horlicks customers"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting Horlicks customers: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": [], "message": f"Error: {str(e)}"}
+
+
+@frappe.whitelist()
+def get_non_horlicks_customers() -> Dict[str, Any]:
+    """
+    Get customers NOT in the Horlicks customer group (for Riya).
+    """
+    try:
+        customers = frappe.get_all(
+            "Customer",
+            filters=[
+                ["customer_group", "!=", "Horlicks"],
+                ["disabled", "=", 0]
+            ],
+            fields=["name", "customer_name"],
+            order_by="customer_name",
+            limit=5000
+        )
+        return {
+            "success": True,
+            "data": [{"name": c.name, "customer_name": c.customer_name or c.name} for c in customers],
+            "message": f"Retrieved {len(customers)} non-Horlicks customers"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting non-Horlicks customers: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": [], "message": f"Error: {str(e)}"}
+
+
+@frappe.whitelist()
+def get_customers_for_company(company: str = "") -> Dict[str, Any]:
+    """
+    Get customers appropriate for the given company.
+    - Padmashree: Horlicks customers only
+    - Riya (or others): Non-Horlicks customers only
+    """
+    try:
+        if company == "PadmaShree Trade Link":
+            return get_horlicks_customers()
+        else:
+            return get_non_horlicks_customers()
+    except Exception as e:
+        frappe.log_error(f"Error getting customers for company: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "data": [], "message": f"Error: {str(e)}"}
 
 
 def get_driver_for_user(user: str) -> Optional[str]:
@@ -788,7 +1215,7 @@ def get_driver_for_user(user: str) -> Optional[str]:
 
 
 @frappe.whitelist()
-def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
+def get_driver_reco_data(driver_name: str = None, company: str = None) -> Dict[str, Any]:
     """
     Get reconciliation data for a specific driver or the current user.
     
@@ -796,6 +1223,7 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
     - If driver_name is provided (admin selecting), find that driver
     - If no driver_name, find driver via: Driver.employee -> Employee.user_id = current user
     - Admins can see all drivers, non-admins only see their own
+    - company filter can be used to filter by company
     """
     try:
         user = frappe.session.user
@@ -817,6 +1245,8 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
         filters = {"settled": 0}
         if driver_id:
             filters["driver"] = driver_id
+        if company:
+            filters["company"] = company
             
         reco = frappe.get_all("Daily Sales Payment Reco", 
                              filters=filters, 
@@ -836,6 +1266,7 @@ def get_driver_reco_data(driver_name: str = None) -> Dict[str, Any]:
                 "driver": reco_doc.driver,
                 "driver_name": frappe.db.get_value("Driver", reco_doc.driver, "full_name") or reco_doc.driver,
                 "loadsheet_number": reco_doc.loadsheet_number,
+                "company": reco_doc.company or "",
                 "creation": str(reco_doc.creation)
             },
             "summary": {
@@ -909,7 +1340,7 @@ def get_all_customers() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def add_new_reco_entry(reco_name: str, customer: str, amount: float) -> Dict[str, Any]:
+def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_reference_no: str = "") -> Dict[str, Any]:
     """
     Add a new entry to an existing Daily Sales Payment Reco.
     
@@ -922,6 +1353,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float) -> Dict[str
       - Create a new line with updated_later=1
     
     Always recalculates all parent totals.
+    Validates customer group based on company (Horlicks for Padmashree, others for Riya).
     """
     try:
         if not reco_name:
@@ -939,6 +1371,19 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float) -> Dict[str
         
         # Get the reco document
         reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
+        
+        # Validate customer group based on company
+        customer_group = frappe.db.get_value("Customer", customer, "customer_group")
+        company = reco_doc.company or ""
+        
+        if company == "PadmaShree Trade Link":
+            # Padmashree only accepts Horlicks customers
+            if customer_group != "Horlicks":
+                raise ValueError(f"Customer '{customer}' is not in the Horlicks group. PadmaShree only accepts Horlicks customers.")
+        elif company == "Riya Trades and Suppliers":
+            # Riya accepts all except Horlicks customers
+            if customer_group == "Horlicks":
+                raise ValueError(f"Customer '{customer}' is in the Horlicks group. Riya does not accept Horlicks customers.")
         
         # Check if customer already exists in the reco lines
         existing_line = None
@@ -993,6 +1438,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float) -> Dict[str
                 "credit_amount": 0,
                 "settled": 0,
                 "updated_later": 1,
+                "sales_reference_no": sales_reference_no or "",
                 "remarks": "[Added later]"
             })
             action = "added"
@@ -1050,10 +1496,11 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float) -> Dict[str
 
 
 @frappe.whitelist()
-def get_reco_lines_for_driver(driver_name: str = None) -> Dict[str, Any]:
+def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> Dict[str, Any]:
     """
     Get reco lines for a specific driver (by full name).
     Used for the uploadreco view/edit interface.
+    Optionally filter by company.
     """
     try:
         if not driver_name:
@@ -1065,9 +1512,13 @@ def get_reco_lines_for_driver(driver_name: str = None) -> Dict[str, Any]:
             return {"success": False, "data": None, "message": f"Driver '{driver_name}' not found"}
         
         # Find active (unsettled) reco for this driver
+        filters = {"driver": driver_id, "settled": 0}
+        if company:
+            filters["company"] = company
+            
         reco = frappe.get_all(
             "Daily Sales Payment Reco",
-            filters={"driver": driver_id, "settled": 0},
+            filters=filters,
             fields=["name"],
             order_by="creation desc",
             limit=1
@@ -1095,6 +1546,7 @@ def get_reco_lines_for_driver(driver_name: str = None) -> Dict[str, Any]:
                 "remaining_amount": float(line.remaining_amount or 0),
                 "settled": line.settled,
                 "updated_later": line.updated_later if hasattr(line, 'updated_later') else 0,
+                "sales_reference_no": line.sales_reference_no if hasattr(line, 'sales_reference_no') else "",
                 "remarks": line.remarks
             })
         
@@ -1103,6 +1555,7 @@ def get_reco_lines_for_driver(driver_name: str = None) -> Dict[str, Any]:
             "data": {
                 "reco_name": reco_doc.name,
                 "driver_name": driver_name,
+                "company": reco_doc.company or "",
                 "lines": lines,
                 "summary": {
                     "initial_total_amount": float(reco_doc.initial_total_amount or 0),
