@@ -346,7 +346,7 @@
                     <div class="text-xs text-gray-500 mb-1">Company</div>
                     <div class="flex items-center gap-2">
                       <CompanyBadge v-if="txn.company" :company="txn.company" size="sm" />
-                      <span class="text-xs text-gray-600">{{ txn.company === 'PadmaShree Trade Link' ? 'PS' : 'RS' }}</span>
+                      <span class="text-xs text-gray-600">{{ getCompanyAbbr(txn.company) }}</span>
                     </div>
                   </div>
                   <div>
@@ -531,6 +531,16 @@ const formatDateTime = (dateTime) => {
   })
 }
 
+// Get company abbreviation dynamically (first letters of first 2 words)
+const getCompanyAbbr = (companyName) => {
+  if (!companyName) return '??'
+  const words = companyName.trim().split(/\s+/)
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase()
+  }
+  return companyName.substring(0, 2).toUpperCase()
+}
+
 const getUsernameLabel = (username) => {
   const user = usernameOptions.value.find(u => u.value === username)
   return user ? user.label : username
@@ -708,13 +718,8 @@ const loadTransactionData = async () => {
 
 const loadCompanies = async () => {
   try {
-    const res = await $call('frappe.client.get_list', {
-      doctype: 'Company',
-      fields: ['name', 'company_name'],
-      limit_page_length: 100,
-      order_by: 'company_name asc',
-    })
-    companyOptions.value = res || []
+    const res = await $call('custom_erp.api.fonepay.get_pay_dashboard_companies')
+    companyOptions.value = Array.isArray(res) ? res : []
   } catch (error) {
     console.error('Failed to load companies', error)
     companyOptions.value = []

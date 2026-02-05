@@ -197,10 +197,10 @@
               </template>
 
               <!-- Info about customer type -->
-              <div :class="isPadmashree ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200'" class="border rounded-lg p-3">
-                <p class="text-xs" :class="isPadmashree ? 'text-blue-700' : 'text-blue-700'">
+              <div class="border rounded-lg p-3 bg-blue-50 border-blue-200">
+                <p class="text-xs text-blue-700">
                   <span class="font-medium">Note:</span> Customer will be created as <span class="font-semibold">Company</span> type with 
-                  <span class="font-semibold">{{ isPadmashree ? 'Horlicks' : 'Commercial' }}</span> customer group.
+                  <span class="font-semibold">{{ customerGroupLabel }}</span> customer group.
                 </p>
               </div>
 
@@ -272,13 +272,32 @@ const props = defineProps({
   company: {
     type: String,
     default: ''
+  },
+  companyConfig: {
+    type: Object,
+    default: null
   }
 })
 
 const emit = defineEmits(['customer-created', 'all-customers-created'])
 
-// Computed
-const isPadmashree = computed(() => props.company === 'PadmaShree Trade Link')
+// Computed - check if company is horlicks-based
+const isHorlicksCompany = computed(() => {
+  return props.companyConfig?.main_product === 'horlicks' || props.companyConfig?.is_horlicks
+})
+
+// Backward compatibility alias
+const isPadmashree = isHorlicksCompany
+
+// Get customer group based on company
+const customerGroupLabel = computed(() => {
+  if (isHorlicksCompany.value) {
+    return props.companyConfig?.main_product 
+      ? props.companyConfig.main_product.charAt(0).toUpperCase() + props.companyConfig.main_product.slice(1)
+      : 'Horlicks'
+  }
+  return 'Commercial'
+})
 
 // State
 const territories = ref([])

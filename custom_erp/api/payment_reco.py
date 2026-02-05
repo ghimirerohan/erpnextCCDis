@@ -17,6 +17,156 @@ import traceback
 import nepali_datetime
 
 
+# ============================================================================
+# COMPANY CONFIGURATION HELPERS
+# These functions provide dynamic company-based logic instead of hardcoded names
+# ============================================================================
+
+# Brand color configuration based on main_product
+BRAND_COLORS = {
+    "horlicks": {"primary": "#0077B6", "hover": "#005f92", "bg": "#E6F4FA", "bg_light": "bg-blue-50", "border": "border-blue-400", "text": "text-blue-800"},
+    "cocacola": {"primary": "#F40009", "hover": "#c50007", "bg": "#FEE6E6", "bg_light": "bg-red-50", "border": "border-red-400", "text": "text-red-800"},
+}
+
+# Default brand color for companies without main_product set
+DEFAULT_BRAND = "cocacola"
+
+
+def get_company_main_product(company_name: str) -> str:
+    """
+    Get the main_product field value for a company.
+    Returns empty string if company doesn't exist or field not set.
+    """
+    if not company_name:
+        return ""
+    try:
+        main_product = frappe.db.get_value("Company", company_name, "main_product")
+        return main_product or ""
+    except Exception:
+        return ""
+
+
+def is_horlicks_company(company_name: str) -> bool:
+    """
+    Check if a company is a horlicks-based company.
+    This replaces hardcoded checks like `company == "PadmaShree Trade Link"`.
+    """
+    return get_company_main_product(company_name) == "horlicks"
+
+
+def get_customer_group_for_company(company_name: str) -> Optional[str]:
+    """
+    Get the customer group associated with a company's main product.
+    Horlicks companies use "Horlicks" customer group.
+    Other companies don't have a specific customer group restriction.
+    """
+    if is_horlicks_company(company_name):
+        return "Horlicks"
+    return None
+
+
+def get_brand_colors(main_product: str) -> Dict[str, str]:
+    """
+    Get brand colors based on main_product.
+    Returns default (cocacola) colors if main_product is not recognized.
+    """
+    return BRAND_COLORS.get(main_product, BRAND_COLORS[DEFAULT_BRAND])
+
+
+def get_fonepay_config_key(company_name: str) -> str:
+    """
+    Get the site_config key for Fonepay credentials based on company's main_product.
+    
+    Pattern: fonepay_{main_product} (e.g., fonepay_horlicks)
+    Default: fonepay (for companies without main_product or cocacola)
+    """
+    main_product = get_company_main_product(company_name)
+    if main_product and main_product != "cocacola":
+        return f"fonepay_{main_product}"
+    return "fonepay"
+
+
+def get_default_company() -> Optional[str]:
+    """
+    Get the default company for legacy data.
+    Returns the first non-horlicks company, or the first company if no non-horlicks exists.
+    Used for backward compatibility with records that have blank company field.
+    """
+    try:
+        # First try to find a non-horlicks company
+        companies = frappe.get_all(
+            "Company",
+            filters=[["main_product", "!=", "horlicks"]],
+            fields=["name"],
+            order_by="creation",
+            limit=1
+        )
+        if companies:
+            return companies[0].name
+        
+        # Fallback: get any company
+        companies = frappe.get_all("Company", fields=["name"], limit=1)
+        return companies[0].name if companies else None
+    except Exception:
+        return None
+
+
+@frappe.whitelist()
+def get_company_config(company_name: str = None) -> Dict[str, Any]:
+    """
+    Get company configuration including main_product, abbr, brand colors.
+    This is the main API for frontend to get all company-related configuration.
+    
+    Args:
+        company_name: Name of the company
+        
+    Returns:
+        Dict with company configuration including:
+        - name: Company name (ID)
+        - company_name: Display name
+        - abbr: Abbreviation (used for badge initials)
+        - main_product: Primary product brand
+        - customer_group: Associated customer group (if any)
+        - brand_colors: Color configuration for UI
+        - fonepay_config_key: Key for Fonepay credentials in site_config
+        - is_horlicks: Boolean flag for convenience
+    """
+    try:
+        if not company_name:
+            return {"success": False, "message": "Company name required"}
+        
+        if not frappe.db.exists("Company", company_name):
+            return {"success": False, "message": f"Company '{company_name}' not found"}
+        
+        company = frappe.get_doc("Company", company_name)
+        main_product = company.get("main_product") or ""
+        
+        colors = get_brand_colors(main_product)
+        customer_group = get_customer_group_for_company(company_name)
+        
+        return {
+            "success": True,
+            "data": {
+                "name": company.name,
+                "company_name": company.company_name,
+                "abbr": company.abbr,
+                "main_product": main_product,
+                "customer_group": customer_group,
+                "brand_colors": colors,
+                "fonepay_config_key": get_fonepay_config_key(company_name),
+                "is_horlicks": main_product == "horlicks"
+            }
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting company config: {str(e)}\n{traceback.format_exc()}")
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+# ============================================================================
+# END COMPANY CONFIGURATION HELPERS
+# ============================================================================
+
+
 @frappe.whitelist()
 def get_current_nepali_date() -> Dict[str, Any]:
     """
@@ -323,8 +473,18 @@ def get_drivers_list() -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def create_payment_recos(driver_assignments: str, csv_data: str, company: str = "Riya Trades and Suppliers") -> Dict[str, Any]:
-    """Create payment recos for Riya (with loadsheet grouping and per-driver assignment)."""
+def create_payment_recos(driver_assignments: str, csv_data: str, company: str = None) -> Dict[str, Any]:
+    """
+    Create payment recos with loadsheet grouping and per-driver assignment.
+    Used for non-horlicks companies (e.g., Coca-Cola based).
+    
+    Args:
+        driver_assignments: JSON string of driver->loadsheets mapping
+        csv_data: JSON string of grouped data by loadsheet
+        company: Company name (required - must be passed by frontend)
+    """
+    if not company:
+        return {"success": False, "data": None, "message": "Company is required"}
     try:
         assignments = json.loads(driver_assignments)
         grouped_data = json.loads(csv_data)
@@ -366,18 +526,25 @@ def create_payment_recos(driver_assignments: str, csv_data: str, company: str = 
 
 
 @frappe.whitelist()
-def create_payment_recos_padmashree(driver: str, csv_data: str) -> Dict[str, Any]:
+def create_payment_recos_horlicks(driver: str, csv_data: str, company: str = None) -> Dict[str, Any]:
     """
-    Create payment reco for Padmashree with single driver (no loadsheet grouping).
+    Create payment reco for horlicks-based companies with single driver (no loadsheet grouping).
     All rows go under one driver for the entire upload.
     
     Args:
         driver: Driver full name (single driver for entire file)
-        csv_data: JSON string of parsed rows from parse_and_validate_csv_padmashree
+        csv_data: JSON string of parsed rows from parse_and_validate_csv for horlicks format
+        company: Company name (required - must be a horlicks-based company)
     """
     try:
+        if not company:
+            return {"success": False, "data": None, "message": "Company is required"}
+        
+        # Validate that this company is horlicks-based
+        if not is_horlicks_company(company):
+            return {"success": False, "data": None, "message": f"Company '{company}' is not a horlicks-based company. Use create_payment_recos for non-horlicks companies."}
+        
         rows = json.loads(csv_data)
-        company = "PadmaShree Trade Link"
         
         # Find driver by full name
         driver_id = frappe.db.get_value("Driver", {"full_name": driver}, "name")
@@ -449,12 +616,16 @@ def create_payment_recos_padmashree(driver: str, csv_data: str) -> Dict[str, Any
                 "invoice_count": invoice_count,
                 "company": company
             },
-            "message": f"Created Padmashree reco with {len(customer_data)} customers (from {invoice_count} invoices)"
+            "message": f"Created horlicks reco with {len(customer_data)} customers (from {invoice_count} invoices)"
         }
     except Exception as e:
         frappe.db.rollback()
-        frappe.log_error(f"Error creating Padmashree payment reco: {str(e)}\n{traceback.format_exc()}")
+        frappe.log_error(f"Error creating horlicks payment reco: {str(e)}\n{traceback.format_exc()}")
         return {"success": False, "data": None, "message": f"Error: {str(e)}"}
+
+
+# Backward compatibility alias - will be deprecated
+create_payment_recos_padmashree = create_payment_recos_horlicks
 
 
 @frappe.whitelist()
@@ -497,10 +668,12 @@ def get_cheque_settlement_summary(company: str = None):
         company_condition = ""
         params = []
         if company:
-            # Handle blank company as Riya
-            company_condition = " AND (company = %s OR (company IS NULL OR company = ''))"
-            if company == "Riya Trades and Suppliers":
+            # For non-horlicks companies (e.g., cocacola), also include legacy records with blank company
+            # This handles historical data that was created before company field was added
+            if not is_horlicks_company(company):
                 company_condition = " AND (company = %s OR company IS NULL OR company = '')"
+            else:
+                company_condition = " AND company = %s"
             params.append(company)
         
         # 1. Total pending cheques
@@ -854,9 +1027,10 @@ def get_due_cheques(filters: str = None, company: str = None) -> Dict[str, Any]:
                 c["brought_by_full_name"] = frappe.db.get_value("User", c.brought_by, "full_name") or c.brought_by
             else:
                 c["brought_by_full_name"] = None
-            # Ensure company is set (blank = Riya)
+            # For legacy records without company, get the first non-horlicks company as default
             if not c.get("company"):
-                c["company"] = "Riya Trades and Suppliers"
+                default_company = get_default_company()
+                c["company"] = default_company if default_company else ""
         return {"success": True, "data": cheques}
     except Exception as e:
         frappe.log_error(f"Error in due_cheques: {str(e)}")
@@ -1018,7 +1192,7 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         bank_name: Institute/Bank name (required)
         amount: Cheque amount (required)
         promised_date: AD date for promised date field (optional)
-        company: Company name (optional, defaults to Riya Trades and Suppliers)
+        company: Company name (required - should be passed by frontend)
     
     Returns:
         Success response with cheque record name or error message
@@ -1039,9 +1213,11 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         if not frappe.db.exists("Customer", customer):
             raise ValueError(f"Customer '{customer}' does not exist")
         
-        # Default company if not provided
+        # Default company if not provided (for backward compatibility)
         if not company:
-            company = "Riya Trades and Suppliers"
+            company = get_default_company()
+            if not company:
+                raise ValueError("Company is required but no companies exist in the system")
         
         # Create the Cheques Taageta document
         cheque_doc = frappe.get_doc({
@@ -1116,13 +1292,33 @@ def get_all_active_recos(company: str = None) -> Dict[str, Any]:
 @frappe.whitelist()
 def get_companies_list() -> Dict[str, Any]:
     """
-    Get list of companies for dropdown.
+    Get list of companies for dropdown with full configuration.
+    Includes main_product, abbr, and brand colors for each company.
     """
     try:
-        companies = frappe.get_all("Company", fields=["name", "company_name"], order_by="company_name")
+        companies = frappe.get_all(
+            "Company", 
+            fields=["name", "company_name", "abbr", "main_product"], 
+            order_by="company_name"
+        )
+        
+        result = []
+        for c in companies:
+            main_product = c.main_product or ""
+            colors = get_brand_colors(main_product)
+            result.append({
+                "name": c.name,
+                "company_name": c.company_name,
+                "abbr": c.abbr or "",
+                "main_product": main_product,
+                "brand_colors": colors,
+                "is_horlicks": main_product == "horlicks",
+                "customer_group": "Horlicks" if main_product == "horlicks" else None
+            })
+        
         return {
             "success": True,
-            "data": [{"name": c.name, "company_name": c.company_name} for c in companies],
+            "data": result,
             "message": f"Retrieved {len(companies)} companies"
         }
     except Exception as e:
@@ -1182,12 +1378,12 @@ def get_non_horlicks_customers() -> Dict[str, Any]:
 @frappe.whitelist()
 def get_customers_for_company(company: str = "") -> Dict[str, Any]:
     """
-    Get customers appropriate for the given company.
-    - Padmashree: Horlicks customers only
-    - Riya (or others): Non-Horlicks customers only
+    Get customers appropriate for the given company based on its main_product.
+    - Horlicks companies: Horlicks customers only
+    - Other companies (e.g., Coca-Cola): Non-Horlicks customers only
     """
     try:
-        if company == "PadmaShree Trade Link":
+        if is_horlicks_company(company):
             return get_horlicks_customers()
         else:
             return get_non_horlicks_customers()
@@ -1372,18 +1568,18 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
         # Get the reco document
         reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
         
-        # Validate customer group based on company
+        # Validate customer group based on company's main_product
         customer_group = frappe.db.get_value("Customer", customer, "customer_group")
         company = reco_doc.company or ""
         
-        if company == "PadmaShree Trade Link":
-            # Padmashree only accepts Horlicks customers
+        if is_horlicks_company(company):
+            # Horlicks companies only accept Horlicks customers
             if customer_group != "Horlicks":
-                raise ValueError(f"Customer '{customer}' is not in the Horlicks group. PadmaShree only accepts Horlicks customers.")
-        elif company == "Riya Trades and Suppliers":
-            # Riya accepts all except Horlicks customers
+                raise ValueError(f"Customer '{customer}' is not in the Horlicks group. This company only accepts Horlicks customers.")
+        elif company:
+            # Non-horlicks companies accept all except Horlicks customers
             if customer_group == "Horlicks":
-                raise ValueError(f"Customer '{customer}' is in the Horlicks group. Riya does not accept Horlicks customers.")
+                raise ValueError(f"Customer '{customer}' is in the Horlicks group. This company does not accept Horlicks customers.")
         
         # Check if customer already exists in the reco lines
         existing_line = None

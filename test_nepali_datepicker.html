@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nepali Date Picker Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #2563eb;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 4px;
+        }
+        .success {
+            background: #f0fdf4;
+            border-left-color: #16a34a;
+        }
+        .error {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        #console-log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🗓️ Nepali Date Picker Test Page</h1>
+        
+        <div class="test-section">
+            <h3>Test 1: Dependency Check</h3>
+            <p>Checks if all required libraries are loaded</p>
+            <button onclick="testDependencies()">Run Test</button>
+            <div id="dep-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Library Availability</h3>
+            <p>Verifies NepaliDatePicker library is accessible</p>
+            <button onclick="testLibraryAvailability()">Run Test</button>
+            <div id="lib-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: CSS Loaded</h3>
+            <p>Checks if Nepali date picker CSS is loaded</p>
+            <button onclick="testCSS()">Run Test</button>
+            <div id="css-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Console Output</h3>
+            <p>View all console messages related to Nepali Date Picker</p>
+            <button onclick="clearConsoleLog()">Clear</button>
+            <div id="console-log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>All Tests</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+        </div>
+    </div>
+
+    <script>
+        // Capture console.log messages
+        const consoleLog = document.getElementById('console-log');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        function addToConsoleLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            consoleLog.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            if (args.some(arg => String(arg).includes('NepaliDatePicker'))) {
+                addToConsoleLog('log', ...args);
+            }
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            if (args.some(arg => String(arg).includes('NepaliDatePicker'))) {
+                addToConsoleLog('error', ...args);
+            }
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            if (args.some(arg => String(arg).includes('NepaliDatePicker'))) {
+                addToConsoleLog('warn', ...args);
+            }
+        };
+
+        function clearConsoleLog() {
+            consoleLog.textContent = '';
+        }
+
+        function showResult(elementId, success, message) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.className = success ? 'result success' : 'result error';
+            el.innerHTML = `<strong>${success ? '✅ PASS' : '❌ FAIL'}:</strong> ${message}`;
+        }
+
+        function testDependencies() {
+            const jQueryLoaded = typeof window.jQuery !== 'undefined';
+            const nepaliPickerWindow = typeof window.NepaliDatePicker !== 'undefined';
+            const nepaliPickerPrototype = typeof HTMLElement !== 'undefined' && 
+                                         typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined';
+            
+            const allLoaded = jQueryLoaded && (nepaliPickerWindow || nepaliPickerPrototype);
+            
+            let message = `<ul style="margin: 10px 0; padding-left: 20px;">
+                <li>jQuery: ${jQueryLoaded ? '✓' : '✗'}</li>
+                <li>NepaliDatePicker (window): ${nepaliPickerWindow ? '✓' : '✗'}</li>
+                <li>NepaliDatePicker (prototype): ${nepaliPickerPrototype ? '✓' : '✗'}</li>
+            </ul>`;
+            
+            showResult('dep-result', allLoaded, message);
+            console.log('[NepaliDatePicker] Dependency test completed:', allLoaded ? 'PASS' : 'FAIL');
+        }
+
+        function testLibraryAvailability() {
+            const hasWindow = typeof window.NepaliDatePicker !== 'undefined';
+            const hasPrototype = typeof HTMLElement !== 'undefined' && 
+                                typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined';
+            const viaJQuery = typeof window.jQuery !== 'undefined' && 
+                            typeof window.jQuery.fn.NepaliDatePicker !== 'undefined';
+            
+            const available = hasWindow || hasPrototype || viaJQuery;
+            
+            let message = `<ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Global (window.NepaliDatePicker): ${hasWindow ? '✓' : '✗'}</li>
+                <li>Prototype (HTMLElement): ${hasPrototype ? '✓' : '✗'}</li>
+                <li>jQuery Plugin: ${viaJQuery ? '✓' : '✗'}</li>
+            </ul>`;
+            
+            if (available) {
+                message += '<p style="margin-top: 10px;">Library is accessible and ready to use!</p>';
+            }
+            
+            showResult('lib-result', available, message);
+            console.log('[NepaliDatePicker] Library availability test:', available ? 'PASS' : 'FAIL');
+        }
+
+        function testCSS() {
+            const cssLink = document.querySelector('link[href*="nepali.datepicker"]');
+            const loaded = cssLink !== null;
+            
+            let message = loaded 
+                ? `CSS file found: ${cssLink.href}` 
+                : 'CSS file not loaded. Calendar styling may not work correctly.';
+            
+            showResult('css-result', loaded, message);
+            console.log('[NepaliDatePicker] CSS test:', loaded ? 'PASS' : 'FAIL');
+        }
+
+        function runAllTests() {
+            clearConsoleLog();
+            console.log('[NepaliDatePicker] Running all tests...');
+            
+            setTimeout(() => testDependencies(), 100);
+            setTimeout(() => testLibraryAvailability(), 200);
+            setTimeout(() => testCSS(), 300);
+            
+            setTimeout(() => {
+                console.log('[NepaliDatePicker] All tests completed');
+            }, 400);
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                console.log('[NepaliDatePicker] Page loaded, running initial tests...');
+                runAllTests();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

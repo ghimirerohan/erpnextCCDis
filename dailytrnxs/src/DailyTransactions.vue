@@ -60,8 +60,8 @@
             </select>
             <!-- Company Badge Display -->
             <div v-if="selectedCompany" class="flex items-center gap-2 mt-1">
-              <CompanyBadge :company="selectedCompany" size="md" />
-              <span class="text-xs text-gray-600">{{ selectedCompany === 'PadmaShree Trade Link' ? 'Horlicks' : 'Multi-Brand' }}</span>
+              <CompanyBadge :company="selectedCompany" :companyConfig="getCompanyConfig(selectedCompany)" size="md" />
+              <span class="text-xs text-gray-600">{{ getCompanyProductLabel(selectedCompany) }}</span>
             </div>
           </div>
           
@@ -297,10 +297,10 @@
               <span
                 v-if="selectedCompany"
                 class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                :class="selectedCompany === 'PadmaShree Trade Link' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'"
+                :style="getCompanyFilterStyle(selectedCompany)"
               >
-                <CompanyBadge :company="selectedCompany" size="sm" class="mr-1" />
-                Company: {{ selectedCompany === 'PadmaShree Trade Link' ? 'PadmaShree' : 'Riya' }}
+                <CompanyBadge :company="selectedCompany" :companyConfig="getCompanyConfig(selectedCompany)" size="sm" class="mr-1" />
+                Company: {{ getCompanyAbbr(selectedCompany) }}
                 <button @click="clearCompanyFilter" class="ml-2 hover:opacity-70">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -902,7 +902,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { createResource } from 'frappe-ui'
 import { session } from '../../shared/data/session'
 import NepaliDatePicker from '../../shared/components/NepaliDatePicker.vue'
@@ -971,12 +971,19 @@ const selectedCompany = ref('') // '' = All companies
 const driverOptions = ref([])
 const customerOptions = ref([])
 
-// Company options
-const companyOptions = [
-  { value: '', label: 'All Companies' },
-  { value: 'PadmaShree Trade Link', label: 'PadmaShree Trade Link' },
-  { value: 'Riya Trades and Suppliers', label: 'Riya Trades and Suppliers' },
-]
+// Company options - dynamically loaded from API
+const companiesData = ref([])
+const companyOptions = computed(() => {
+  const options = [{ value: '', label: 'All Companies' }]
+  for (const company of companiesData.value) {
+    options.push({
+      value: company.name,
+      label: company.company_name,
+      ...company // Include all company data (abbr, main_product, brand_colors, etc.)
+    })
+  }
+  return options
+})
 
 // Data
 const driverData = ref([])
@@ -1008,14 +1015,29 @@ const chequeListResource = createResource({
   url: 'custom_erp.api.payment_reco.get_due_cheques',
   auto: false,
   onSuccess: (data) => {
-    // Handle both wrapped and unwrapped data
-    const list = data?.success ? data.data : (Array.isArray(data) ? data : (data?.data || []))
-    chequeData.value = list
+    // Frappe wraps return value in response.message; support both shapes
+    const payload = data?.message !== undefined ? data.message : data
+    const list = Array.isArray(payload) ? payload : (payload?.success ? payload.data : payload?.data || [])
+    chequeData.value = Array.isArray(list) ? list : []
     loadingCheques.value = false
   },
   onError: (err) => {
     console.error('Failed to load cheques', err)
     loadingCheques.value = false
+  }
+})
+
+// Fetch companies list for dropdown (Frappe wraps return value in response.message)
+const companiesListResource = createResource({
+  url: 'custom_erp.api.payment_reco.get_companies_list',
+  auto: true,
+  onSuccess: (data) => {
+    const payload = data?.message !== undefined ? data.message : data
+    const list = Array.isArray(payload) ? payload : (payload?.success ? payload.data : [])
+    companiesData.value = Array.isArray(list) ? list : []
+  },
+  onError: (err) => {
+    console.error('Failed to load companies', err)
   }
 })
 
@@ -1189,19 +1211,53 @@ const handleCompanyChange = () => {
   refreshAll()
 }
 
+// Get company config from companiesData
+const getCompanyConfig = (companyName) => {
+  if (!companyName) return null
+  return companiesData.value.find(c => c.name === companyName) || null
+}
+
+// Get company abbreviation
+const getCompanyAbbr = (companyName) => {
+  const config = getCompanyConfig(companyName)
+  return config?.abbr || companyName?.substring(0, 2).toUpperCase() || '??'
+}
+
+// Get company product label based on main_product
+const getCompanyProductLabel = (companyName) => {
+  const config = getCompanyConfig(companyName)
+  if (!config?.main_product) return 'Multi-Brand'
+  // Capitalize first letter
+  return config.main_product.charAt(0).toUpperCase() + config.main_product.slice(1)
+}
+
 // Get style for company select based on selected company
 const getCompanySelectStyle = () => {
-  if (selectedCompany.value === 'PadmaShree Trade Link') {
-    return 'border-color: #0077B6; background-color: #E6F4FA; color: #0077B6;'
-  } else if (selectedCompany.value === 'Riya Trades and Suppliers') {
-    return 'border-color: #F40009; background-color: #FEE6E6; color: #F40009;'
+  const config = getCompanyConfig(selectedCompany.value)
+  if (config?.brand_colors) {
+    return `border-color: ${config.brand_colors.primary}; background-color: ${config.brand_colors.bg}; color: ${config.brand_colors.primary};`
   }
   return 'color: #111827; background-color: #ffffff;'
 }
 
-// Get company for cheque (blank = Riya)
+// Get style for company filter badge
+const getCompanyFilterStyle = (companyName) => {
+  const config = getCompanyConfig(companyName)
+  if (config?.brand_colors) {
+    return {
+      backgroundColor: config.brand_colors.bg,
+      color: config.brand_colors.primary
+    }
+  }
+  return { backgroundColor: '#f3f4f6', color: '#374151' }
+}
+
+// Get company for cheque (use first non-horlicks company as default)
 const getChequeCompany = (cheque) => {
-  return cheque.company || 'Riya Trades and Suppliers'
+  if (cheque.company) return cheque.company
+  // Find first non-horlicks company as default
+  const defaultCompany = companiesData.value.find(c => c.main_product !== 'horlicks')
+  return defaultCompany?.name || companiesData.value[0]?.name || ''
 }
 
 const clearAllFilters = () => {

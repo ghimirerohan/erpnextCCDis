@@ -17,6 +17,7 @@ except Exception:  # pragma: no cover
 
 
 def _get_cfg() -> Dict[str, Any]:
+    """Get default Fonepay configuration (for cocacola/non-horlicks companies)."""
     cfg = frappe.get_site_config().get("fonepay", {}) if frappe else {}
     # env fallbacks
     cfg.setdefault("merchant_code", os.environ.get("FONEPAY_MERCHANT_CODE"))
@@ -31,20 +32,67 @@ def _get_cfg() -> Dict[str, Any]:
     return cfg
 
 
-def _get_cfg_padmashree() -> Dict[str, Any]:
-    """Get Fonepay configuration for Padmashree Tradelink from site_config.json."""
-    cfg = frappe.get_site_config().get("fonepay_padmashree", {}) if frappe else {}
-    # env fallbacks with FONEPAY_PADMASHREE_ prefix
-    cfg.setdefault("merchant_code", os.environ.get("FONEPAY_PADMASHREE_MERCHANT_CODE"))
-    cfg.setdefault("secret_key", os.environ.get("FONEPAY_PADMASHREE_SECRET_KEY"))
-    cfg.setdefault("username", os.environ.get("FONEPAY_PADMASHREE_USERNAME"))
-    cfg.setdefault("password", os.environ.get("FONEPAY_PADMASHREE_PASSWORD"))
-    cfg.setdefault("env", os.environ.get("FONEPAY_PADMASHREE_ENV", "live"))
-    cfg.setdefault("ws_worker", os.environ.get("FONEPAY_PADMASHREE_WS_WORKER", "inprocess"))
-    cfg.setdefault("ws_timeout_seconds", int(float(os.environ.get("FONEPAY_PADMASHREE_WS_TIMEOUT", "300"))))
-    cfg.setdefault("scheduled_batch_size", int(float(os.environ.get("FONEPAY_PADMASHREE_SCHEDULED_BATCH_SIZE", "50"))))
-    cfg.setdefault("scheduled_sleep_between", float(os.environ.get("FONEPAY_PADMASHREE_SCHEDULED_SLEEP", "0.2")))
+def _get_cfg_for_main_product(main_product: str) -> Dict[str, Any]:
+    """
+    Get Fonepay configuration based on main_product.
+    
+    Configuration is stored in site_config.json as:
+    - fonepay: default configuration (only when main_product is empty/None)
+    - fonepay_{main_product}: product-specific configuration (e.g. fonepay_horlicks, fonepay_cocacola)
+    
+    So for main_product "cocacola" we use fonepay_cocacola; for "horlicks" we use fonepay_horlicks.
+    Only when main_product is missing/empty do we use the "fonepay" key.
+    
+    Environment variables follow pattern:
+    - FONEPAY_{MAIN_PRODUCT}_MERCHANT_CODE (e.g. FONEPAY_HORLICKS_MERCHANT_CODE, FONEPAY_COCACOLA_MERCHANT_CODE)
+    """
+    if not main_product or not main_product.strip():
+        return _get_cfg()
+    
+    # Use product-specific configuration (including fonepay_cocacola when main_product is "cocacola")
+    config_key = f"fonepay_{main_product}"
+    env_prefix = f"FONEPAY_{main_product.upper()}_"
+    
+    cfg = frappe.get_site_config().get(config_key, {}) if frappe else {}
+    if isinstance(cfg, str):
+        cfg = {}
+    
+    # env fallbacks with product-specific prefix
+    cfg.setdefault("merchant_code", os.environ.get(f"{env_prefix}MERCHANT_CODE"))
+    cfg.setdefault("secret_key", os.environ.get(f"{env_prefix}SECRET_KEY"))
+    cfg.setdefault("username", os.environ.get(f"{env_prefix}USERNAME"))
+    cfg.setdefault("password", os.environ.get(f"{env_prefix}PASSWORD"))
+    cfg.setdefault("env", os.environ.get(f"{env_prefix}ENV", "live"))
+    cfg.setdefault("ws_worker", os.environ.get(f"{env_prefix}WS_WORKER", "inprocess"))
+    cfg.setdefault("ws_timeout_seconds", int(float(os.environ.get(f"{env_prefix}WS_TIMEOUT", "300"))))
+    cfg.setdefault("scheduled_batch_size", int(float(os.environ.get(f"{env_prefix}SCHEDULED_BATCH_SIZE", "50"))))
+    cfg.setdefault("scheduled_sleep_between", float(os.environ.get(f"{env_prefix}SCHEDULED_SLEEP", "0.2")))
+    
     return cfg
+
+
+def _get_cfg_for_company(company_name: str) -> Dict[str, Any]:
+    """
+    Get Fonepay configuration for a specific company.
+    Looks up the company's main_product and returns appropriate configuration.
+    """
+    if not company_name:
+        return _get_cfg()
+    
+    try:
+        main_product = frappe.db.get_value("Company", company_name, "main_product")
+        return _get_cfg_for_main_product(main_product or "")
+    except Exception:
+        return _get_cfg()
+
+
+def _get_cfg_padmashree() -> Dict[str, Any]:
+    """
+    Get Fonepay configuration for horlicks companies.
+    DEPRECATED: Use _get_cfg_for_main_product('horlicks') instead.
+    Kept for backward compatibility.
+    """
+    return _get_cfg_for_main_product("horlicks")
 
 
 def _base_urls(env: str) -> Dict[str, str]:
@@ -199,13 +247,26 @@ def _create_payment_entry(customer: str, amount: float, sales_invoice: Optional[
 
 
 def _post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not requests:
+        frappe.throw("Requests library not installed. Install with: pip install requests")
     headers = {"Content-Type": "application/json"}
-    r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=30)  # type: ignore
-    r.raise_for_status()
     try:
-        return r.json()
-    except Exception:
-        return {"raw": r.text}
+        r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=30)  # type: ignore
+        r.raise_for_status()
+        try:
+            return r.json()
+        except Exception:
+            return {"raw": r.text}
+    except requests.exceptions.ConnectionError as e:
+        frappe.throw(
+            "Could not reach Fonepay API. Check: (1) Server has internet access, (2) Firewall allows outbound HTTPS to merchantapi.fonepay.com or dev-merchantapi.fonepay.com, (3) DNS resolves. Details: {0}".format(
+                str(e)
+            )
+        )
+    except requests.exceptions.Timeout as e:
+        frappe.throw("Fonepay API request timed out. Try again or check network. Details: {0}".format(str(e)))
+    except requests.exceptions.RequestException as e:
+        frappe.throw("Fonepay API request failed: {0}".format(str(e)))
 
 
 def _address_display(name: Optional[str]) -> Optional[str]:
@@ -386,13 +447,27 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
 
 
 @frappe.whitelist()
-def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
+def create_dynamic_qr_for_company(amount: float, company: str, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
                       remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None,
                       daily_sales_payment_reco_line: Optional[str] = None) -> Dict[str, Any]:
-    """Create dynamic QR using Padmashree Tradelink Fonepay credentials."""
+    """
+    Create dynamic QR using company-specific Fonepay credentials.
+    
+    Args:
+        amount: Amount for QR
+        company: Company name - credentials are selected based on company's main_product
+        customer: Customer ID
+        sales_invoice: Optional sales invoice reference
+        remarks1, remarks2: Optional remarks
+        metadata: Optional JSON metadata
+        daily_sales_payment_reco_line: Optional reco line reference
+    """
     if not customer:
         frappe.throw("Customer is required for Fonepay QR")
-    cfg = _get_cfg_padmashree()
+    if not company:
+        frappe.throw("Company is required for Fonepay QR")
+    
+    cfg = _get_cfg_for_company(company)
     env = cfg.get("env", "live")
     urls = _base_urls(env)
     merchant_code = cfg.get("merchant_code")
@@ -400,7 +475,8 @@ def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, 
     username = cfg.get("username")
     password = cfg.get("password")
     if not all([merchant_code, secret_key, username, password]):
-        frappe.throw("Fonepay Padmashree configuration missing in site_config (fonepay_padmashree)")
+        main_product = frappe.db.get_value("Company", company, "main_product") or "default"
+        frappe.throw(f"Fonepay configuration missing for company '{company}' (config key: fonepay_{main_product})")
 
     # default remarks with customer name, amount, and date
     customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
@@ -435,7 +511,7 @@ def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, 
     timeout_secs = int(cfg.get("ws_timeout_seconds", 300))
     timeout_at = now_datetime() + timedelta(seconds=timeout_secs)
 
-    # Create transaction with PadmaShree Trade Link company
+    # Create transaction with the specified company
     tx = frappe.get_doc({
         "doctype": "Fonepay QR Transaction",
         "prn": prn,
@@ -443,7 +519,7 @@ def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, 
         "amount": amount,
         "currency": "NPR",
         "customer": customer,
-        "company": "PadmaShree Trade Link",  # Set company for Padmashree
+        "company": company,  # Use company from parameter
         "sales_invoice": None,
         "username": username,
         "data_validation": data_validation,
@@ -475,10 +551,56 @@ def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, 
         "status": status,
         "amount": amount,
         "customer": customer,
-        "company": "PadmaShree Trade Link",
+        "company": company,
         "merchant_websocket_url": merchant_ws_url,
         "raw_response": resp,
     }
+
+
+# Backward compatibility alias - will be deprecated
+def create_dynamic_qr_padmashree(amount: float, customer: Optional[str] = None, sales_invoice: Optional[str] = None,
+                      remarks1: str = "", remarks2: str = "", metadata: Optional[str] = None,
+                      daily_sales_payment_reco_line: Optional[str] = None) -> Dict[str, Any]:
+    """Use Horlicks company if present; otherwise fall back to first company or default create_dynamic_qr."""
+    horlicks_company = frappe.get_value(
+        "Company",
+        filters={"main_product": "horlicks"},
+        fieldname="name"
+    )
+    if horlicks_company:
+        return create_dynamic_qr_for_company(
+            amount=amount,
+            company=horlicks_company,
+            customer=customer,
+            sales_invoice=sales_invoice,
+            remarks1=remarks1,
+            remarks2=remarks2,
+            metadata=metadata,
+            daily_sales_payment_reco_line=daily_sales_payment_reco_line
+        )
+    # No main_product / no horlicks: use first company (uses default fonepay config) or plain create_dynamic_qr
+    companies = frappe.get_all("Company", fields=["name"], order_by="name asc", limit=1)
+    first_company = companies[0].get("name") if companies else None
+    if first_company:
+        return create_dynamic_qr_for_company(
+            amount=amount,
+            company=first_company,
+            customer=customer,
+            sales_invoice=sales_invoice,
+            remarks1=remarks1,
+            remarks2=remarks2,
+            metadata=metadata,
+            daily_sales_payment_reco_line=daily_sales_payment_reco_line
+        )
+    return create_dynamic_qr(
+        amount=amount,
+        customer=customer,
+        sales_invoice=sales_invoice,
+        remarks1=remarks1,
+        remarks2=remarks2,
+        metadata=metadata,
+        daily_sales_payment_reco_line=daily_sales_payment_reco_line
+    )
 
 
 def _parse_ws_message(raw: str) -> Dict[str, Any]:
@@ -610,9 +732,26 @@ def listen_to_ws(tx_name: str):
 
 
 @frappe.whitelist()
-def check_qr_status(prn: str, use_padmashree: bool = False) -> Dict[str, Any]:
-    """Check QR status with Fonepay API. If use_padmashree=True, uses Padmashree credentials."""
-    cfg = _get_cfg_padmashree() if use_padmashree else _get_cfg()
+def check_qr_status(prn: str, company: str = None, use_padmashree: bool = False) -> Dict[str, Any]:
+    """
+    Check QR status with Fonepay API.
+    
+    Args:
+        prn: Product Reference Number
+        company: Company name - credentials are selected based on company's main_product
+        use_padmashree: DEPRECATED - use company parameter instead. Kept for backward compatibility.
+    """
+    # Get config based on company or fallback to use_padmashree flag
+    if company:
+        cfg = _get_cfg_for_company(company)
+        config_name = f"fonepay config for {company}"
+    elif use_padmashree:
+        cfg = _get_cfg_padmashree()
+        config_name = "fonepay_horlicks"
+    else:
+        cfg = _get_cfg()
+        config_name = "fonepay"
+    
     env = cfg.get("env", "dev")
     urls = _base_urls(env)
     merchant_code = cfg.get("merchant_code")
@@ -620,7 +759,6 @@ def check_qr_status(prn: str, use_padmashree: bool = False) -> Dict[str, Any]:
     username = cfg.get("username")
     password = cfg.get("password")
     if not all([merchant_code, secret_key, username, password]):
-        config_name = "fonepay_padmashree" if use_padmashree else "fonepay"
         frappe.throw(f"Fonepay configuration missing ({config_name})")
     message = f"{prn},{merchant_code}"
     data_validation = generate_hmac(secret_key, message)
@@ -666,16 +804,13 @@ def check_status(txn_ref_id: str) -> Dict[str, Any]:
             "payment_entry": None,
         }
     
-    # Determine if this is a Padmashree transaction (needs different Fonepay credentials)
-    use_padmashree = False
-    if tx and tx.company == "PadmaShree Trade Link":
-        use_padmashree = True
-        frappe.logger().info(f"check_status: Using Padmashree config for company={tx.company}")
+    # Get company from transaction to determine which Fonepay credentials to use
+    company = tx.company if tx else None
     
     # Call Fonepay API to check status
     try:
-        frappe.logger().info(f"check_status: Checking PRN={prn}, use_padmashree={use_padmashree}")
-        response = check_qr_status(prn, use_padmashree=use_padmashree)
+        frappe.logger().info(f"check_status: Checking PRN={prn}, company={company}")
+        response = check_qr_status(prn, company=company)
         frappe.logger().info(f"check_status: Fonepay API response: {json.dumps(response, default=str)}")
     except Exception as e:
         error_msg = f"Error checking status for {prn}: {str(e)}"
@@ -766,12 +901,21 @@ def check_status(txn_ref_id: str) -> Dict[str, Any]:
     }
 
 
-def safe_check_qr_status(prn: str, attempts: int = 3, sleep_seconds: float = 0.5, use_padmashree: bool = False) -> Dict[str, Any]:
-    """Safely check QR status with retries. If use_padmashree=True, uses Padmashree credentials."""
+def safe_check_qr_status(prn: str, attempts: int = 3, sleep_seconds: float = 0.5, company: str = None, use_padmashree: bool = False) -> Dict[str, Any]:
+    """
+    Safely check QR status with retries.
+    
+    Args:
+        prn: Product Reference Number
+        attempts: Number of retry attempts
+        sleep_seconds: Sleep time between retries
+        company: Company name - credentials are selected based on company's main_product
+        use_padmashree: DEPRECATED - use company parameter instead
+    """
     last = {}
     for i in range(attempts):
         try:
-            last = check_qr_status(prn, use_padmashree=use_padmashree)  # type: ignore
+            last = check_qr_status(prn, company=company, use_padmashree=use_padmashree)  # type: ignore
             return last
         except Exception as e:  # pragma: no cover
             last = {"error": str(e)}
@@ -787,9 +931,9 @@ def finalize_payment_from_ws(tx_name: str) -> Dict[str, Any]:
     if not acquire_tx_lock(tx_name):
         return {"status": tx.status or "PENDING", "message": "Lock busy"}
     try:
-        # Use Padmashree config if transaction is for PadmaShree Trade Link
-        use_padmashree = tx.company == "PadmaShree Trade Link"
-        res = safe_check_qr_status(tx.prn, use_padmashree=use_padmashree)
+        # Use company-based config selection
+        company = tx.company or None
+        res = safe_check_qr_status(tx.prn, company=company)
         # Normalize status
         payment_status = (res.get("paymentStatus") or res.get("status") or "").lower()
         if not payment_status and isinstance(res.get("data"), dict):
@@ -1079,24 +1223,28 @@ def get_previous_transactions(filter_type="today", status_filter="All"):
 
 
 @frappe.whitelist()
-def get_previous_transactions_padmashree(filter_type="today", status_filter="All"):
+def get_previous_transactions_for_company(filter_type="today", status_filter="All", company=None):
     """
-    Get previous Fonepay transactions for Padmashree Tradelink company.
+    Get previous Fonepay transactions for a specific company.
     
     Args:
         filter_type: 'today', 'week', or 'month'
         status_filter: 'All', 'SUCCESS', 'FAILED', 'PENDING'
+        company: Company name to filter transactions
     
     Returns:
-        List of transactions filtered by Padmashree Tradelink company
+        List of transactions filtered by the specified company
     """
     try:
         user = frappe.session.user
         
         filters = {
             "owner": user,
-            "company": "PadmaShree Trade Link",  # Filter by Padmashree company
         }
+        
+        # Add company filter if provided
+        if company:
+            filters["company"] = company
         
         # Apply status filter
         if status_filter and status_filter != "All":
@@ -1152,11 +1300,28 @@ def get_previous_transactions_padmashree(filter_type="today", status_filter="All
         }
         
     except Exception as e:
-        frappe.log_error(f"Error getting Padmashree transactions: {str(e)}", "QRPayHorlicks History")
+        frappe.log_error(f"Error getting company transactions: {str(e)}", "QRPay History")
         return {
             "success": False,
             "error": str(e)
         }
+
+
+# Backward compatibility alias - will be deprecated
+@frappe.whitelist()
+def get_previous_transactions_padmashree(filter_type="today", status_filter="All"):
+    """DEPRECATED: Use get_previous_transactions_for_company with company parameter instead."""
+    # Find a horlicks company to use
+    horlicks_company = frappe.get_value(
+        "Company",
+        filters={"main_product": "horlicks"},
+        fieldname="name"
+    )
+    return get_previous_transactions_for_company(
+        filter_type=filter_type,
+        status_filter=status_filter,
+        company=horlicks_company
+    )
 
 
     # Unprocessed today count
@@ -1300,6 +1465,25 @@ def list_user_transactions_today(filter_status: str = "all", limit: int = 5, com
 # =========================
 # PAY DASHBOARD ENDPOINTS
 # =========================
+
+
+@frappe.whitelist()
+def get_pay_dashboard_companies():
+    """
+    Return list of companies for Pay Dashboard filter dropdown.
+    Uses frappe.get_all with user permissions so the list is never empty due to client API issues.
+    """
+    try:
+        companies = frappe.get_all(
+            "Company",
+            fields=["name", "company_name"],
+            order_by="company_name asc",
+            limit_page_length=100,
+        )
+        return companies or []
+    except Exception as e:
+        frappe.log_error(f"get_pay_dashboard_companies: {e}", "Pay Dashboard Companies")
+        return []
 
 
 @frappe.whitelist()

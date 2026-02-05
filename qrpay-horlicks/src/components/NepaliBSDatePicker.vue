@@ -1,35 +1,28 @@
 <template>
-  <div class="nepali-date-picker-wrapper" ref="rootRef">
+  <div class="nepali-bs-picker-root" ref="rootRef">
     <label v-if="label" class="block text-sm font-semibold text-gray-700 mb-1.5">{{ label }}</label>
-    <div class="relative">
-      <input
-        ref="inputRef"
-        type="text"
-        :value="displayValue"
-        readonly
-        :placeholder="placeholder"
-        @click="openCalendar"
-        @touchstart.prevent="openCalendar"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white"
-      />
-      <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      </div>
-    </div>
+    <input
+      ref="inputRef"
+      type="text"
+      :value="displayValue"
+      readonly
+      :placeholder="placeholder"
+      @click="openCalendar"
+      @touchstart.prevent="openCalendar"
+      class="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white cursor-pointer focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+    />
 
-    <!-- Dropdown: official Nepali Datepicker v5 (https://nepalidatepicker.sajanmaharjan.com.np/v5/) -->
+    <!-- Dropdown: official Nepali Datepicker v5 renders inside this container -->
     <div
       v-if="isOpen"
       ref="dropdownRef"
-      class="ndp-dropdown ndp-dropdown-wrapper"
+      class="nepali-bs-dropdown ndp-dropdown-wrapper"
       role="dialog"
       aria-label="Nepali BS date picker"
     >
       <div ref="pickerContainer" class="ndp-inline-container"></div>
-      <div class="ndp-dropdown-actions">
-        <button type="button" class="ndp-btn-cancel" @click="closeCalendar">रद्द गर्नुहोस्</button>
+      <div class="nepali-bs-dropdown-actions">
+        <button type="button" class="nepali-bs-btn cancel" @click="closeCalendar">रद्द गर्नुहोस्</button>
       </div>
     </div>
   </div>
@@ -37,7 +30,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { bsToAd, adToBs, getTodayBs } from '../utils/nepaliDate'
+import { bsToAd, adToBs } from '../../../shared/utils/nepaliDate'
 
 const NEPALI_DATEPICKER_CSS = 'https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/css/nepali.datepicker.v5.0.6.min.css'
 const NEPALI_DATEPICKER_JS = 'https://nepalidatepicker.sajanmaharjan.com.np/v5/nepali.datepicker/js/nepali.datepicker.v5.0.6.min.js'
@@ -46,9 +39,9 @@ const JQUERY_CDN = 'https://code.jquery.com/jquery-3.7.1.min.js'
 // Contract: v-model is AD (Gregorian) YYYY-MM-DD. Input shows BS; library uses BS; we emit AD.
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  placeholder: { type: String, default: 'Select date' },
-  label: { type: String, default: '' },
-  /** Official datepicker option: show English day in each cell. https://nepalidatepicker.sajanmaharjan.com.np/v5/ */
+  label: { type: String, default: 'Nepali BS Date' },
+  placeholder: { type: String, default: 'Select BS date (tap to open calendar)' },
+  /** Passed to official datepicker: show English day in each cell. See https://nepalidatepicker.sajanmaharjan.com.np/v5/ */
   miniEnglishDates: { type: Boolean, default: true }
 })
 
@@ -108,7 +101,7 @@ function closeCalendar() {
 }
 
 function injectStyles() {
-  const id = 'nepali-datepicker-v5-shared-styles'
+  const id = 'nepali-datepicker-v5-dropdown-styles'
   if (document.getElementById(id)) return
   const link = document.createElement('link')
   link.id = id
@@ -149,7 +142,7 @@ async function loadAndInit() {
     await nextTick()
     initPicker()
   } catch (e) {
-    console.error('[NepaliDatePicker] Failed to load official datepicker', e)
+    console.error('[NepaliBSDatePicker] Failed to load official datepicker', e)
     libReady.value = false
     isOpen.value = false
   }
@@ -168,7 +161,7 @@ function initPicker() {
       onSelect: (dateObj) => handleDateSelect(dateObj)
     })
   } catch (e) {
-    console.error('[NepaliDatePicker] Init failed', e)
+    console.error('[NepaliBSDatePicker] Init failed', e)
   }
 }
 
@@ -189,14 +182,6 @@ watch(() => props.modelValue, () => {
 
 onMounted(() => {
   document.addEventListener('mousedown', handleClickOutside)
-  // Backward compatibility: set today if no value (same as old shared component)
-  if (!props.modelValue) {
-    const todayBs = getTodayBs()
-    if (todayBs) {
-      const adDate = bsToAd(todayBs)
-      if (adDate) emit('update:modelValue', adDate)
-    }
-  }
 })
 
 onBeforeUnmount(() => {
@@ -207,16 +192,16 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.nepali-date-picker-wrapper {
+.nepali-bs-picker-root {
   position: relative;
 }
-.ndp-dropdown {
+.nepali-bs-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
   margin-top: 4px;
-  width: fit-content;
-  min-width: 0;
+  min-width: 100%;
+  width: max-content;
   max-width: 360px;
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -227,23 +212,19 @@ onBeforeUnmount(() => {
 }
 .ndp-inline-container {
   min-height: 280px;
-  width: fit-content;
-  display: inline-block;
 }
-.ndp-dropdown :deep(.ndp-container) {
+/* Let official datepicker styles apply; only ensure container is visible */
+.nepali-bs-dropdown :deep(.ndp-container) {
   position: relative !important;
   border: none !important;
   box-shadow: none !important;
-  width: fit-content !important;
 }
-.ndp-dropdown-actions {
+.nepali-bs-dropdown-actions {
   padding: 10px 12px;
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;
-  width: 100%;
-  box-sizing: border-box;
 }
-.ndp-btn-cancel {
+.nepali-bs-btn {
   width: 100%;
   padding: 8px 12px;
   border-radius: 8px;
@@ -254,7 +235,7 @@ onBeforeUnmount(() => {
   background: #fff;
   color: #374151;
 }
-.ndp-btn-cancel:hover {
+.nepali-bs-btn:hover {
   background: #e5e7eb;
 }
 </style>

@@ -35,7 +35,21 @@
           <div class="space-y-1 flex-shrink-0 lg:min-w-[200px]">
             <div class="text-sm text-gray-500">Welcome</div>
             <div class="text-2xl lg:text-3xl font-bold text-gray-900">{{ greetingName }}</div>
-            <div class="text-sm text-gray-600">Today (BS): <span class="font-medium">{{ bsToday || adToday }}</span></div>
+            <!-- Nepali BS date picker (qrpay-horlicks only) -->
+            <div class="mt-4 max-w-xs">
+              <NepaliDatePicker
+                v-model="nepaliBsDate"
+                label="Nepali BS Date"
+                placeholder="Select BS date (tap to open calendar)"
+                :mini-english-dates="true"
+                @select="onNepaliDateSelect"
+              />
+              <div v-if="selectedBsDisplay" class="mt-2 p-2.5 bg-gray-50 rounded-lg text-sm text-gray-700">
+                <div><span class="font-semibold text-gray-600">Selected BS:</span> {{ selectedBsDisplay }}</div>
+                <div class="mt-1"><span class="font-semibold text-gray-600">Equivalent AD:</span> {{ selectedAdDisplay }}</div>
+              </div>
+            </div>
+            <div class="text-sm text-gray-600 mt-2">Today (BS): <span class="font-medium">{{ bsToday || adToday }}</span></div>
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 flex-1 lg:max-w-3xl lg:mx-auto">
@@ -616,8 +630,10 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { createResource, call as $call } from 'frappe-ui'
 import { session } from '../../shared/data/session'
+import { adToBs } from '../../shared/utils/nepaliDate'
 import LoadingOverlay from '../../shared/components/LoadingOverlay.vue'
 import CustomerSearch from '../../shared/components/CustomerSearch.vue'
+import NepaliDatePicker from '../../shared/components/NepaliDatePicker.vue'
 
 const selectedCustomer = ref(null)
 const selectedCustomerValue = ref(null)
@@ -643,6 +659,33 @@ const lastTxns = ref([])
 const txnFilter = ref('all')
 const loadingTxn = ref(false)
 const refreshingDashboard = ref(false)
+
+// Nepali BS date picker (qrpay-horlicks page only). v-model is AD (same contract as shared NepaliDatePicker).
+const nepaliBsDate = ref('')
+const selectedBsDisplay = ref('')
+const selectedAdDisplay = ref('')
+function onNepaliDateSelect({ bs, ad }) {
+  selectedBsDisplay.value = bs ? `${bs} (${formatBsMonthName(bs)})` : ''
+  selectedAdDisplay.value = ad || ''
+}
+function formatBsMonthName(bsStr) {
+  if (!bsStr) return ''
+  const parts = String(bsStr).trim().split(/[-/]/).map(Number)
+  const months = ['Baisakh', 'Jestha', 'Asar', 'Shrawan', 'Bhadra', 'Aswin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra']
+  if (parts.length >= 2 && parts[1] >= 1 && parts[1] <= 12) return months[parts[1] - 1]
+  return ''
+}
+// Sync display lines when v-model (AD) is set from outside
+watch(nepaliBsDate, (ad) => {
+  if (ad) {
+    const bs = adToBs(ad)
+    selectedBsDisplay.value = bs ? `${bs} (${formatBsMonthName(bs)})` : ''
+    selectedAdDisplay.value = ad
+  } else {
+    selectedBsDisplay.value = ''
+    selectedAdDisplay.value = ''
+  }
+}, { immediate: true })
 
 // ADDED BY AI: FONEPAY LIVE SOCKET - New state for loading overlay and dialogs
 const showLoadingOverlay = ref(false)

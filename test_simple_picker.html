@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nepali Date Picker Simple Test</title>
+    <!-- Load jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Load Nepali Date Picker Library -->
+    <link rel="stylesheet" href="http://localhost:8080/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.css">
+    <script src="http://localhost:8080/assets/custom_erp/lib/nepali.datepicker.v5.0.6.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        #console-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🗓️ Nepali Date Picker Simple Test</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Direct Initialization</h2>
+        <p>This tests the library directly without Vue</p>
+        <input type="text" id="test-input-1" placeholder="Click to select date">
+        <button onclick="initTest1()">Initialize Picker</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Inline Calendar</h2>
+        <p>This tests inline calendar mode</p>
+        <div id="inline-calendar-container" style="margin-top: 10px;"></div>
+        <button onclick="initTest2()">Initialize Inline Picker</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: jQuery Method</h2>
+        <p>Tests jQuery plugin approach</p>
+        <input type="text" id="test-input-3" placeholder="Click to select date">
+        <button onclick="initTest3()">Initialize via jQuery</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        const consoleOutput = document.getElementById('console-output');
+
+        function log(message, type = 'info') {
+            const color = type === 'error' ? '#f00' : type === 'success' ? '#0f0' : '#fff';
+            const timestamp = new Date().toLocaleTimeString();
+            consoleOutput.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        window.addEventListener('load', () => {
+            log('Page loaded', 'info');
+            log('jQuery loaded: ' + (typeof jQuery !== 'undefined'), typeof jQuery !== 'undefined' ? 'success' : 'error');
+            log('NepaliDatePicker window: ' + (typeof window.NepaliDatePicker !== 'undefined'), typeof window.NepaliDatePicker !== 'undefined' ? 'success' : 'error');
+            log('NepaliDatePicker prototype: ' + (typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined'), typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined' ? 'success' : 'error');
+            log('jQuery plugin: ' + (typeof jQuery !== 'undefined' && typeof jQuery.fn.NepaliDatePicker !== 'undefined'), (typeof jQuery !== 'undefined' && typeof jQuery.fn.NepaliDatePicker !== 'undefined') ? 'success' : 'error');
+        });
+
+        function initTest1() {
+            try {
+                log('Test 1: Attempting direct initialization...', 'info');
+                const input = document.getElementById('test-input-1');
+
+                if (typeof window.NepaliDatePicker === 'undefined') {
+                    log('ERROR: window.NepaliDatePicker is undefined', 'error');
+
+                    // Try prototype method
+                    if (typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined') {
+                        log('Trying prototype method...', 'info');
+                        const picker = input.NepaliDatePicker({
+                            dateFormat: 'YYYY-MM-DD',
+                            onSelect: (dateObj) => {
+                                log('Date selected: ' + JSON.stringify(dateObj), 'success');
+                            }
+                        });
+                        log('Picker initialized via prototype! ' + typeof picker, 'success');
+                    } else {
+                        log('Prototype method also not available', 'error');
+                    }
+                    return;
+                }
+
+                const picker = new window.NepaliDatePicker(input, {
+                    dateFormat: 'YYYY-MM-DD',
+                    onSelect: (dateObj) => {
+                        log('Date selected: ' + JSON.stringify(dateObj), 'success');
+                    }
+                });
+                log('Picker initialized successfully! ' + typeof picker, 'success');
+            } catch (error) {
+                log('ERROR in Test 1: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        function initTest2() {
+            try {
+                log('Test 2: Attempting inline calendar initialization...', 'info');
+                const container = document.getElementById('inline-calendar-container');
+                container.innerHTML = ''; // Clear
+
+                if (typeof window.NepaliDatePicker !== 'undefined') {
+                    const picker = new window.NepaliDatePicker(container, {
+                        dateFormat: 'YYYY-MM-DD',
+                        inline: true,
+                        onSelect: (dateObj) => {
+                            log('Date selected: ' + JSON.stringify(dateObj), 'success');
+                        }
+                    });
+                    log('Inline picker initialized! ' + typeof picker, 'success');
+                } else if (typeof HTMLElement.prototype.NepaliDatePicker !== 'undefined') {
+                    log('Trying inline via prototype...', 'info');
+                    const picker = container.NepaliDatePicker({
+                        dateFormat: 'YYYY-MM-DD',
+                        inline: true,
+                        onSelect: (dateObj) => {
+                            log('Date selected: ' + JSON.stringify(dateObj), 'success');
+                        }
+                    });
+                    log('Inline picker initialized via prototype!', 'success');
+                } else {
+                    log('ERROR: Library not available', 'error');
+                }
+            } catch (error) {
+                log('ERROR in Test 2: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        function initTest3() {
+            try {
+                log('Test 3: Attempting jQuery initialization...', 'info');
+                if (typeof jQuery === 'undefined' || typeof jQuery.fn.NepaliDatePicker === 'undefined') {
+                    log('ERROR: jQuery or jQuery plugin not available', 'error');
+                    return;
+                }
+
+                $('#test-input-3').NepaliDatePicker({
+                    dateFormat: 'YYYY-MM-DD',
+                    onSelect: function (dateObj) {
+                        log('Date selected: ' + JSON.stringify(dateObj), 'success');
+                    }
+                });
+                log('jQuery picker initialized successfully!', 'success');
+            } catch (error) {
+                log('ERROR in Test 3: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+
+</html>

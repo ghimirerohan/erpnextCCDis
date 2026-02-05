@@ -1,16 +1,16 @@
 <!-- ADDED BY AI: DAILY_PAYMENT_RECO - CSV Upload Section -->
 <template>
   <div class="bg-white rounded-xl shadow-lg border-2 border-dashed p-8 transition-colors"
-       :class="isPadmashree ? 'border-blue-300 hover:border-blue-400' : 'border-gray-300 hover:border-purple-400'">
+       :style="getBorderStyle()">
     <div class="text-center">
       <div class="flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4"
-           :class="isPadmashree ? 'bg-blue-100' : 'bg-purple-100'">
-        <svg class="w-8 h-8" :class="isPadmashree ? 'text-blue-600' : 'text-purple-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           :style="{ backgroundColor: companyConfig?.brand_colors?.bg || '#E9D5FF' }">
+        <svg class="w-8 h-8" :style="{ color: companyConfig?.brand_colors?.primary || '#9333EA' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
         </svg>
       </div>
       <h3 class="text-xl font-semibold text-gray-900 mb-2">
-        Upload {{ isPadmashree ? 'Padmashree' : 'Riya' }} Payment Register CSV
+        Upload {{ companyLabel }} Payment Register CSV
       </h3>
       <p class="text-gray-600 mb-6">Upload the daily payment reconciliation CSV file</p>
       
@@ -25,8 +25,8 @@
       <button
         @click="$refs.fileInput.click()"
         :disabled="loading"
-        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
-        :class="isPadmashree ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' : 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'"
+        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all hover:opacity-90"
+        :style="{ backgroundColor: companyConfig?.brand_colors?.primary || '#9333EA' }"
       >
         <svg v-if="!loading" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
@@ -39,7 +39,7 @@
       </button>
       
       <p class="text-sm text-gray-500 mt-4">
-        <template v-if="isPadmashree">
+        <template v-if="isHorlicksCompany">
           Supported format: Customer ID, Customer Ledger, Invoice Number, Net Amount, etc.
         </template>
         <template v-else>
@@ -61,10 +61,32 @@ const props = defineProps({
   company: {
     type: String,
     default: ''
+  },
+  companyConfig: {
+    type: Object,
+    default: null
   }
 })
 
-const isPadmashree = computed(() => props.company === 'PadmaShree Trade Link')
+// Check if company is horlicks-based
+const isHorlicksCompany = computed(() => {
+  return props.companyConfig?.main_product === 'horlicks' || props.companyConfig?.is_horlicks
+})
+
+// Get company label for display
+const companyLabel = computed(() => {
+  if (!props.companyConfig?.abbr) return props.company || 'Company'
+  return props.companyConfig.abbr
+})
+
+// Get border style based on company colors
+const getBorderStyle = () => {
+  const color = props.companyConfig?.brand_colors?.primary || '#9333EA'
+  return {
+    borderColor: `${color}50`,
+    '--hover-border-color': color
+  }
+}
 
 const emit = defineEmits(['file-selected'])
 
@@ -82,3 +104,8 @@ const handleFileSelect = (event) => {
 }
 </script>
 
+<style scoped>
+div:hover {
+  border-color: var(--hover-border-color, #9333EA) !important;
+}
+</style>

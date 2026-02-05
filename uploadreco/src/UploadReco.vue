@@ -54,35 +54,36 @@
               :class="selectedCompany ? 'border-gray-300 bg-white' : 'border-purple-500 bg-purple-50'"
             >
               <option :value="null">-- Select Company --</option>
-              <option value="PadmaShree Trade Link">PadmaShree Trade Link (Horlicks)</option>
-              <option value="Riya Trades and Suppliers">Riya Trades and Suppliers</option>
+              <option v-for="company in companiesList" :key="company.name" :value="company.name">
+                {{ company.company_name }} {{ company.main_product ? `(${capitalizeFirst(company.main_product)})` : '' }}
+              </option>
             </select>
           </div>
         </div>
         
         <!-- Company-specific info -->
         <div v-if="selectedCompany" class="mt-4 pt-4 border-t border-gray-200">
-          <div v-if="isPadmashree" class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-if="isHorlicksCompany" class="flex items-start gap-3 p-3 rounded-lg border" :style="getCompanyInfoStyle()">
+            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <div class="text-sm text-blue-800">
-              <p class="font-semibold">Padmashree Mode:</p>
-              <ul class="mt-1 space-y-1 list-disc list-inside text-blue-700">
-                <li>Works only with Horlicks customer group</li>
+            <div class="text-sm" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }">
+              <p class="font-semibold">{{ currentCompanyConfig?.abbr || 'Horlicks' }} Mode:</p>
+              <ul class="mt-1 space-y-1 list-disc list-inside opacity-90">
+                <li>Works only with {{ capitalizeFirst(currentCompanyConfig?.main_product || 'horlicks') }} customer group</li>
                 <li>Single driver for entire upload file</li>
                 <li>No loadsheet number required</li>
                 <li>Invoice numbers stored as Sales Reference</li>
               </ul>
             </div>
           </div>
-          <div v-else class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-            <svg class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div v-else class="flex items-start gap-3 p-3 rounded-lg border" :style="getCompanyInfoStyle()">
+            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#F40009' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <div class="text-sm text-red-800">
-              <p class="font-semibold">Riya Mode:</p>
-              <ul class="mt-1 space-y-1 list-disc list-inside text-red-700">
+            <div class="text-sm" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#F40009' }">
+              <p class="font-semibold">{{ currentCompanyConfig?.abbr || 'Standard' }} Mode:</p>
+              <ul class="mt-1 space-y-1 list-disc list-inside opacity-90">
                 <li>Works with all customers except Horlicks</li>
                 <li>Driver assigned per loadsheet</li>
                 <li>CSV Format: Outlet Code, Outlet Name, Reference No, Amount</li>
@@ -294,6 +295,7 @@
         v-if="selectedCompany && !csvParsed"
         :loading="uploading"
         :company="selectedCompany"
+        :company-config="currentCompanyConfig"
         @file-selected="handleFileUpload"
       />
 
@@ -329,6 +331,7 @@
         :unmatched-customers="parsedData.unmatched_customers || []"
         :created-customers="newlyCreatedCustomers"
         :company="selectedCompany"
+        :company-config="currentCompanyConfig"
         @customer-created="handleCustomerCreated"
         @all-customers-created="handleAllCustomersCreated"
       />
@@ -379,14 +382,14 @@
 
         <!-- Driver Assignment - Different for Padmashree vs Riya -->
         
-        <!-- Padmashree: Single driver selector -->
-        <template v-else-if="isPadmashree">
-          <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <!-- Horlicks company: Single driver selector -->
+        <template v-else-if="isHorlicksCompany">
+          <div class="rounded-xl p-6" :style="getCompanyInfoStyle()">
             <div class="flex items-center gap-3 mb-4">
-              <CompanyBadge company="PadmaShree Trade Link" size="lg" />
+              <CompanyBadge :company="selectedCompany" :companyConfig="currentCompanyConfig" size="lg" />
               <div>
-                <h3 class="text-lg font-bold text-blue-900">Select Driver</h3>
-                <p class="text-sm text-blue-700">Single driver for entire upload ({{ parsedData.row_count || 0 }} invoice rows, {{ uniqueCustomerCount }} unique customers)</p>
+                <h3 class="text-lg font-bold" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }">Select Driver</h3>
+                <p class="text-sm opacity-80" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }">Single driver for entire upload ({{ parsedData.row_count || 0 }} invoice rows, {{ uniqueCustomerCount }} unique customers)</p>
               </div>
             </div>
             
@@ -481,9 +484,9 @@
             <div class="sm:flex sm:items-start">
               <div 
                 class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10"
-                :class="isPadmashree ? 'bg-blue-100' : 'bg-red-100'"
+                :style="{ backgroundColor: currentCompanyConfig?.brand_colors?.bg || '#E6F4FA' }"
               >
-                <svg :class="isPadmashree ? 'text-blue-600' : 'text-red-600'" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -496,11 +499,11 @@
                     You are about to create payment reconciliation records for the following:
                   </p>
                   <div class="bg-gray-50 rounded-lg p-4 space-y-2 max-h-64 overflow-y-auto">
-                    <!-- Padmashree Mode: Single driver with all customers -->
-                    <template v-if="isPadmashree">
+                    <!-- Horlicks Mode: Single driver with all customers -->
+                    <template v-if="isHorlicksCompany">
                       <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
-                        <CompanyBadge company="PadmaShree Trade Link" size="md" />
-                        <span class="text-sm font-medium text-blue-800">PadmaShree Trade Link</span>
+                        <CompanyBadge :company="selectedCompany" :companyConfig="currentCompanyConfig" size="md" />
+                        <span class="text-sm font-medium" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }">{{ currentCompanyConfig?.company_name || selectedCompany }}</span>
                       </div>
                       <div class="text-sm space-y-2">
                         <div class="flex justify-between">
@@ -525,11 +528,11 @@
                       </div>
                     </template>
                     
-                    <!-- Riya Mode: Per-loadsheet driver assignment -->
+                    <!-- Non-horlicks Mode: Per-loadsheet driver assignment -->
                     <template v-else>
                       <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200">
-                        <CompanyBadge company="Riya Trades and Suppliers" size="md" />
-                        <span class="text-sm font-medium text-red-800">Riya Trades and Suppliers</span>
+                        <CompanyBadge :company="selectedCompany" :companyConfig="currentCompanyConfig" size="md" />
+                        <span class="text-sm font-medium" :style="{ color: currentCompanyConfig?.brand_colors?.primary || '#F40009' }">{{ currentCompanyConfig?.company_name || selectedCompany }}</span>
                       </div>
                       <div v-for="(loadsheets, driver) in groupedAssignments" :key="driver" class="text-sm">
                         <span class="font-medium text-gray-900">{{ driver }}</span>
@@ -552,8 +555,9 @@
               @click="createRecords"
               :disabled="creating"
               class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-              :class="isPadmashree 
-                ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' 
+              :style="{ backgroundColor: currentCompanyConfig?.brand_colors?.primary || '#0077B6' }"
+              :class="isHorlicksCompany 
+                ? 'hover:opacity-90 focus:ring-blue-500' 
                 : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'"
             >
               <svg v-if="creating" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -795,12 +799,47 @@ import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 
 // Company Selection State
 const selectedCompany = ref(null)
-const isPadmashree = computed(() => selectedCompany.value === 'PadmaShree Trade Link')
+const companiesList = ref([])
+
+// Get current company config from companiesList
+const currentCompanyConfig = computed(() => {
+  if (!selectedCompany.value) return null
+  return companiesList.value.find(c => c.name === selectedCompany.value) || null
+})
+
+// Check if selected company is horlicks-based (replaces isPadmashree)
+const isHorlicksCompany = computed(() => {
+  return currentCompanyConfig.value?.main_product === 'horlicks' || currentCompanyConfig.value?.is_horlicks
+})
+
+// Backward compatibility alias
+const isPadmashree = isHorlicksCompany
+
 const companyDescription = computed(() => {
-  if (isPadmashree.value) return 'Horlicks customers only'
+  if (isHorlicksCompany.value) {
+    const product = currentCompanyConfig.value?.main_product || 'horlicks'
+    return `${capitalizeFirst(product)} customers only`
+  }
   if (selectedCompany.value) return 'All customers except Horlicks'
   return ''
 })
+
+// Helper function to capitalize first letter
+const capitalizeFirst = (str) => {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+// Get company info box style based on brand colors
+const getCompanyInfoStyle = () => {
+  const colors = currentCompanyConfig.value?.brand_colors
+  if (!colors) {
+    return isHorlicksCompany.value 
+      ? { backgroundColor: '#E6F4FA', borderColor: '#0077B6' }
+      : { backgroundColor: '#FEE6E6', borderColor: '#F40009' }
+  }
+  return { backgroundColor: colors.bg, borderColor: colors.primary }
+}
 
 // Padmashree-specific state
 const selectedDriverPadmashree = ref(null)
@@ -917,9 +956,22 @@ const canProceedToConfirmReco = computed(() => {
 })
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   loadDrivers()
+  await loadCompanies()
 })
+
+// Fetch companies list
+const loadCompanies = async () => {
+  try {
+    const response = await call('custom_erp.api.payment_reco.get_companies_list')
+    if (response.success && response.data) {
+      companiesList.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to load companies:', error)
+  }
+}
 
 // Watch for company changes
 watch(selectedCompany, () => {
@@ -1034,14 +1086,15 @@ const createRecords = async () => {
   try {
     let response
     
-    if (isPadmashree.value) {
-      // Padmashree: Single driver, no loadsheet grouping
-      response = await call('custom_erp.api.payment_reco.create_payment_recos_padmashree', {
+    if (isHorlicksCompany.value) {
+      // Horlicks company: Single driver, no loadsheet grouping
+      response = await call('custom_erp.api.payment_reco.create_payment_recos_horlicks', {
         driver: selectedDriverPadmashree.value,
-        csv_data: JSON.stringify(parsedData.value.parsed_rows)
+        csv_data: JSON.stringify(parsedData.value.parsed_rows),
+        company: selectedCompany.value
       })
     } else {
-      // Riya: Driver per loadsheet
+      // Non-horlicks: Driver per loadsheet
       response = await call('custom_erp.api.payment_reco.create_payment_recos', {
         driver_assignments: JSON.stringify(groupedAssignments.value),
         csv_data: JSON.stringify(parsedData.value.grouped_by_loadsheet),

@@ -416,6 +416,7 @@
       :amount="pendingQRAmount"
       :line-name="lineData?.name"
       :company="company"
+      :company-config="companyConfig"
       @close="handleQRDialogClose"
       @success="handleQRSuccess"
     />
@@ -594,6 +595,7 @@ const customerName = ref('')
 const customerCode = ref('')
 const entryMode = ref('whole')
 const company = ref('')  // Track company for Fonepay API selection
+const companyConfig = ref(null)  // Company config for dynamic styling and API selection
 
 // Payment state
 const paymentCompleted = ref(false)
@@ -680,6 +682,20 @@ const loadLineData = async () => {
         customerCode.value = line.customer
         // Extract company from reco for Fonepay API selection
         company.value = response.data.reco?.company || ''
+        
+        // Fetch company config for dynamic API selection
+        if (company.value) {
+          try {
+            const configResponse = await call('custom_erp.api.payment_reco.get_company_config', {
+              company_name: company.value
+            })
+            if (configResponse.success) {
+              companyConfig.value = configResponse.data
+            }
+          } catch (err) {
+            console.error('Error loading company config:', err)
+          }
+        }
         
         // Update payment amounts from server to ensure UI is in sync
         cashAmount.value = line.cash_amount || 0

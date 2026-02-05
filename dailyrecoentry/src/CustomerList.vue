@@ -104,22 +104,22 @@
         <!-- Company Header Banner -->
         <div v-if="currentCompany" 
              class="rounded-xl border-2 p-4 shadow-md flex items-center justify-between"
-             :class="isPadmashree ? 'bg-blue-50 border-blue-400' : 'bg-red-50 border-red-400'">
+             :style="{ backgroundColor: companyColors.bg, borderColor: companyColors.primary }">
           <div class="flex items-center gap-4">
-            <CompanyBadge :company="currentCompany" size="lg" />
+            <CompanyBadge :company="currentCompany" :companyConfig="companyConfig" size="lg" />
             <div>
-              <h2 class="text-lg font-bold" :class="isPadmashree ? 'text-blue-900' : 'text-red-900'">
+              <h2 class="text-lg font-bold" :style="{ color: companyColors.primary }">
                 {{ currentCompany }}
               </h2>
-              <p class="text-sm" :class="isPadmashree ? 'text-blue-700' : 'text-red-700'">
-                {{ isPadmashree ? 'Horlicks Distribution' : 'General Distribution' }}
+              <p class="text-sm" :style="{ color: companyColors.primary, opacity: 0.8 }">
+                {{ companyDistributionLabel }}
               </p>
             </div>
           </div>
           <div class="text-right">
             <span class="text-xs font-medium px-3 py-1 rounded-full"
-                  :class="isPadmashree ? 'bg-blue-200 text-blue-800' : 'bg-red-200 text-red-800'">
-              {{ isPadmashree ? 'PS' : 'RS' }}
+                  :style="{ backgroundColor: companyColors.light, color: companyColors.text }">
+              {{ companyAbbr }}
             </span>
           </div>
         </div>
@@ -704,7 +704,39 @@ const availableDrivers = ref([])
 const selectedDriver = ref(null)
 // Company state
 const currentCompany = ref('')
-const isPadmashree = computed(() => currentCompany.value === 'PadmaShree Trade Link')
+const companyConfig = ref(null)
+
+// Check if company is horlicks-based
+const isHorlicksCompany = computed(() => {
+  return companyConfig.value?.main_product === 'horlicks' || companyConfig.value?.is_horlicks
+})
+
+// Backward compatibility alias
+const isPadmashree = isHorlicksCompany
+
+// Get company distribution label
+const companyDistributionLabel = computed(() => {
+  if (isHorlicksCompany.value) {
+    const product = companyConfig.value?.main_product
+    return product ? `${product.charAt(0).toUpperCase() + product.slice(1)} Distribution` : 'Horlicks Distribution'
+  }
+  return 'General Distribution'
+})
+
+// Get company badge/abbreviation
+const companyAbbr = computed(() => {
+  return companyConfig.value?.abbr || (isHorlicksCompany.value ? 'PS' : 'RS')
+})
+
+// Get company style colors
+const companyColors = computed(() => {
+  if (companyConfig.value?.brand_colors) {
+    return companyConfig.value.brand_colors
+  }
+  return isHorlicksCompany.value 
+    ? { primary: '#0077B6', bg: '#E6F4FA', light: '#DBEAFE', text: '#1E40AF' }
+    : { primary: '#F40009', bg: '#FEE6E6', light: '#FEE2E2', text: '#991B1B' }
+})
 
 const showSettleAllDialog = ref(false)
 const settlingAll = ref(false)
@@ -793,6 +825,11 @@ const loadData = async () => {
       // Extract company from response
       currentCompany.value = response.data.reco.company || ''
       
+      // Fetch company config for dynamic styling
+      if (currentCompany.value) {
+        await loadCompanyConfig(currentCompany.value)
+      }
+      
       // If admin, also make sure available drivers are loaded
       if (isAdmin.value && availableDrivers.value.length === 0) {
         await loadAllDrivers()
@@ -801,15 +838,31 @@ const loadData = async () => {
       // Admin user but no driver data for selection - load all drivers list
       recoData.value = null
       currentCompany.value = ''
+      companyConfig.value = null
       await loadAllDrivers()
     } else {
       recoData.value = null
       currentCompany.value = ''
+      companyConfig.value = null
     }
   } catch (error) {
     console.error('Error loading data:', error)
   } finally {
     loading.value = false
+  }
+}
+
+// Load company config for dynamic styling
+const loadCompanyConfig = async (company) => {
+  try {
+    const response = await call('custom_erp.api.payment_reco.get_company_config', {
+      company_name: company
+    })
+    if (response.success) {
+      companyConfig.value = response.data
+    }
+  } catch (error) {
+    console.error('Error loading company config:', error)
   }
 }
 

@@ -131,11 +131,20 @@ const props = defineProps({
   company: {
     type: String,
     default: ''
+  },
+  companyConfig: {
+    type: Object,
+    default: null
   }
 })
 
-// Check if using Padmashree company (uses different Fonepay credentials)
-const isPadmashree = () => props.company === 'PadmaShree Trade Link'
+// Check if company is horlicks-based (uses different Fonepay credentials)
+const isHorlicksCompany = () => {
+  return props.companyConfig?.main_product === 'horlicks' || props.companyConfig?.is_horlicks
+}
+
+// Backward compatibility alias
+const isPadmashree = isHorlicksCompany
 
 const emit = defineEmits(['close', 'success'])
 
@@ -175,14 +184,10 @@ const generateQR = async () => {
       company: props.company
     })
     
-    // Use different Fonepay API based on company
-    // Padmashree uses fonepay_padmashree credentials, Riya uses fonepay credentials
-    const apiMethod = isPadmashree() 
-      ? 'custom_erp.api.fonepay.create_dynamic_qr_padmashree'
-      : 'custom_erp.api.fonepay.create_dynamic_qr'
-    
-    const response = await call(apiMethod, {
+    // Use company-based Fonepay API (credentials selected based on company's main_product)
+    const response = await call('custom_erp.api.fonepay.create_dynamic_qr_for_company', {
       amount: props.amount,
+      company: props.company,
       customer: props.customer,
       remarks1: `${currentUser}`,
       remarks2: `${props.customerName}`,
