@@ -961,15 +961,29 @@ onMounted(async () => {
   await loadCompanies()
 })
 
+// Extract companies array from API response (handles Frappe wrapper and all shapes)
+function extractCompaniesList(raw) {
+  if (raw == null) return []
+  if (Array.isArray(raw)) return raw
+  // Frappe HTTP body: { message: { success, data, message? } }
+  const inner = raw.message
+  if (inner != null && typeof inner === 'object') {
+    if (Array.isArray(inner.data)) return inner.data
+    if (Array.isArray(inner)) return inner
+  }
+  // Direct return: { success, data, message? }
+  if (Array.isArray(raw.data)) return raw.data
+  return []
+}
+
 // Fetch companies list
 const loadCompanies = async () => {
   try {
-    const response = await call('custom_erp.api.payment_reco.get_companies_list')
-    if (response.success && response.data) {
-      companiesList.value = response.data
-    }
+    const raw = await call('custom_erp.api.payment_reco.get_companies_list')
+    companiesList.value = extractCompaniesList(raw)
   } catch (error) {
     console.error('Failed to load companies:', error)
+    companiesList.value = []
   }
 }
 
