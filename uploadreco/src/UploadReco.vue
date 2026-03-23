@@ -224,6 +224,37 @@
             <span class="text-indigo-600">Remaining: {{ formatCurrency(recoLinesData.summary.remaining_amount) }}</span>
           </div>
 
+          <!-- Reassign pending lines to another driver's active reco -->
+          <div class="flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-sm">
+            <span class="font-semibold text-indigo-900">Pending only:</span>
+            <span class="text-indigo-800/90">Select customers with no payments yet, then assign to another driver.</span>
+            <div class="flex flex-wrap items-center gap-2 ml-auto">
+              <button
+                type="button"
+                class="text-xs font-bold text-indigo-700 underline decoration-indigo-400 hover:text-indigo-900"
+                @click="selectAllReassignableLines"
+              >
+                Select all eligible
+              </button>
+              <button
+                type="button"
+                class="text-xs font-bold text-gray-600 hover:text-gray-900"
+                @click="clearReassignmentSelection"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                :disabled="reassignmentLineNames.length === 0"
+                class="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                @click="openReassignDialog"
+              >
+                Assign to other driver
+                <span v-if="reassignmentLineNames.length" class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ reassignmentLineNames.length }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Lines List -->
           <div class="border border-gray-200 rounded-lg max-h-80 overflow-y-auto divide-y divide-gray-200">
             <div
@@ -231,6 +262,19 @@
               :key="line.name"
               class="p-3 hover:bg-gray-50 flex items-center gap-3"
             >
+              <div v-if="canReassignLine(line)" class="flex-shrink-0 pt-0.5">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500"
+                  :checked="reassignmentLineNames.includes(line.name)"
+                  @change="toggleReassignLine(line.name, $event.target.checked)"
+                />
+              </div>
+              <div
+                v-else
+                class="flex-shrink-0 w-5"
+                :title="reassignBlockedReason(line)"
+              />
               <div class="flex-shrink-0 w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">
                 {{ index + 1 }}
               </div>
@@ -258,9 +302,21 @@
             </div>
           </div>
 
-          <!-- Add Entry Button -->
-          <div class="flex justify-center pt-4 pb-2">
+          <!-- Print PDF + Add Entry -->
+          <div class="flex justify-center items-center gap-3 sm:gap-4 pt-4 pb-2 flex-wrap">
             <button
+              type="button"
+              @click="printRecoLinesPdf"
+              class="inline-flex items-center px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl font-bold text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50"
+              title="Download A4 customer list PDF (Nepali amount format, blank Payments column)"
+            >
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              <span style="letter-spacing: 0.5px;">Print / Download PDF</span>
+            </button>
+            <button
+              type="button"
               @click="openAddEntryDialogForReco"
               class="inline-flex items-center px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border-2"
               style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); color: #ffffff; border-color: #4f46e5; text-shadow: 0 1px 2px rgba(0,0,0,0.2);"
@@ -618,6 +674,54 @@
       </div>
     </div>
 
+    <!-- Assign pending lines to another driver -->
+    <div v-if="showReassignDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div class="fixed inset-0 bg-gray-900 bg-opacity-60 transition-opacity" @click="closeReassignDialog"></div>
+      <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md border-2 border-indigo-500 overflow-hidden">
+        <div class="px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600">
+          <h3 class="text-lg font-bold text-white">Assign to another driver</h3>
+          <p class="text-sm text-indigo-100 mt-1">
+            {{ reassignmentLineNames.length }} pending line(s) with no payments will move to the selected driver’s open reconciliation. Summaries update on both recos.
+          </p>
+        </div>
+        <div class="px-5 py-4 space-y-4">
+          <div>
+            <label class="block text-sm font-bold text-gray-800 mb-2">Target driver</label>
+            <select
+              v-model="reassignTargetDriver"
+              class="block w-full rounded-lg border-2 border-gray-300 px-3 py-2.5 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option :value="null">— Choose driver —</option>
+              <option v-for="d in otherDriversForReassign" :key="d.name" :value="d.driver_name">
+                {{ d.driver_name }}
+              </option>
+            </select>
+          </div>
+          <p v-if="otherDriversForReassign.length === 0" class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            No other drivers are available in this list. Add drivers or pick a different source driver.
+          </p>
+        </div>
+        <div class="bg-gray-50 px-5 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-lg border-2 border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 bg-white hover:bg-gray-100"
+            :disabled="reassigning"
+            @click="closeReassignDialog"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border-2 border-indigo-700 bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            :disabled="!reassignTargetDriver || reassigning || otherDriversForReassign.length === 0"
+            @click="submitReassignLines"
+          >
+            {{ reassigning ? 'Assigning…' : 'Confirm assign' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Add New Entry Dialog for Reco -->
     <div v-if="showAddEntryDialogReco" class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="fixed inset-0 bg-gray-900 bg-opacity-60 transition-opacity" @click="closeAddEntryDialogReco"></div>
@@ -796,6 +900,7 @@ import DataPreview from './components/DataPreview.vue'
 import DriverAssignment from './components/DriverAssignment.vue'
 import UnmatchedList from './components/UnmatchedList.vue'
 import CompanyBadge from '../../shared/components/CompanyBadge.vue'
+import { downloadDriverRecoPdf } from '../../shared/utils/driverRecoPdf.js'
 
 // Company Selection State
 const selectedCompany = ref(null)
@@ -863,6 +968,11 @@ const viewRecoDriver = ref(null)
 const loadingRecoLines = ref(false)
 const recoLinesData = ref(null)
 const recoLinesError = ref('')
+
+const reassignmentLineNames = ref([])
+const showReassignDialog = ref(false)
+const reassignTargetDriver = ref(null)
+const reassigning = ref(false)
 
 // Add Entry Dialog State (for Reco)
 const showAddEntryDialogReco = ref(false)
@@ -1177,6 +1287,116 @@ const handleAllCustomersCreated = () => {
 
 // --- Reco Lines Methods ---
 
+const otherDriversForReassign = computed(() => {
+  if (!viewRecoDriver.value || !drivers.value?.length) return []
+  return drivers.value.filter((d) => d.driver_name !== viewRecoDriver.value)
+})
+
+const canReassignLine = (line) => {
+  if (!line) return false
+  if (line.settled === 1 || line.settled === true) return false
+  const paid =
+    Number(line.cash_amount || 0) +
+    Number(line.qr_amount || 0) +
+    Number(line.cheque_amount || 0) +
+    Number(line.credit_amount || 0)
+  return paid === 0
+}
+
+const reassignBlockedReason = (line) => {
+  if (!line) return ''
+  if (line.settled === 1 || line.settled === true) return 'Settled lines cannot be reassigned'
+  const paid =
+    Number(line.cash_amount || 0) +
+    Number(line.qr_amount || 0) +
+    Number(line.cheque_amount || 0) +
+    Number(line.credit_amount || 0)
+  if (paid !== 0) return 'Lines with cash, QR, cheque, or credit cannot be reassigned'
+  return ''
+}
+
+const toggleReassignLine = (lineName, checked) => {
+  const set = new Set(reassignmentLineNames.value)
+  if (checked) set.add(lineName)
+  else set.delete(lineName)
+  reassignmentLineNames.value = [...set]
+}
+
+const clearReassignmentSelection = () => {
+  reassignmentLineNames.value = []
+}
+
+watch(viewRecoDriver, () => {
+  clearReassignmentSelection()
+})
+
+const selectAllReassignableLines = () => {
+  if (!recoLinesData.value?.lines) return
+  const names = recoLinesData.value.lines.filter((l) => canReassignLine(l)).map((l) => l.name)
+  reassignmentLineNames.value = [...new Set(names)]
+}
+
+const openReassignDialog = () => {
+  if (reassignmentLineNames.value.length === 0) return
+  reassignTargetDriver.value = null
+  showReassignDialog.value = true
+}
+
+const closeReassignDialog = () => {
+  if (reassigning.value) return
+  showReassignDialog.value = false
+  reassignTargetDriver.value = null
+}
+
+const submitReassignLines = async () => {
+  if (!reassignTargetDriver.value || !recoLinesData.value?.reco_name || reassignmentLineNames.value.length === 0) {
+    return
+  }
+  reassigning.value = true
+  try {
+    const response = await call('custom_erp.api.payment_reco.reassign_pending_reco_lines', {
+      line_names: reassignmentLineNames.value,
+      target_driver_name: reassignTargetDriver.value,
+      company: selectedCompany.value,
+      source_reco_name: recoLinesData.value.reco_name,
+    })
+    if (response.success) {
+      clearReassignmentSelection()
+      closeReassignDialog()
+      alert(response.message || 'Lines reassigned.')
+      await loadRecoLines()
+    } else {
+      alert(response.message || 'Could not reassign lines.')
+    }
+  } catch (e) {
+    console.error(e)
+    alert('Failed to reassign lines.')
+  } finally {
+    reassigning.value = false
+  }
+}
+
+const printRecoLinesPdf = () => {
+  const r = recoLinesData.value
+  if (!r?.lines?.length) {
+    alert('No reco lines to print. Load a driver’s lines first.')
+    return
+  }
+  const result = downloadDriverRecoPdf({
+    reco: {
+      name: r.reco_name,
+      driver_name: r.driver_name,
+      loadsheet_number: r.loadsheet_number || '',
+    },
+    summary: r.summary,
+    lines: r.lines,
+    driverName: r.driver_name || viewRecoDriver.value,
+  })
+  if (!result.ok) {
+    alert(result.message || 'Could not create PDF.')
+  }
+}
+
 const loadRecoLines = async () => {
   if (!viewRecoDriver.value) {
     recoLinesData.value = null
@@ -1195,6 +1415,7 @@ const loadRecoLines = async () => {
     if (response.success) {
       recoLinesData.value = response.data
       recoLinesError.value = ''
+      clearReassignmentSelection()
     } else {
       recoLinesData.value = null
       recoLinesError.value = response.message || 'No active reco found for this driver'

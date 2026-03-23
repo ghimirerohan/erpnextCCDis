@@ -13,6 +13,8 @@
 		"browser-image-compression": "^2.0.2",
 		"feather-icons": "^4.29.2",
 		"frappe-ui": "^0.1.149",
+		"jspdf": "^2.5.2",
+		"jspdf-autotable": "^3.8.4",
 		"nepali-date-converter": "^3.4.0",
 		"papaparse": "^5.4.1",
 		"socket.io-client": "^4.7.2",

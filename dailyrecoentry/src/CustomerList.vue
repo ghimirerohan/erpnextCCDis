@@ -371,6 +371,21 @@
             </div>
           </div>
         </div>
+
+        <!-- A4 PDF for driver: sorted list, Nepali amount format, blank Payments column for handwritten remarks -->
+        <div v-if="recoData?.lines?.length" class="flex justify-center pt-4 pb-2">
+          <button
+            type="button"
+            @click="printDriverRecoPdf"
+            class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold shadow-md border-2 transition-all active:scale-[0.98] bg-white text-gray-800 border-gray-400 hover:bg-gray-50 hover:border-gray-500"
+            title="Download customer list as PDF (A4)"
+          >
+            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print / Download PDF
+          </button>
+        </div>
       </template>
     </main>
 
@@ -690,6 +705,7 @@ import { session } from '../../shared/data/session'
 import { call } from 'frappe-ui'
 import SummaryCard from './components/SummaryCard.vue'
 import CompanyBadge from '../../shared/components/CompanyBadge.vue'
+import { downloadDriverRecoPdf } from '../../shared/utils/driverRecoPdf.js'
 
 const router = useRouter()
 
@@ -1065,6 +1081,22 @@ const formatCurrency = (amount) => {
     currency: 'NPR',
     minimumFractionDigits: 0
   }).format(amount || 0)
+}
+
+const printDriverRecoPdf = () => {
+  if (!recoData.value?.lines?.length) {
+    alert('No customer lines to print.')
+    return
+  }
+  const result = downloadDriverRecoPdf({
+    reco: recoData.value.reco,
+    summary: recoData.value.summary,
+    lines: recoData.value.lines,
+    driverName: driverName.value,
+  })
+  if (!result.ok) {
+    alert(result.message || 'Could not create PDF.')
+  }
 }
 
 onMounted(() => {

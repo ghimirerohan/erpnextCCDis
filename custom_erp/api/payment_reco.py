@@ -1752,6 +1752,7 @@ def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> D
                 "reco_name": reco_doc.name,
                 "driver_name": driver_name,
                 "company": reco_doc.company or "",
+                "loadsheet_number": (reco_doc.loadsheet_number or "").strip(),
                 "lines": lines,
                 "summary": {
                     "initial_total_amount": float(reco_doc.initial_total_amount or 0),
@@ -1767,6 +1768,216 @@ def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> D
     except Exception as e:
         frappe.log_error(f"Error in get_reco_lines_for_driver: {str(e)}\n{traceback.format_exc()}")
         return {"success": False, "data": None, "message": str(e)}
+
+
+def _recalc_line_net_remaining_and_settled(line) -> None:
+    """Keep line.net_total_amount and remaining consistent with payment fields."""
+    line.net_total_amount = float(line.initial_total_amount or 0) + float(line.additional_amount or 0) - float(
+        line.return_amount or 0
+    )
+    paid = (
+        float(line.cash_amount or 0)
+        + float(line.qr_amount or 0)
+        + float(line.cheque_amount or 0)
+        + float(line.credit_amount or 0)
+    )
+    line.remaining_amount = line.net_total_amount - paid
+    line.settled = 1 if float(line.remaining_amount or 0) == 0 else 0
+
+
+def _reapply_reco_totals_from_child_lines(reco_doc) -> None:
+    """Mirror add_new_reco_entry / update_payment_entry parent aggregation."""
+    lines = reco_doc.daily_sales_payment_reco_line
+    reco_doc.initial_total_amount = sum(float(l.initial_total_amount or 0) for l in lines)
+    reco_doc.additional_amount = sum(float(l.additional_amount or 0) for l in lines)
+    reco_doc.return_amount = sum(float(l.return_amount or 0) for l in lines)
+    reco_doc.net_total_amount = reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
+    reco_doc.qr_amount = sum(float(l.qr_amount or 0) for l in lines)
+    reco_doc.cheque_amount = sum(float(l.cheque_amount or 0) for l in lines)
+    reco_doc.cash_amount = sum(float(l.cash_amount or 0) for l in lines)
+    reco_doc.credit_amount = sum(float(l.credit_amount or 0) for l in lines)
+    reco_doc.remaining_amount = sum(float(l.remaining_amount or 0) for l in lines)
+    expense_amount = float(reco_doc.expense_amount or 0)
+    reco_doc.cash_expected = float(reco_doc.cash_amount or 0) - expense_amount
+    cash_received = float(reco_doc.cash_received or 0)
+    reco_doc.cash_difference = cash_received - reco_doc.cash_expected
+    if lines:
+        reco_doc.settled = 1 if all(l.settled for l in lines) else 0
+    else:
+        reco_doc.settled = 0
+
+
+@frappe.whitelist()
+def reassign_pending_reco_lines(
+    line_names,
+    target_driver_name: str,
+    company: str,
+    source_reco_name: str = None,
+) -> Dict[str, Any]:
+    """
+    Move selected Daily Sales Payment Reco lines from the current driver's active reco
+    to another driver's active (unsettled) reco for the same company.
+
+    Rules:
+    - Only pending lines: settled must be false.
+    - No payments recorded yet: cash, QR, cheque, and credit amounts must all be 0.
+    - No linked Fonepay QR or Cheques Taageta on the line.
+    - Target driver must differ and must have an active (settled=0) reconciliation for the company.
+    - If the target reco already has the same customer, amounts are merged on that line (same idea as add_new_reco_entry).
+    """
+    try:
+        if not company:
+            raise ValueError("Company is required")
+        if not target_driver_name:
+            raise ValueError("Target driver name is required")
+
+        if isinstance(line_names, str):
+            line_names = json.loads(line_names)
+        if not line_names or not isinstance(line_names, (list, tuple)):
+            raise ValueError("line_names must be a non-empty list of line IDs")
+
+        names_set = {str(n) for n in line_names if n}
+
+        target_driver_id = frappe.db.get_value("Driver", {"full_name": target_driver_name}, "name")
+        if not target_driver_id:
+            raise ValueError(f"Target driver '{target_driver_name}' not found")
+
+        source_reco_name = (source_reco_name or "").strip()
+        if not source_reco_name:
+            raise ValueError("source_reco_name is required")
+
+        source_reco = frappe.get_doc("Daily Sales Payment Reco", source_reco_name)
+        if (source_reco.company or "") != company:
+            raise ValueError("Source reconciliation does not belong to the selected company")
+
+        source_driver_name = frappe.db.get_value("Driver", source_reco.driver, "full_name") or source_reco.driver
+        if source_driver_name == target_driver_name:
+            raise ValueError("Target driver must be different from the current driver")
+
+        target_reco_list = frappe.get_all(
+            "Daily Sales Payment Reco",
+            filters={"driver": target_driver_id, "company": company, "settled": 0},
+            fields=["name"],
+            order_by="creation desc",
+            limit=1,
+        )
+        if not target_reco_list:
+            raise ValueError(
+                f"No active (unsettled) reconciliation found for driver '{target_driver_name}' in this company."
+            )
+        target_reco = frappe.get_doc("Daily Sales Payment Reco", target_reco_list[0]["name"])
+
+        if target_reco.name == source_reco.name:
+            raise ValueError("Source and target reconciliations must be different")
+
+        to_remove: List[Any] = []
+        snapshots: List[Dict[str, Any]] = []
+
+        for row in list(source_reco.daily_sales_payment_reco_line):
+            if row.name not in names_set:
+                continue
+
+            if row.settled:
+                raise ValueError(
+                    f"Line for customer {row.customer} is settled; only pending lines can be reassigned."
+                )
+
+            paid = (
+                float(row.cash_amount or 0)
+                + float(row.qr_amount or 0)
+                + float(row.cheque_amount or 0)
+                + float(row.credit_amount or 0)
+            )
+            if paid != 0:
+                raise ValueError(
+                    f"Line for customer {row.customer} has payments recorded; only lines with no payments can be reassigned."
+                )
+
+            if getattr(row, "fonepay_qr_transaction", None) or getattr(row, "cheques_taageta", None):
+                raise ValueError(
+                    f"Line for customer {row.customer} is linked to QR or cheque records; remove links before reassigning."
+                )
+
+            move_note = f" [Moved from {source_driver_name}]"
+            snapshots.append(
+                {
+                    "customer": row.customer,
+                    "initial_total_amount": float(row.initial_total_amount or 0),
+                    "additional_amount": float(row.additional_amount or 0),
+                    "return_amount": float(row.return_amount or 0),
+                    "qr_amount": 0.0,
+                    "cheque_amount": 0.0,
+                    "cash_amount": 0.0,
+                    "credit_amount": 0.0,
+                    "remarks": ((row.remarks or "") + move_note).strip(),
+                    "sales_reference_no": getattr(row, "sales_reference_no", None) or "",
+                }
+            )
+            to_remove.append(row)
+
+        if len(snapshots) != len(names_set):
+            raise ValueError("Some line IDs were not found on this reconciliation or are duplicated")
+
+        for row in to_remove:
+            source_reco.remove(row)
+
+        for snap in snapshots:
+            existing = next(
+                (l for l in target_reco.daily_sales_payment_reco_line if l.customer == snap["customer"]),
+                None,
+            )
+            if existing:
+                existing.initial_total_amount = float(existing.initial_total_amount or 0) + snap["initial_total_amount"]
+                existing.additional_amount = float(existing.additional_amount or 0) + snap["additional_amount"]
+                existing.return_amount = float(existing.return_amount or 0) + snap["return_amount"]
+                existing.remarks = ((existing.remarks or "") + " " + (snap["remarks"] or "")).strip()
+                if snap.get("sales_reference_no") and not (existing.sales_reference_no or "").strip():
+                    existing.sales_reference_no = snap["sales_reference_no"]
+                existing.updated_later = 1
+                _recalc_line_net_remaining_and_settled(existing)
+            else:
+                net = snap["initial_total_amount"] + snap["additional_amount"] - snap["return_amount"]
+                target_reco.append(
+                    "daily_sales_payment_reco_line",
+                    {
+                        "customer": snap["customer"],
+                        "initial_total_amount": snap["initial_total_amount"],
+                        "additional_amount": snap["additional_amount"],
+                        "return_amount": snap["return_amount"],
+                        "qr_amount": 0,
+                        "cheque_amount": 0,
+                        "cash_amount": 0,
+                        "credit_amount": 0,
+                        "net_total_amount": net,
+                        "remaining_amount": net,
+                        "settled": 0,
+                        "remarks": snap["remarks"] or "[Reassigned]",
+                        "sales_reference_no": snap.get("sales_reference_no") or "",
+                        "updated_later": 1,
+                    },
+                )
+
+        _reapply_reco_totals_from_child_lines(source_reco)
+        _reapply_reco_totals_from_child_lines(target_reco)
+
+        source_reco.save(ignore_permissions=True)
+        target_reco.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        return {
+            "success": True,
+            "message": _("Moved {0} line(s) to driver {1}").format(len(snapshots), target_driver_name),
+            "moved_count": len(snapshots),
+            "source_reco": source_reco.name,
+            "target_reco": target_reco.name,
+        }
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(
+            message=f"reassign_pending_reco_lines: {str(e)}\n{traceback.format_exc()}",
+            title="reassign_pending_reco_lines",
+        )
+        return {"success": False, "message": str(e)}
 
 
 @frappe.whitelist()

@@ -228,6 +228,7 @@ whitelisted_methods = [
 	"custom_erp.api.payment_reco.create_cheque_taageta",
 	"custom_erp.api.payment_reco.get_current_nepali_date",
 	"custom_erp.api.payment_reco.settle_all_pending_as_cash",
+	"custom_erp.api.payment_reco.reassign_pending_reco_lines",
     # ADDED BY AI: AI_ASSISTANT - Gemini Live Relay methods
     "custom_erp.api.live_relay.start_conversation",
     "custom_erp.api.live_relay.push_audio_chunk",
