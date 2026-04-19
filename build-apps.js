@@ -9,7 +9,7 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const apps = [
+const allApps = [
 	'qrpay',
 	'qrpay-horlicks',
 	'qrpay-admin',
@@ -24,6 +24,19 @@ const apps = [
 	'ai-assistant',
 	'emp-attendance'
 ];
+
+/** Set BUILD_APP=dailyrecoentry (or any app id) to build only that SPA + skip CCDis. */
+const buildOne = process.env.BUILD_APP?.replace(/[^a-z0-9-]/gi, '') || '';
+let apps = allApps;
+if (buildOne) {
+	if (!allApps.includes(buildOne)) {
+		console.error(
+			`Unknown BUILD_APP "${process.env.BUILD_APP}". Valid: ${allApps.join(', ')}`
+		);
+		process.exit(1);
+	}
+	apps = [buildOne];
+}
 
 // App-specific theme colors
 const appThemes = {
@@ -333,18 +346,22 @@ self.addEventListener('message', (event) => {
 }
 
 // CCDis v2 — field-app & admin-app (frappe-ui + Vite in /frontend)
-console.log('\n📦 Building CCDis field-app & admin-app...\n');
-try {
-	const { execSync } = await import('child_process');
-	execSync('yarn install && yarn build', {
-		cwd: path.join(__dirname, 'frontend'),
-		stdio: 'inherit',
-		env: { ...process.env, NODE_ENV: 'production' },
-	});
-	console.log('✅ CCDis SPAs built and www/*.html synced\n');
-} catch (err) {
-	console.error('❌ CCDis SPA build failed:', err.message);
-	process.exit(1);
+if (!buildOne) {
+	console.log('\n📦 Building CCDis field-app & admin-app...\n');
+	try {
+		const { execSync } = await import('child_process');
+		execSync('yarn install && yarn build', {
+			cwd: path.join(__dirname, 'frontend'),
+			stdio: 'inherit',
+			env: { ...process.env, NODE_ENV: 'production' },
+		});
+		console.log('✅ CCDis SPAs built and www/*.html synced\n');
+	} catch (err) {
+		console.error('❌ CCDis SPA build failed:', err.message);
+		process.exit(1);
+	}
+} else {
+	console.log(`\n⏭️  Skipping CCDis build (BUILD_APP=${buildOne} single-app mode)\n`);
 }
 
 console.log('\n✨ All apps built successfully!\n');

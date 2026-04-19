@@ -97,7 +97,7 @@
               type="button"
               @click="confirmStaticPayment"
               :disabled="!staticRemarksValid"
-              class="qr-static-confirm-btn w-full sm:w-auto inline-flex justify-center items-center rounded-lg border-2 border-transparent shadow-md px-5 py-3 sm:px-4 sm:py-2 bg-sky-600 text-base sm:text-sm font-semibold hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+              class="qr-static-confirm-btn w-full sm:w-auto inline-flex justify-center items-center rounded-lg border-2 shadow-md px-5 py-3 sm:px-4 sm:py-2 text-base sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 touch-manipulation"
             >
               Confirm
             </button>
@@ -466,16 +466,26 @@ const formatAmount = (amount) => {
 </script>
 
 <style scoped>
-/* Ensure label stays readable if global/app CSS overrides Tailwind text-white */
+/* Full paint: global CSS was stripping Tailwind bg-* so we had white text on a pale bar */
 .qr-static-confirm-btn {
+	background-color: #0284c7 !important;
+	border-color: #0369a1 !important;
 	color: #ffffff !important;
 	-webkit-text-fill-color: #ffffff;
 	opacity: 1;
 	visibility: visible;
+	cursor: pointer;
+}
+.qr-static-confirm-btn:hover:not(:disabled) {
+	background-color: #0369a1 !important;
+	border-color: #075985 !important;
 }
 .qr-static-confirm-btn:disabled {
-	color: #ffffff !important;
-	-webkit-text-fill-color: #ffffff;
-	opacity: 0.65;
+	background-color: #94a3b8 !important;
+	border-color: #64748b !important;
+	color: #f8fafc !important;
+	-webkit-text-fill-color: #f8fafc;
+	opacity: 1;
+	cursor: not-allowed;
 }
 </style>

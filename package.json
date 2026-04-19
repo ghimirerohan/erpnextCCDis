@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "node build-apps.js",
+		"build:dailyrecoentry": "BUILD_APP=dailyrecoentry node build-apps.js",
 		"preview": "vite preview",
 		"lint": "biome check --write ."
 	},
