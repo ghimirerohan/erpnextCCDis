@@ -586,6 +586,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { call } from 'frappe-ui'
 import QRPaymentDialog from './components/QRPaymentDialog.vue'
 import ChequeCapture from './components/ChequeCapture.vue'
+import { isStaticQrMode } from './config/qrPaymentMode'
+import { callUpdatePaymentEntry, getCachedDriverReco } from './offline/recoOffline'
 
 const router = useRouter()
 const route = useRoute()
@@ -642,6 +644,7 @@ const confirmDialogData = ref({
 
 // References
 const qrTransactionRef = ref(null)
+const pendingQrRemarks = ref('')
 const chequeRef = ref(null)
 
 // Validation
@@ -665,8 +668,18 @@ const loadLineData = async () => {
       alert('Error: Driver information not found. Please go back and select a driver.')
       return
     }
-    
-    const response = await call('custom_erp.api.payment_reco.get_driver_reco_data', { driver_name: driverName })
+
+    let response
+    try {
+      response = await call('custom_erp.api.payment_reco.get_driver_reco_data', { driver_name: driverName })
+    } catch (netErr) {
+      const cached = await getCachedDriverReco(driverName)
+      if (cached && cached.success) {
+        response = cached
+      } else {
+        throw netErr
+      }
+    }
     if (response.success) {
       const lineName = route.params.lineName
       if (!lineName) {
@@ -838,7 +851,12 @@ const saveWholePayment = async (type, amount) => {
         break
       case 'qr':
         paymentData.qr_amount = amount
-        paymentData.fonepay_qr_transaction = qrTransactionRef.value || null
+        if (isStaticQrMode()) {
+          paymentData.fonepay_qr_transaction = null
+          paymentData.remarks = `${paymentData.remarks} | Remarks: ${pendingQrRemarks.value || ''}`.trim()
+        } else {
+          paymentData.fonepay_qr_transaction = qrTransactionRef.value || null
+        }
         break
       case 'cheque':
         paymentData.cheque_amount = amount
@@ -847,10 +865,13 @@ const saveWholePayment = async (type, amount) => {
     }
     
     console.log('📤 Sending payment data:', JSON.stringify(paymentData, null, 2))
-    const response = await call('custom_erp.api.payment_reco.update_payment_entry', paymentData)
+    const response = await callUpdatePaymentEntry(call, paymentData)
     console.log('📥 Payment response:', JSON.stringify(response, null, 2))
-    
+
     if (response.success) {
+      if (response.queued) {
+        alert(response.message || 'Payment queued — will sync when you are online.')
+      }
       // Only update UI state AFTER successful API response
       switch (type) {
         case 'cash':
@@ -868,6 +889,7 @@ const saveWholePayment = async (type, amount) => {
         case 'qr':
           qrAmount.value = amount
           completedPaymentType.value = 'QR'
+          pendingQrRemarks.value = ''
           break
         case 'cheque':
           chequeAmount.value = amount
@@ -906,27 +928,32 @@ const saveWholePayment = async (type, amount) => {
 
 const handleQRSuccess = async (data) => {
   console.log('🎉 QR Payment Success!', data)
-  
-  // Handle both old format (string) and new format (object)
+
   let transactionId = ''
-  if (typeof data === 'object' && data.transactionId) {
+  if (typeof data === 'object' && data !== null && data.mode === 'static') {
+    qrTransactionRef.value = null
+    const note = data.qrRemarks || ''
+    pendingQrRemarks.value = pendingQrRemarks.value
+      ? `${pendingQrRemarks.value} || ${note}`
+      : note
+  } else if (typeof data === 'object' && data.transactionId) {
     qrTransactionRef.value = data.transactionId
     transactionId = data.transactionId
+    pendingQrRemarks.value = ''
   } else {
     qrTransactionRef.value = data
     transactionId = data
+    pendingQrRemarks.value = ''
   }
-  
+
   showQRDialog.value = false
-  
-  // Save immediately after QR success
+
   if (entryMode.value === 'whole') {
     paymentInProgress.value = true
     await saveWholePayment('qr', pendingQRAmount.value)
   } else {
     qrAmount.value = pendingQRAmount.value
-    
-    // Show success acknowledgment dialog for breakdown entry
+
     showSuccessDialog.value = true
     successDialogData.value = {
       title: 'Payment Successful!',
@@ -934,7 +961,7 @@ const handleQRSuccess = async (data) => {
       customerName: customerName.value,
       paymentMethod: 'QR Payment',
       amount: formatCurrency(pendingQRAmount.value),
-      transactionId: transactionId
+      transactionId: transactionId || (isStaticQrMode() ? 'Static QR' : '')
     }
   }
 }
@@ -942,6 +969,7 @@ const handleQRSuccess = async (data) => {
 const handleQRDialogClose = () => {
   showQRDialog.value = false
   pendingQRAmount.value = 0
+  pendingQrRemarks.value = ''
 }
 
 const handleChequeSuccess = async (chequeId) => {
@@ -1065,6 +1093,11 @@ const completeBreakdownPayment = async () => {
       throw new Error('Payment line data not loaded. Please refresh the page.')
     }
     
+    let remarks = `Breakdown Entry: ${summary.join(', ')}`
+    if (isStaticQrMode() && pendingQrRemarks.value) {
+      remarks = `${remarks} | Remarks: ${pendingQrRemarks.value}`
+    }
+
     const paymentData = {
       line_name: lineData.value.name,
       return_amount: returnAmount.value || 0,
@@ -1073,17 +1106,23 @@ const completeBreakdownPayment = async () => {
       cash_amount: cashAmount.value || 0,
       qr_amount: qrAmount.value || 0,
       cheque_amount: chequeAmount.value || 0,
-      fonepay_qr_transaction: qrTransactionRef.value || null,
+      fonepay_qr_transaction: isStaticQrMode() ? null : (qrTransactionRef.value || null),
       cheques_taageta: chequeRef.value || null,
-      remarks: `Breakdown Entry: ${summary.join(', ')}`
+      remarks
     }
-    
-    const response = await call('custom_erp.api.payment_reco.update_payment_entry', paymentData)
-    
+
+    const response = await callUpdatePaymentEntry(call, paymentData)
+
     if (response.success) {
-      // Backend automatically marks as settled when remaining is 0
-      alert('✅ Payment completed and marked as settled!')
-      // Reload data to show settled view
+      pendingQrRemarks.value = ''
+      if (response.queued) {
+        alert(
+          response.message ||
+            'Payment is queued and will sync when you are online. The server may not show settlement until sync completes.'
+        )
+      } else {
+        alert('✅ Payment completed and marked as settled!')
+      }
       await loadLineData()
     } else {
       alert('Error completing payment: ' + response.message)

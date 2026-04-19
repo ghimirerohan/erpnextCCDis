@@ -36,6 +36,10 @@ app_license = "mit"
 # ]
 
 fixtures = [
+    {
+        "dt": "Role",
+        "filters": [["role_name", "in", ["Field User", "CC Admin"]]],
+    },
     # Tracks added/modified fields, even in core doctypes
     "Custom Field",
     # Tracks changes to field properties (read-only, default values, etc.)
@@ -288,6 +292,9 @@ doc_events = {
     "Stock Ledger Entry": {
         "before_insert": "custom_erp.custom_erp.stock_valuation.stock_ledger_override.ensure_sle_fixed_valuation_rate",
     },
+    "Payment Entry": {
+        "on_submit": "custom_erp.api.realtime.on_payment_entry_submit",
+    },
 }
 
 # each overriding function accepts a `data` argument;
@@ -419,5 +426,10 @@ website_route_rules = [
     # Test Login
     {"from_route": "/testlogin", "to_route": "testlogin"},
     {"from_route": "/testlogin/<path:subpath>", "to_route": "testlogin"},
+    # CCDis v2 — Field / Admin SPAs
+    {"from_route": "/field-app", "to_route": "field-app"},
+    {"from_route": "/field-app/<path:subpath>", "to_route": "field-app"},
+    {"from_route": "/admin-app", "to_route": "admin-app"},
+    {"from_route": "/admin-app/<path:subpath>", "to_route": "admin-app"},
 ]
 

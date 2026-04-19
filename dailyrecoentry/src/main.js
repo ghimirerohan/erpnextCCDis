@@ -32,11 +32,13 @@ import {
 	FormControl,
 	Input,
 	TextInput,
+	call,
 	frappeRequest,
 	pageMetaPlugin,
 	resourcesPlugin,
 	setConfig,
 } from "frappe-ui"
+import { initRecoOfflineSync } from "./offline/recoOffline"
 
 import "../../shared/assets/index.css"
 
@@ -99,6 +101,8 @@ for (const key in globalComponents) {
 }
 
 app.mount("#app")
+
+initRecoOfflineSync(call)
 
 registerScopedSW().then((registration) => {
   if (registration) {

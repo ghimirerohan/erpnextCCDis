@@ -810,8 +810,20 @@
                      class="text-center p-2 rounded-lg" style="background-color: #f3f4f6;">
                   <span class="text-xs" style="color: #6b7280;">No payment breakdown available</span>
                 </div>
-                <!-- Remarks if any -->
-                <div v-if="line.remarks" class="mt-2 pt-2" style="border-top: 1px solid #e5e7eb;">
+                <!-- QR payment note / remarks -->
+                <div
+                  v-if="line.qr_amount && line.remarks"
+                  class="mt-2 pt-2 rounded-lg px-2 py-2"
+                  style="border-top: 1px solid #e5e7eb; background-color: #eff6ff;"
+                >
+                  <div class="text-xs font-semibold mb-1" style="color: #1d4ed8;">QR payment note</div>
+                  <div class="text-xs whitespace-pre-wrap" style="color: #1e3a8a;">{{ line.remarks }}</div>
+                </div>
+                <div
+                  v-else-if="line.remarks"
+                  class="mt-2 pt-2"
+                  style="border-top: 1px solid #e5e7eb;"
+                >
                   <div class="text-xs" style="color: #6b7280;">
                     <span class="font-medium">Note:</span> {{ line.remarks }}
                   </div>

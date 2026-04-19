@@ -94,7 +94,7 @@
     },
     {
       "fieldname": "remarks",
-      "fieldtype": "Small Text",
+      "fieldtype": "Text",
       "in_list_view": 1,
       "label": "Remarks"
     },

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CC Admin App</title>
+  <script type="module" crossorigin src="/assets/custom_erp/frontend/admin-app/assets/index-CJjJhG5G.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/custom_erp/frontend/admin-app/assets/index-8vkE4jNi.css">
+<link rel="manifest" href="/assets/custom_erp/frontend/admin-app/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/assets/custom_erp/frontend/admin-app/registerSW.js"></script></head>
+<body>
+  <div id="app-admin"></div>
+
+          <script>
+              {% for key in boot %}
+              window["{{ key }}"] = {{ boot[key] | tojson }};
+              {% endfor %}
+          </script>
+          </body>
+          
+</html>

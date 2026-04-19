@@ -1,0 +1,140 @@
+{
+    "name": "Field Payment Entry",
+    "module": "Custom Erp",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "autoname": "format:FPE-{YYYY}-{MM}-{####}",
+    "naming_rule": "Expression",
+    "is_submittable": 1,
+    "track_changes": 1,
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "fields": [
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "label": "Customer",
+            "options": "Customer",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "customer_name",
+            "fieldtype": "Data",
+            "label": "Customer Name",
+            "fetch_from": "customer.customer_name",
+            "read_only": 1
+        },
+        {
+            "fieldname": "payment_date",
+            "fieldtype": "Date",
+            "label": "Payment Date",
+            "reqd": 1,
+            "default": "Today",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "payment_mode",
+            "fieldtype": "Select",
+            "label": "Payment Mode",
+            "options": "Cash\nQR\nCheque\nCredit\nReturn",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "amount",
+            "fieldtype": "Currency",
+            "label": "Amount",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "sales_invoice",
+            "fieldtype": "Link",
+            "label": "Sales Invoice",
+            "options": "Sales Invoice"
+        },
+        {
+            "fieldname": "reco_reference",
+            "fieldtype": "Link",
+            "label": "Daily Reco Reference",
+            "options": "Daily Sales Payment Reco"
+        },
+        {
+            "fieldname": "cheque_number",
+            "fieldtype": "Data",
+            "label": "Cheque Number",
+            "depends_on": "eval:doc.payment_mode == 'Cheque'"
+        },
+        {
+            "fieldname": "cheque_date",
+            "fieldtype": "Date",
+            "label": "Cheque Date",
+            "depends_on": "eval:doc.payment_mode == 'Cheque'"
+        },
+        {
+            "fieldname": "cheque_bank",
+            "fieldtype": "Data",
+            "label": "Bank Name",
+            "depends_on": "eval:doc.payment_mode == 'Cheque'"
+        },
+        {
+            "fieldname": "fonepay_prn",
+            "fieldtype": "Data",
+            "label": "Fonepay PRN",
+            "depends_on": "eval:doc.payment_mode == 'QR'",
+            "read_only": 1
+        },
+        {
+            "fieldname": "erp_payment_entry",
+            "fieldtype": "Link",
+            "label": "ERPNext Payment Entry",
+            "options": "Payment Entry",
+            "read_only": 1
+        },
+        {
+            "fieldname": "remarks",
+            "fieldtype": "Small Text",
+            "label": "Remarks"
+        }
+    ],
+    "permissions": [
+        {
+            "role": "Field User",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "submit": 1,
+            "report": 0,
+            "if_owner": 1
+        },
+        {
+            "role": "CC Admin",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "submit": 1,
+            "cancel": 1,
+            "delete": 1,
+            "report": 1
+        },
+        {
+            "role": "System Manager",
+            "read": 1,
+            "write": 1,
+            "create": 1,
+            "submit": 1,
+            "cancel": 1,
+            "delete": 1,
+            "report": 1
+        }
+    ]
+}

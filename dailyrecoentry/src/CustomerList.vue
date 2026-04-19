@@ -47,6 +47,16 @@
       </div>
     </header>
 
+    <div
+      v-if="showOfflineBanner"
+      class="bg-amber-100 border-b-2 border-amber-400 px-3 py-2 text-sm text-amber-950 text-center font-medium"
+    >
+      <span v-if="isOffline">You are offline.</span>
+      <span v-if="isOffline && pendingQueueCount"> </span>
+      <span v-if="pendingQueueCount">{{ pendingQueueCount }} payment update(s) pending sync.</span>
+      <span v-if="isOffline && recoData"> Last cached reconciliation shown where available.</span>
+    </div>
+
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center py-12">
@@ -703,6 +713,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { session } from '../../shared/data/session'
 import { call } from 'frappe-ui'
+import {
+  getCachedDriverReco,
+  setCachedDriverReco,
+  getPendingPaymentQueueCount,
+} from './offline/recoOffline'
 import SummaryCard from './components/SummaryCard.vue'
 import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 import { downloadDriverRecoPdf } from '../../shared/utils/driverRecoPdf.js'
@@ -757,6 +772,12 @@ const companyColors = computed(() => {
 const showSettleAllDialog = ref(false)
 const settlingAll = ref(false)
 const refreshing = ref(false)
+
+const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
+const pendingQueueCount = ref(0)
+const showOfflineBanner = computed(
+  () => isOffline.value || pendingQueueCount.value > 0
+)
 
 // Add Entry Dialog State
 const showAddEntryDialog = ref(false)
@@ -831,13 +852,19 @@ const loadData = async () => {
     }
 
     const response = await call('custom_erp.api.payment_reco.get_driver_reco_data', params)
-    
+
     isAdmin.value = response.is_admin || false
-    
+
     if (response.success) {
       recoData.value = response.data
       driverName.value = response.data.reco.driver_name || session.user
       selectedDriver.value = driverName.value
+      const cacheKey =
+        params.driver_name ||
+        response.data?.reco?.driver_name ||
+        driverName.value ||
+        ''
+      await setCachedDriverReco(cacheKey, response)
       // Extract company from response
       currentCompany.value = response.data.reco.company || ''
       
@@ -863,6 +890,21 @@ const loadData = async () => {
     }
   } catch (error) {
     console.error('Error loading data:', error)
+    const key =
+      selectedDriver.value ||
+      driverName.value ||
+      (typeof session.user === 'string' ? session.user : '') ||
+      ''
+    const cached = await getCachedDriverReco(key)
+    if (cached && cached.success) {
+      recoData.value = cached.data
+      driverName.value = cached.data.reco.driver_name || session.user
+      isAdmin.value = cached.is_admin || false
+      currentCompany.value = cached.data.reco.company || ''
+      if (currentCompany.value) {
+        await loadCompanyConfig(currentCompany.value)
+      }
+    }
   } finally {
     loading.value = false
   }
@@ -1099,7 +1141,24 @@ const printDriverRecoPdf = () => {
   }
 }
 
+function refreshPendingQueueCount() {
+  getPendingPaymentQueueCount().then((n) => {
+    pendingQueueCount.value = n
+  })
+}
+
 onMounted(() => {
+  refreshPendingQueueCount()
+  window.addEventListener('online', () => {
+    isOffline.value = false
+    refreshPendingQueueCount()
+  })
+  window.addEventListener('offline', () => {
+    isOffline.value = true
+  })
+  window.addEventListener('dailyrecoentry-offline-queue', (e) => {
+    pendingQueueCount.value = e.detail?.count ?? 0
+  })
   loadData()
 })
 </script>

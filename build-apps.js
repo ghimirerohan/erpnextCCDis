@@ -222,15 +222,20 @@ for (const appName of apps) {
             
             // Create service worker that will be served from the app's root
             // This is critical for Android Chrome - SW must be at or above the scope
+            const dailyRecoPrecache =
+                appName === 'dailyrecoentry'
+                    ? `,\n    '/assets/custom_erp/images/fonepay-static-qr.png'`
+                    : '';
+            const swCacheSuffix = appName === 'dailyrecoentry' ? 'v3' : 'v2';
             const swContent = `// Service Worker for ${appName} - Android Chrome PWA Compatible
 // Version: ${Date.now()}
-const CACHE_NAME = '${appName}-cache-v2';
+const CACHE_NAME = '${appName}-cache-${swCacheSuffix}';
 const APP_SCOPE = '/${appName}/';
 
 // Assets to precache
 const PRECACHE_ASSETS = [
     '/${appName}/',
-    '/${appName}/manifest.json'
+    '/${appName}/manifest.json'${dailyRecoPrecache}
 ];
 
 // Install event - precache critical assets
@@ -325,6 +330,21 @@ self.addEventListener('message', (event) => {
         console.error(`❌ Failed to build ${appName}:`, error.message);
         process.exit(1);
     }
+}
+
+// CCDis v2 — field-app & admin-app (frappe-ui + Vite in /frontend)
+console.log('\n📦 Building CCDis field-app & admin-app...\n');
+try {
+	const { execSync } = await import('child_process');
+	execSync('yarn install && yarn build', {
+		cwd: path.join(__dirname, 'frontend'),
+		stdio: 'inherit',
+		env: { ...process.env, NODE_ENV: 'production' },
+	});
+	console.log('✅ CCDis SPAs built and www/*.html synced\n');
+} catch (err) {
+	console.error('❌ CCDis SPA build failed:', err.message);
+	process.exit(1);
 }
 
 console.log('\n✨ All apps built successfully!\n');

@@ -1,0 +1,14 @@
+[
+  {
+    "doctype": "Role",
+    "name": "Field User",
+    "role_name": "Field User",
+    "desk_access": 0
+  },
+  {
+    "doctype": "Role",
+    "name": "CC Admin",
+    "role_name": "CC Admin",
+    "desk_access": 1
+  }
+]
