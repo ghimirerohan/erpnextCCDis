@@ -6,22 +6,10 @@ def assign_roles_on_login(login_manager):
     if not user or user == "Guest":
         return
 
-    user_doc = frappe.get_doc("User", user)
-
-    # Log EVERYTHING — no conditions yet
-    social_logins = [
-        {"provider": sl.provider, "userid": sl.userid}
-        for sl in user_doc.get("social_logins", [])
-    ]
-
-    oauth_data_by_name = frappe.cache().hget("oauth2_user_info", user) or {}
-    oauth_data_by_email = frappe.cache().hget("oauth2_user_info", user_doc.email) or {}
+    # Dump ALL keys in the oauth2_user_info hash
+    all_oauth_cache = frappe.cache().hgetall("oauth2_user_info") or {}
 
     frappe.log_error(
-        f"user={user}\n"
-        f"user_type={user_doc.user_type}\n"
-        f"social_logins={social_logins}\n"
-        f"oauth_by_name={oauth_data_by_name}\n"
-        f"oauth_by_email={oauth_data_by_email}",
-        "Authentik Debug"
+        f"user={user}\nall_oauth_keys={list(all_oauth_cache.keys())}\nall_oauth_data={all_oauth_cache}",
+        "Authentik Cache Dump"
     )
