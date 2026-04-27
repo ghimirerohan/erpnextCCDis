@@ -251,6 +251,10 @@ on_login = "custom_erp.oauth_hooks.assign_roles_on_login"
 # IMPORTANT: The stock valuation hooks have been modified to preserve Sales Invoice rates
 # while still updating valuation_rate for stock purposes. See stock_ledger_override.py for details.
 doc_events = {
+    "User": {
+        "after_insert": "custom_erp.oauth_hooks.on_user_insert",
+        "on_update": "custom_erp.oauth_hooks.on_user_update",
+    },
     "Sales Invoice": {
         # "before_validate": "custom_erp.custom_erp.sales_invoice.sales_invoice.before_validate",
         "before_insert": [
