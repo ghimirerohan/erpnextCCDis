@@ -240,6 +240,8 @@ whitelisted_methods = [
     "custom_erp.api.live_relay.test_gemini_connection"
 ]
 
+on_login = "custom_erp.oauth_hooks.assign_roles_on_login"
+
 # --- Print Format Type ---
 # Register ReportBro as a custom print format type
 # no custom print format types
