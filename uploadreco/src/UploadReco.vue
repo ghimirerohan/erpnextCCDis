@@ -246,11 +246,16 @@
               <button
                 type="button"
                 :disabled="reassignmentLineNames.length === 0"
-                class="inline-flex items-center gap-1.5 rounded-lg border-2 border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                class="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap rounded-lg border-2 px-3 py-1.5 text-xs font-bold shadow-sm hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                style="background-color: #4f46e5 !important; color: #ffffff !important; border-color: #4338ca !important; text-shadow: 0 1px 1px rgba(0,0,0,0.25);"
                 @click="openReassignDialog"
               >
-                Assign to other driver
-                <span v-if="reassignmentLineNames.length" class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ reassignmentLineNames.length }}</span>
+                <span style="color: #ffffff !important;">Assign to other driver</span>
+                <span
+                  v-if="reassignmentLineNames.length"
+                  class="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                  style="color: #ffffff !important; background: rgba(255,255,255,0.25);"
+                >{{ reassignmentLineNames.length }}</span>
               </button>
             </div>
           </div>
@@ -679,8 +684,8 @@
       <div class="fixed inset-0 bg-gray-900 bg-opacity-60 transition-opacity" @click="closeReassignDialog"></div>
       <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md border-2 border-indigo-500 overflow-hidden">
         <div class="px-5 py-4 bg-gradient-to-r from-indigo-600 to-violet-600">
-          <h3 class="text-lg font-bold text-white">Assign to another driver</h3>
-          <p class="text-sm text-indigo-100 mt-1">
+          <h3 class="text-lg font-bold" style="color: #ffffff !important;">Assign to another driver</h3>
+          <p class="text-sm mt-1" style="color: #e0e7ff !important;">
             {{ reassignmentLineNames.length }} pending line(s) with no payments will move to the selected driver’s open reconciliation. Summaries update on both recos.
           </p>
         </div>
@@ -712,11 +717,12 @@
           </button>
           <button
             type="button"
-            class="rounded-lg border-2 border-indigo-700 bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+            class="rounded-lg border-2 px-4 py-2 text-sm font-bold hover:brightness-95 disabled:opacity-50"
+            style="background-color: #4f46e5 !important; color: #ffffff !important; border-color: #4338ca !important;"
             :disabled="!reassignTargetDriver || reassigning || otherDriversForReassign.length === 0"
             @click="submitReassignLines"
           >
-            {{ reassigning ? 'Assigning…' : 'Confirm assign' }}
+            <span style="color: #ffffff !important;">{{ reassigning ? 'Assigning…' : 'Confirm assign' }}</span>
           </button>
         </div>
       </div>

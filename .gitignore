@@ -97,6 +97,9 @@ Thumbs.db
 *.bak
 *.backup
 
+#graphify-output
+graphify-out/    
+
 # Local configuration files
 config.local.json
 .env.local
