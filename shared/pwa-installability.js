@@ -13,7 +13,7 @@ export function checkPWAInstallability() {
   };
 
   // Check HTTPS
-  checks.https = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  checks.https = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.localhost');
   if (!checks.https) {
     checks.errors.push('❌ Not served over HTTPS (required for PWA installation)');
   }

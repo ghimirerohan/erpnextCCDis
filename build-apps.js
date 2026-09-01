@@ -61,8 +61,12 @@ const publicDir = path.resolve(__dirname, 'public');
 
 console.log('🚀 Building all apps individually...\n');
 
-// Clean output directory
-await fs.emptyDir(publicFrontendDir);
+if (buildOne) {
+    const oneOut = path.join(publicFrontendDir, buildOne);
+    await fs.emptyDir(oneOut);
+} else {
+    await fs.emptyDir(publicFrontendDir);
+}
 
 // Copy shared assets first (icons, favicon, etc.)
 const iconsDir = path.join(publicDir, 'icons');
@@ -208,28 +212,34 @@ for (const appName of apps) {
                         "purpose": "maskable"
                     }
                 ],
+                "lang": "en",
+                "dir": "ltr",
+                "display_override": ["standalone", "minimal-ui", "browser"],
                 "categories": ["business", "finance"],
-                "prefer_related_applications": false,
-                "screenshots": [],
-                "shortcuts": []
+                "prefer_related_applications": false
             };
             
             const manifestPath = path.join(publicFrontendDir, appName, `manifest.json`);
             await fs.writeJson(manifestPath, manifest, { spaces: 2 });
             console.log(`   ✅ Created manifest.json for ${appName}`);
             
-            // Update manifest path in HTML - use API endpoint for proper Content-Type
-            const manifestApiUrl = `/api/method/custom_erp.api.pwa.get_manifest?app_name=${appName}`;
+            // In-scope manifest (required for Chrome/Safari install). Do not use /api/method.
+            const manifestUrl = `/${appName}/manifest.json`;
+            const appleIcon = `/assets/custom_erp/frontend/icons/${appName}/icon-192x192.png`;
             content = content.replace(
                 /<link[^>]*rel="manifest"[^>]*>/gi,
-                `<link rel="manifest" href="${manifestApiUrl}" />`
+                `<link rel="manifest" href="${manifestUrl}" />`
             );
-            
-            // If no manifest link exists, add one
             if (!content.includes('rel="manifest"')) {
                 content = content.replace(
                     '</head>',
-                    `    <link rel="manifest" href="${manifestApiUrl}" />\n  </head>`
+                    `    <link rel="manifest" href="${manifestUrl}" />\n  </head>`
+                );
+            }
+            if (!content.includes('rel="apple-touch-icon"')) {
+                content = content.replace(
+                    '</head>',
+                    `    <link rel="apple-touch-icon" href="${appleIcon}" />\n    <meta name="apple-mobile-web-app-title" content="${theme.name}" />\n    <meta name="apple-mobile-web-app-status-bar-style" content="default" />\n  </head>`
                 );
             }
             
@@ -248,7 +258,8 @@ const APP_SCOPE = '/${appName}/';
 // Assets to precache
 const PRECACHE_ASSETS = [
     '/${appName}/',
-    '/${appName}/manifest.json'${dailyRecoPrecache}
+    '/${appName}/manifest.json',
+    '/${appName}/sw.js'${dailyRecoPrecache}
 ];
 
 // Install event - precache critical assets
@@ -365,8 +376,7 @@ if (!buildOne) {
 }
 
 console.log('\n✨ All apps built successfully!\n');
-console.log('📱 Android PWA Notes:');
-console.log('   - Each app has its own manifest.json at /{appName}/manifest.json');
-console.log('   - Service workers are at /assets/custom_erp/frontend/{appName}/sw.js');
-console.log('   - Icons include both 192x192 and 512x512 sizes');
-console.log('   - Make sure to serve SW with Service-Worker-Allowed header\n');
+console.log('📱 PWA Notes:');
+console.log('   - Manifest: /{appName}/manifest.json (in-scope, served by PWAAssetRenderer)');
+console.log('   - Service worker: /{appName}/sw.js with Service-Worker-Allowed');
+console.log('   - Icons: 192x192 and 512x512 (any + maskable)\n');

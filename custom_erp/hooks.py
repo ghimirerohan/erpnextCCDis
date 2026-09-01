@@ -402,12 +402,17 @@ override_doctype_class = {
 	"Repost Item Valuation": "custom_erp.custom_erp.stock_reconciliation.repost_item_valuation_override.RepostItemValuationOverride"
 }
 
+# In-scope PWA files (/{app}/manifest.json, /{app}/sw.js) — must run before SPA HTML
+page_renderer = ["custom_erp.pwa_renderer.PWAAssetRenderer"]
+
 # Route each app at root level
-# PWA routes: sw.js and manifest.json are served via API endpoints (custom_erp.api.pwa)
 website_route_rules = [
     # QRPay
     {"from_route": "/qrpay", "to_route": "qrpay"},
     {"from_route": "/qrpay/<path:subpath>", "to_route": "qrpay"},
+    # QRPay Horlicks
+    {"from_route": "/qrpay-horlicks", "to_route": "qrpay-horlicks"},
+    {"from_route": "/qrpay-horlicks/<path:subpath>", "to_route": "qrpay-horlicks"},
     # QRPay Admin
     {"from_route": "/qrpay-admin", "to_route": "qrpay-admin"},
     {"from_route": "/qrpay-admin/<path:subpath>", "to_route": "qrpay-admin"},
@@ -426,12 +431,21 @@ website_route_rules = [
     # Daily Reco Entry
     {"from_route": "/dailyrecoentry", "to_route": "dailyrecoentry"},
     {"from_route": "/dailyrecoentry/<path:subpath>", "to_route": "dailyrecoentry"},
+    # Daily Transactions
+    {"from_route": "/dailytrnxs", "to_route": "dailytrnxs"},
+    {"from_route": "/dailytrnxs/<path:subpath>", "to_route": "dailytrnxs"},
     # Home
     {"from_route": "/home", "to_route": "home"},
     {"from_route": "/home/<path:subpath>", "to_route": "home"},
     # Test Login
     {"from_route": "/testlogin", "to_route": "testlogin"},
     {"from_route": "/testlogin/<path:subpath>", "to_route": "testlogin"},
+    # Bidhi AI
+    {"from_route": "/ai-assistant", "to_route": "ai-assistant"},
+    {"from_route": "/ai-assistant/<path:subpath>", "to_route": "ai-assistant"},
+    # Employee Attendance
+    {"from_route": "/emp-attendance", "to_route": "emp-attendance"},
+    {"from_route": "/emp-attendance/<path:subpath>", "to_route": "emp-attendance"},
     # CCDis v2 — Field / Admin SPAs
     {"from_route": "/field-app", "to_route": "field-app"},
     {"from_route": "/field-app/<path:subpath>", "to_route": "field-app"},

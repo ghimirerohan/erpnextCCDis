@@ -1,4 +1,7 @@
 import { createApp } from "vue"
+import { registerScopedSW } from "../../shared/register-sw"
+import { checkPWAInstallability } from "../../shared/pwa-installability"
+import { ensureInScopeManifest } from "../../shared/pwa-manifest"
 
 // IMPORTANT: Set auth callback BEFORE importing router or userResource
 // This prevents frappe-ui from doing default redirects
@@ -99,3 +102,10 @@ for (const key in globalComponents) {
 }
 
 app.mount("#app")
+
+ensureInScopeManifest()
+registerScopedSW().then(() => {
+  setTimeout(() => checkPWAInstallability(), 1500)
+}).catch((err) => {
+  console.error("Service Worker registration failed:", err)
+})

@@ -1501,7 +1501,11 @@ def get_driver_reco_data(driver_name: str = None, company: str = None) -> Dict[s
                 "remarks": line.remarks,
                 "updated_later": line.updated_later if hasattr(line, 'updated_later') else 0
             })
-            
+
+        data["lines"].sort(
+            key=lambda l: (l.get("customer_name") or l.get("customer") or "").casefold()
+        )
+
         return {
             "success": True,
             "is_admin": is_admin,

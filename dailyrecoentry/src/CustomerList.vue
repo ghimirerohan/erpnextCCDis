@@ -811,7 +811,13 @@ const filteredLines = computed(() => {
     )
   }
   
-  return lines
+  return [...lines].sort((a, b) =>
+    String(a.customer_name || a.customer || '').localeCompare(
+      String(b.customer_name || b.customer || ''),
+      undefined,
+      { sensitivity: 'base', numeric: true }
+    )
+  )
 })
 
 const allCount = computed(() => {
@@ -1063,6 +1069,13 @@ const filterCustomers = () => {
     .filter(c => 
       c.customer_name.toLowerCase().includes(query) || 
       c.name.toLowerCase().includes(query)
+    )
+    .sort((a, b) =>
+      String(a.customer_name || a.name || '').localeCompare(
+        String(b.customer_name || b.name || ''),
+        undefined,
+        { sensitivity: 'base', numeric: true }
+      )
     )
     .slice(0, 20) // Limit results
   showCustomerDropdown.value = filteredCustomersList.value.length > 0

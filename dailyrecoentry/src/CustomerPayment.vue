@@ -227,7 +227,6 @@
 
       <!-- Breakdown Entry Mode -->
       <div v-if="entryMode === 'breakdown' && !paymentCompleted" class="space-y-4">
-        <!-- Validation Error -->
         <div v-if="breakdownValidationError" class="bg-red-50 border-2 border-red-500 rounded-xl shadow-lg p-4">
           <div class="flex items-center">
             <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,46 +236,49 @@
           </div>
         </div>
 
-        <!-- Amount Inputs - Mobile Optimized -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6">
-          <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Breakdown Amounts</h3>
-          
+          <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-1">Adjustments</h3>
+          <p class="text-xs sm:text-sm text-gray-500 mb-3">Return, additional, and credit first. Remaining is then split across cash, QR, and cheque.</p>
+
           <div class="space-y-3 sm:space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Return Amount</label>
               <input
                 v-model.number="returnAmount"
-                @input="validateBreakdown"
+                @input="onBreakdownInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                :disabled="breakdownLocked"
                 :class="[
                   'block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation',
                   breakdownValidationError ? 'border-red-500' : 'border-gray-300'
                 ]"
               />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Additional Amount</label>
               <input
                 v-model.number="additionalAmount"
-                @input="validateBreakdown"
+                @input="onBreakdownInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                :disabled="breakdownLocked"
                 class="block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation"
               />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Credit Amount</label>
               <input
                 v-model.number="creditAmount"
-                @input="validateBreakdown"
+                @input="onBreakdownInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                :disabled="breakdownLocked"
                 :class="[
                   'block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation',
                   breakdownValidationError ? 'border-red-500' : 'border-gray-300'
@@ -286,104 +288,147 @@
           </div>
         </div>
 
-        <!-- Payment Method Buttons for Breakdown - Mobile Optimized -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6">
-          <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
-            Payment Methods <span class="block sm:inline text-sky-600">(Remaining: {{ formatCurrency(calculatedRemaining) }})</span>
-          </h3>
-          <div class="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-            <!-- QR Payment - Mobile Optimized -->
-            <div class="relative">
-              <button
-                @click="handleBreakdownPayment('qr')"
-                :disabled="!canSelectPaymentMethod"
-                :class="[
-                  'w-full flex flex-col items-center justify-center p-3 sm:p-4 border-2 rounded-xl transition-all touch-manipulation min-h-[90px] sm:min-h-[100px]',
-                  qrAmount > 0 ? 'border-blue-600 bg-blue-100 shadow-md' : 'border-blue-300 hover:bg-blue-50 active:bg-blue-100',
-                  !canSelectPaymentMethod && 'opacity-50 cursor-not-allowed'
-                ]"
-              >
-                <svg class="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-blue-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
-                </svg>
-                <span class="text-xs sm:text-sm font-medium text-gray-900">QR</span>
-                <span :class="['font-bold mt-0.5 text-center', qrAmount > 0 ? 'text-base sm:text-lg lg:text-xl text-blue-700' : 'text-xs sm:text-sm text-gray-600']">
-                  {{ formatCurrency(qrAmount) }}
-                </span>
-              </button>
-              <!-- PAID Badge -->
-              <div v-if="qrAmount > 0" class="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-xl border-2 border-white z-10 animate-pulse">
-                ✓ PAID
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">Collect as cash / QR / cheque</h3>
+              <p class="text-xs sm:text-sm text-gray-500 mt-1">Split the amount to collect. QR opens Fonepay live; cheque asks for date and details.</p>
+            </div>
+            <span
+              :class="[
+                'shrink-0 text-sm font-bold px-3 py-1 rounded-full',
+                calculatedRemaining === 0 ? 'bg-green-100 text-green-800' : 'bg-sky-100 text-sky-800'
+              ]"
+            >
+              {{ calculatedRemaining === 0 ? 'Balanced' : formatCurrency(calculatedRemaining) }}
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            <div
+              :class="[
+                'relative rounded-xl border-2 p-3 sm:p-4',
+                cashAmount > 0 ? 'border-green-500 bg-green-50' : 'border-green-200'
+              ]"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-gray-900">Cash</label>
+                <button
+                  type="button"
+                  class="text-xs font-medium text-green-700 underline disabled:opacity-40"
+                  :disabled="breakdownLocked || calculatedRemaining + num(cashAmount) <= 0"
+                  @click="fillRemaining('cash')"
+                >
+                  Fill rest
+                </button>
               </div>
+              <input
+                v-model.number="cashAmount"
+                @input="onBreakdownInput"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                :disabled="breakdownLocked"
+                class="block w-full px-4 py-3 text-base border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 touch-manipulation"
+              />
             </div>
 
-            <!-- Cash Payment - Mobile Optimized -->
-            <div class="relative">
-              <button
-                @click="handleBreakdownPayment('cash')"
-                :disabled="!canSelectPaymentMethod"
-                :class="[
-                  'w-full flex flex-col items-center justify-center p-3 sm:p-4 border-2 rounded-xl transition-all touch-manipulation min-h-[90px] sm:min-h-[100px]',
-                  cashAmount > 0 ? 'border-green-600 bg-green-100 shadow-md' : 'border-green-300 hover:bg-green-50 active:bg-green-100',
-                  !canSelectPaymentMethod && 'opacity-50 cursor-not-allowed'
-                ]"
-              >
-                <svg class="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-green-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-                <span class="text-xs sm:text-sm font-medium text-gray-900">Cash</span>
-                <span :class="['font-bold mt-0.5 text-center', cashAmount > 0 ? 'text-base sm:text-lg lg:text-xl text-green-700' : 'text-xs sm:text-sm text-gray-600']">
-                  {{ formatCurrency(cashAmount) }}
-                </span>
-              </button>
-              <!-- PAID Badge -->
-              <div v-if="cashAmount > 0" class="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-xl border-2 border-white z-10 animate-pulse">
-                ✓ PAID
+            <div
+              :class="[
+                'relative rounded-xl border-2 p-3 sm:p-4',
+                qrProcessed ? 'border-blue-600 bg-blue-50' : qrAmount > 0 ? 'border-blue-400 bg-blue-50/60' : 'border-blue-200'
+              ]"
+            >
+              <div v-if="qrProcessed" class="absolute -top-2 -right-2 bg-green-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow border-2 border-white">
+                QR PAID
               </div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-gray-900">Fonepay QR</label>
+                <button
+                  type="button"
+                  class="text-xs font-medium text-blue-700 underline disabled:opacity-40"
+                  :disabled="breakdownLocked || qrProcessed || calculatedRemaining + num(qrAmount) <= 0"
+                  @click="fillRemaining('qr')"
+                >
+                  Fill rest
+                </button>
+              </div>
+              <input
+                v-model.number="qrAmount"
+                @input="onBreakdownInput"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                :disabled="breakdownLocked || qrProcessed"
+                class="block w-full px-4 py-3 text-base border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
+              />
+              <p class="mt-1 text-xs text-blue-700">If this has an amount, a live QR is shown and must succeed before saving.</p>
             </div>
 
-            <!-- Cheque Payment - Mobile Optimized -->
-            <div class="relative">
-              <button
-                @click="handleBreakdownPayment('cheque')"
-                :disabled="!canSelectPaymentMethod"
-                :class="[
-                  'w-full flex flex-col items-center justify-center p-3 sm:p-4 border-2 rounded-xl transition-all touch-manipulation min-h-[90px] sm:min-h-[100px]',
-                  chequeAmount > 0 ? 'border-purple-600 bg-purple-100 shadow-md' : 'border-purple-300 hover:bg-purple-50 active:bg-purple-100',
-                  !canSelectPaymentMethod && 'opacity-50 cursor-not-allowed'
-                ]"
-              >
-                <svg class="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-purple-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <span class="text-xs sm:text-sm font-medium text-gray-900">Cheque</span>
-                <span :class="['font-bold mt-0.5 text-center', chequeAmount > 0 ? 'text-base sm:text-lg lg:text-xl text-purple-700' : 'text-xs sm:text-sm text-gray-600']">
-                  {{ formatCurrency(chequeAmount) }}
-                </span>
-              </button>
-              <!-- PAID Badge -->
-              <div v-if="chequeAmount > 0" class="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] sm:text-xs font-extrabold px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-xl border-2 border-white z-10 animate-pulse">
-                ✓ PAID
+            <div
+              :class="[
+                'relative rounded-xl border-2 p-3 sm:p-4',
+                chequeProcessed ? 'border-purple-600 bg-purple-50' : chequeAmount > 0 ? 'border-purple-400 bg-purple-50/60' : 'border-purple-200'
+              ]"
+            >
+              <div v-if="chequeProcessed" class="absolute -top-2 -right-2 bg-green-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow border-2 border-white">
+                CHEQUE SAVED
               </div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-gray-900">Cheque</label>
+                <button
+                  type="button"
+                  class="text-xs font-medium text-purple-700 underline disabled:opacity-40"
+                  :disabled="breakdownLocked || chequeProcessed || calculatedRemaining + num(chequeAmount) <= 0"
+                  @click="fillRemaining('cheque')"
+                >
+                  Fill rest
+                </button>
+              </div>
+              <input
+                v-model.number="chequeAmount"
+                @input="onBreakdownInput"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                :disabled="breakdownLocked || chequeProcessed"
+                class="block w-full px-4 py-3 text-base border-2 border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 touch-manipulation"
+              />
+              <p class="mt-1 text-xs text-purple-700">If this has an amount, cheque number, Nepali date, and institute are captured next.</p>
             </div>
           </div>
         </div>
 
-        <!-- Complete Payment Button for Breakdown -->
-        <div v-if="calculatedRemaining === 0 && !breakdownValidationError" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div
+          v-if="breakdownProcessing"
+          class="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-sky-900"
+        >
+          <p class="font-semibold mb-2">Processing split</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li v-if="num(qrAmount) > 0" :class="qrProcessed ? 'text-green-700' : 'font-medium'">
+              QR {{ formatCurrency(qrAmount) }} — {{ qrProcessed ? 'paid' : 'scan Fonepay now' }}
+            </li>
+            <li v-if="num(chequeAmount) > 0" :class="chequeProcessed ? 'text-green-700' : (qrProcessed || num(qrAmount) === 0 ? 'font-medium' : '')">
+              Cheque {{ formatCurrency(chequeAmount) }} — {{ chequeProcessed ? 'details saved' : 'enter date and details' }}
+            </li>
+            <li>Save and mark settled</li>
+          </ol>
+        </div>
+
+        <div v-if="canProcessBreakdown" class="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
           <button
-            @click="completeBreakdownPayment"
-            :disabled="saving"
+            @click="startBreakdownProcess"
+            :disabled="saving || breakdownProcessing"
             class="w-full inline-flex items-center justify-center px-6 py-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <svg v-if="!saving" class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-if="!saving && !breakdownProcessing" class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
             <svg v-else class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            {{ saving ? 'Saving...' : 'Complete Payment & Mark as Settled' }}
+            {{ processButtonLabel }}
           </button>
         </div>
       </div>
@@ -431,6 +476,41 @@
       @close="handleChequeDialogClose"
       @success="handleChequeSuccess"
     />
+
+    <!-- Non-blocking QR success banner — cheque capture can open underneath -->
+    <Teleport to="body">
+      <div
+        v-if="qrSuccessToast.show"
+        class="fixed top-3 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[min(28rem,calc(100%-1.5rem))] z-[80] pointer-events-none"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="pointer-events-auto flex items-start gap-3 rounded-xl border-2 border-green-600 bg-green-50 px-4 py-3 shadow-2xl">
+          <div class="flex-shrink-0 mt-0.5">
+            <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-green-900">QR payment succeeded</p>
+            <p class="text-sm text-green-800 mt-0.5">
+              Fonepay QR of <span class="font-semibold">{{ formatCurrency(qrSuccessToast.amount) }}</span> is recorded.
+              <span v-if="showChequeDialog"> Continue with cheque details below.</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            class="flex-shrink-0 text-green-700 hover:text-green-900 p-1"
+            aria-label="Dismiss"
+            @click="dismissQrSuccessToast"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Success Acknowledgment Dialog -->
     <div v-if="showSuccessDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -581,7 +661,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { call } from 'frappe-ui'
 import QRPaymentDialog from './components/QRPaymentDialog.vue'
@@ -611,6 +691,11 @@ const creditAmount = ref(0)
 const cashAmount = ref(0)
 const qrAmount = ref(0)
 const chequeAmount = ref(0)
+const qrProcessed = ref(false)
+const chequeProcessed = ref(false)
+const breakdownProcessing = ref(false)
+const qrSuccessToast = ref({ show: false, amount: 0 })
+let qrSuccessToastTimer = null
 
 // Pending amounts for dialogs
 const pendingQRAmount = ref(0)
@@ -650,13 +735,39 @@ const chequeRef = ref(null)
 // Validation
 const breakdownValidationError = ref('')
 
+const num = (value) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 const calculatedRemaining = computed(() => {
-  const initial = lineData.value?.initial_total_amount || 0
-  return initial + additionalAmount.value - returnAmount.value - creditAmount.value - cashAmount.value - qrAmount.value - chequeAmount.value
+  const initial = num(lineData.value?.initial_total_amount)
+  return (
+    initial +
+    num(additionalAmount.value) -
+    num(returnAmount.value) -
+    num(creditAmount.value) -
+    num(cashAmount.value) -
+    num(qrAmount.value) -
+    num(chequeAmount.value)
+  )
 })
 
-const canSelectPaymentMethod = computed(() => {
-  return calculatedRemaining.value > 0 && !breakdownValidationError.value
+const breakdownLocked = computed(() => breakdownProcessing.value || paymentInProgress.value || saving.value)
+
+const canProcessBreakdown = computed(() => {
+  return Math.abs(calculatedRemaining.value) < 0.005 && !breakdownValidationError.value && !saving.value
+})
+
+const processButtonLabel = computed(() => {
+  if (saving.value) return 'Saving...'
+  if (showQRDialog.value) return 'Waiting for QR payment...'
+  if (showChequeDialog.value) return 'Enter cheque details...'
+  const steps = []
+  if (num(qrAmount.value) > 0 && !qrProcessed.value) steps.push('QR')
+  if (num(chequeAmount.value) > 0 && !chequeProcessed.value) steps.push('Cheque')
+  if (steps.length) return `Process ${steps.join(' then ')} & Complete`
+  return 'Complete Payment & Mark as Settled'
 })
 
 const loadLineData = async () => {
@@ -952,24 +1063,22 @@ const handleQRSuccess = async (data) => {
     paymentInProgress.value = true
     await saveWholePayment('qr', pendingQRAmount.value)
   } else {
-    qrAmount.value = pendingQRAmount.value
-
-    showSuccessDialog.value = true
-    successDialogData.value = {
-      title: 'Payment Successful!',
-      subtitle: 'QR payment has been recorded',
-      customerName: customerName.value,
-      paymentMethod: 'QR Payment',
-      amount: formatCurrency(pendingQRAmount.value),
-      transactionId: transactionId || (isStaticQrMode() ? 'Static QR' : '')
-    }
+    qrProcessed.value = true
+    showSuccessDialog.value = false
+    showQrSuccessToast(num(qrAmount.value) || num(pendingQRAmount.value))
+    await startBreakdownProcess()
   }
 }
 
 const handleQRDialogClose = () => {
   showQRDialog.value = false
   pendingQRAmount.value = 0
-  pendingQrRemarks.value = ''
+  if (entryMode.value !== 'whole') {
+    pendingQrRemarks.value = ''
+    abortBreakdownProcess()
+  } else {
+    pendingQrRemarks.value = ''
+  }
 }
 
 const handleChequeSuccess = async (chequeId) => {
@@ -981,24 +1090,17 @@ const handleChequeSuccess = async (chequeId) => {
     paymentInProgress.value = true
     await saveWholePayment('cheque', pendingChequeAmount.value)
   } else {
-    chequeAmount.value = pendingChequeAmount.value
-    
-    // Show success acknowledgment dialog for breakdown entry
-    showSuccessDialog.value = true
-    successDialogData.value = {
-      title: 'Payment Successful!',
-      subtitle: 'Cheque payment has been recorded',
-      customerName: customerName.value,
-      paymentMethod: 'Cheque',
-      amount: formatCurrency(pendingChequeAmount.value),
-      transactionId: chequeId
-    }
+    chequeProcessed.value = true
+    await startBreakdownProcess()
   }
 }
 
 const handleChequeDialogClose = () => {
   showChequeDialog.value = false
   pendingChequeAmount.value = 0
+  if (entryMode.value !== 'whole') {
+    abortBreakdownProcess()
+  }
 }
 
 const closeSuccessDialog = () => {
@@ -1013,47 +1115,101 @@ const closeSuccessDialog = () => {
   }
 }
 
-const handleBreakdownPayment = (type) => {
-  // Validate before allowing payment selection
+const dismissQrSuccessToast = () => {
+  if (qrSuccessToastTimer) {
+    clearTimeout(qrSuccessToastTimer)
+    qrSuccessToastTimer = null
+  }
+  qrSuccessToast.value = { show: false, amount: qrSuccessToast.value.amount }
+}
+
+const showQrSuccessToast = (amount) => {
+  dismissQrSuccessToast()
+  qrSuccessToast.value = { show: true, amount: num(amount) }
+  qrSuccessToastTimer = setTimeout(() => {
+    qrSuccessToast.value = { ...qrSuccessToast.value, show: false }
+    qrSuccessToastTimer = null
+  }, 5500)
+}
+
+const onBreakdownInput = () => {
+  if (!qrProcessed.value) {
+    /* amount still editable */
+  }
+  validateBreakdown()
+}
+
+const fillRemaining = (field) => {
+  if (breakdownLocked.value) return
+  if (field === 'qr' && qrProcessed.value) return
+  if (field === 'cheque' && chequeProcessed.value) return
+  const current =
+    field === 'cash' ? num(cashAmount.value) : field === 'qr' ? num(qrAmount.value) : num(chequeAmount.value)
+  const rest = calculatedRemaining.value + current
+  if (rest < 0) return
+  if (field === 'cash') cashAmount.value = rest
+  else if (field === 'qr') qrAmount.value = rest
+  else chequeAmount.value = rest
+  validateBreakdown()
+}
+
+const abortBreakdownProcess = () => {
+  breakdownProcessing.value = false
+  paymentInProgress.value = false
+}
+
+const startBreakdownProcess = async () => {
+  validateBreakdown()
   if (breakdownValidationError.value) {
-    alert('Please fix the validation errors before selecting a payment method.')
+    abortBreakdownProcess()
+    return
+  }
+  if (Math.abs(calculatedRemaining.value) > 0.005) {
+    abortBreakdownProcess()
+    alert('Split cash, QR, and cheque so the remaining amount is exactly 0.')
     return
   }
 
-  const remaining = calculatedRemaining.value
-  
-  switch (type) {
-    case 'qr':
-      pendingQRAmount.value = remaining
-      showQRDialog.value = true
-      break
-    case 'cash':
-      if (confirm(`Confirm cash payment of ${formatCurrency(remaining)}?`)) {
-        cashAmount.value += remaining
-        
-        // Show success acknowledgment dialog for cash payment
-        showSuccessDialog.value = true
-        successDialogData.value = {
-          title: 'Payment Successful!',
-          subtitle: 'Cash payment has been recorded',
-          customerName: customerName.value,
-          paymentMethod: 'Cash',
-          amount: formatCurrency(remaining),
-          transactionId: ''
-        }
-      }
-      break
-    case 'cheque':
-      pendingChequeAmount.value = remaining
-      showChequeDialog.value = true
-      break
+  breakdownProcessing.value = true
+  paymentInProgress.value = true
+
+  if (num(qrAmount.value) > 0 && !qrProcessed.value) {
+    pendingQRAmount.value = num(qrAmount.value)
+    showQRDialog.value = true
+    return
+  }
+  if (num(chequeAmount.value) > 0 && !chequeProcessed.value) {
+    pendingChequeAmount.value = num(chequeAmount.value)
+    showChequeDialog.value = true
+    return
+  }
+
+  try {
+    await completeBreakdownPayment({ skipConfirm: true })
+  } finally {
+    abortBreakdownProcess()
   }
 }
 
+const handleBreakdownPayment = (type) => {
+  fillRemaining(type)
+}
+
 const validateBreakdown = () => {
-  const initial = lineData.value?.initial_total_amount || 0
-  const totalReduction = returnAmount.value + creditAmount.value
-  
+  const initial = num(lineData.value?.initial_total_amount)
+  const amounts = [
+    num(returnAmount.value),
+    num(additionalAmount.value),
+    num(creditAmount.value),
+    num(cashAmount.value),
+    num(qrAmount.value),
+    num(chequeAmount.value),
+  ]
+  if (amounts.some((v) => v < 0)) {
+    breakdownValidationError.value = 'Amounts cannot be negative'
+    return
+  }
+  const totalReduction = num(returnAmount.value) + num(creditAmount.value)
   if (totalReduction > initial) {
     breakdownValidationError.value = `Return + Credit (${formatCurrency(totalReduction)}) cannot exceed Initial Amount (${formatCurrency(initial)})`
   } else {
@@ -1061,9 +1217,9 @@ const validateBreakdown = () => {
   }
 }
 
-const completeBreakdownPayment = async () => {
+const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
   // Validation check
-  if (calculatedRemaining.value !== 0) {
+  if (Math.abs(calculatedRemaining.value) > 0.005) {
     alert('Please ensure the remaining amount is exactly 0 before completing payment.')
     return
   }
@@ -1082,8 +1238,8 @@ const completeBreakdownPayment = async () => {
   if (chequeAmount.value > 0) summary.push(`Cheque: ${formatCurrency(chequeAmount.value)}`)
 
   const confirmMsg = `Complete Breakdown Payment and Mark as Settled?\n\n${summary.join('\n')}\n\nThis action cannot be undone.`
-  
-  if (!confirm(confirmMsg)) return
+
+  if (!skipConfirm && !confirm(confirmMsg)) return
 
   try {
     saving.value = true
@@ -1190,5 +1346,12 @@ const formatAmount = (amount) => {
 
 onMounted(() => {
   loadLineData()
+})
+
+onUnmounted(() => {
+  if (qrSuccessToastTimer) {
+    clearTimeout(qrSuccessToastTimer)
+    qrSuccessToastTimer = null
+  }
 })
 </script>
