@@ -16,6 +16,10 @@ export async function registerScopedSW() {
     console.log(`   SW URL: ${swUrl}`);
     console.log(`   Scope: ${scope}`);
 
+    if (canonicalizeAppUrl(appName, scope)) {
+        return null;
+    }
+
     try {
         const existingRegs = await navigator.serviceWorker.getRegistrations();
         for (const reg of existingRegs) {
@@ -51,6 +55,7 @@ export async function registerScopedSW() {
         }
 
         logPWAStatus(appName);
+        reloadOnceToClaimControl(appName, registration);
         return registration;
     } catch (error) {
         console.error('❌ Service Worker registration failed:', error);
@@ -59,6 +64,39 @@ export async function registerScopedSW() {
         }
         return null;
     }
+}
+
+function canonicalizeAppUrl(appName, scope) {
+    // SW scope /{app}/ does not control /{app} (no trailing slash). Reloading
+    // that URL forever looks like a refresh loop after every PWA deploy.
+    const { pathname, search, hash } = window.location;
+    if (pathname === `/${appName}`) {
+        window.location.replace(`${scope}${search}${hash}`);
+        return true;
+    }
+    return false;
+}
+
+function reloadOnceToClaimControl(appName, registration) {
+    if (navigator.serviceWorker.controller || !registration?.active) {
+        return;
+    }
+    const key = `pwa-sw-claim-reload:${appName}`;
+    try {
+        if (sessionStorage.getItem(key)) {
+            console.warn('⚠️ Service Worker is active but not controlling this page. Not reloading again.');
+            return;
+        }
+        sessionStorage.setItem(key, '1');
+    } catch {
+        return;
+    }
+    setTimeout(() => {
+        if (!navigator.serviceWorker.controller) {
+            console.log('🔄 Reloading once so the service worker can control this page');
+            window.location.reload();
+        }
+    }, 2000);
 }
 
 function logPWAStatus(appName) {

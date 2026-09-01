@@ -249,9 +249,9 @@ for (const appName of apps) {
                 appName === 'dailyrecoentry'
                     ? `,\n    '/assets/custom_erp/images/fonepay-static-qr.png'`
                     : '';
-            const swCacheSuffix = appName === 'dailyrecoentry' ? 'v3' : 'v2';
+            const swCacheSuffix = appName === 'dailyrecoentry' ? 'v4' : 'v2';
             const swContent = `// Service Worker for ${appName} - Android Chrome PWA Compatible
-// Version: ${Date.now()}
+// Version: ${swCacheSuffix}
 const CACHE_NAME = '${appName}-cache-${swCacheSuffix}';
 const APP_SCOPE = '/${appName}/';
 

@@ -104,16 +104,7 @@ app.mount("#app")
 
 initRecoOfflineSync(call)
 
-registerScopedSW().then((registration) => {
-  if (registration) {
-    if (!navigator.serviceWorker.controller && registration.active) {
-      setTimeout(() => {
-        if (!navigator.serviceWorker.controller) {
-          window.location.reload();
-        }
-      }, 2000);
-    }
-  }
+registerScopedSW().then(() => {
   setTimeout(() => {
     checkPWAInstallability();
   }, 1500);

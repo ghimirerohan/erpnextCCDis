@@ -1265,8 +1265,11 @@ def get_all_active_recos(company: str = None) -> Dict[str, Any]:
             company_filter = "AND r.company = %s"
             params = [company]
         
-        recos = frappe.db.sql(f"""
-            SELECT 
+        # Always pass a tuple (including empty). frappe.db.sql wraps a lone None
+        # as (None,), which makes pymysql raise "not all arguments converted".
+        recos = frappe.db.sql(
+            f"""
+            SELECT
                 d.full_name as driver_name,
                 r.driver,
                 r.company,
@@ -1277,16 +1280,22 @@ def get_all_active_recos(company: str = None) -> Dict[str, Any]:
             WHERE r.settled = 0 {company_filter}
             GROUP BY r.name
             ORDER BY d.full_name ASC
-        """, tuple(params) if params else None, as_dict=True)
-        
+            """,
+            tuple(params),
+            as_dict=True,
+        )
+
         return {
             "success": True,
             "data": recos,
             "message": f"Retrieved {len(recos)} active reconciliations"
         }
-    except Exception as e:
-        frappe.log_error(f"Error in get_all_active_recos: {str(e)}\n{traceback.format_exc()}")
-        return {"success": False, "data": [], "message": str(e)}
+    except Exception:
+        try:
+            frappe.log_error(title="get_all_active_recos", message=frappe.get_traceback())
+        except Exception:
+            frappe.logger().error("get_all_active_recos failed", exc_info=True)
+        return {"success": False, "data": [], "message": "Failed to load active reconciliations"}
 
 
 @frappe.whitelist()

@@ -69,19 +69,7 @@ for (const key in globalComponents) {
 
 app.mount("#app")
 
-// Register scoped service worker
-registerScopedSW().then((registration) => {
-  if (registration) {
-    if (!navigator.serviceWorker.controller && registration.active) {
-      console.log('🔄 Service Worker registered but not controlling. Reloading in 2 seconds...');
-      setTimeout(() => {
-        if (!navigator.serviceWorker.controller) {
-          window.location.reload();
-        }
-      }, 2000);
-    }
-  }
-  
+registerScopedSW().then(() => {
   setTimeout(() => {
     checkPWAInstallability();
   }, 1500);
