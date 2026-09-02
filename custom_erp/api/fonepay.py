@@ -6,9 +6,11 @@ import uuid
 import hmac
 import hashlib
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_CEILING, InvalidOperation
 from typing import Any, Dict, Optional, Tuple
 
 import frappe
+from frappe import _
 from frappe.utils import now_datetime
 
 try:
@@ -113,6 +115,20 @@ def _base_urls(env: str) -> Dict[str, str]:
 
 def generate_hmac(secret_key: str, message: str) -> str:
     return hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), hashlib.sha512).hexdigest()
+
+
+def ceil_fonepay_amount(amount) -> int:
+    """Fonepay dynamic QR freezes on paisa. Always send whole rupees, rounding UP.
+
+    100 -> 100, 100.01 -> 101, 0.50 -> 1
+    """
+    try:
+        value = Decimal(str(amount if amount is not None else 0))
+    except (InvalidOperation, ValueError, TypeError):
+        frappe.throw(_("Invalid Fonepay QR amount"))
+    if value <= 0:
+        frappe.throw(_("Fonepay QR amount must be greater than 0"))
+    return int(value.to_integral_value(rounding=ROUND_CEILING))
 
 
 # Fonepay Scan & Pay rejects remarks outside this set:
@@ -416,6 +432,7 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
     if not all([merchant_code, secret_key, username, password]):
         frappe.throw("Fonepay configuration missing in site_config")
 
+    amount = ceil_fonepay_amount(amount)
     customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
     remarks1, remarks2 = _prepare_fonepay_remarks(remarks1, remarks2, customer_name, amount)
 
@@ -517,6 +534,7 @@ def create_dynamic_qr_for_company(amount: float, company: str, customer: Optiona
         main_product = frappe.db.get_value("Company", company, "main_product") or "default"
         frappe.throw(f"Fonepay configuration missing for company '{company}' (config key: fonepay_{main_product})")
 
+    amount = ceil_fonepay_amount(amount)
     customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
     remarks1, remarks2 = _prepare_fonepay_remarks(remarks1, remarks2, customer_name, amount)
 

@@ -213,11 +213,13 @@
             <input
               v-model.number="paymentAmount"
               type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter amount to collect"
+              step="1"
+              min="1"
+              inputmode="numeric"
+              placeholder="Whole rupees only (paisa rounds up)"
               class="w-full px-4 py-3 h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
             />
+            <p class="mt-1 text-xs text-gray-500">Fonepay QR amounts must be whole rupees. 150.37 becomes 151.</p>
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-3">Remarks (optional)</label>
@@ -634,6 +636,7 @@ import { adToBs } from '../../shared/utils/nepaliDate'
 import LoadingOverlay from '../../shared/components/LoadingOverlay.vue'
 import CustomerSearch from '../../shared/components/CustomerSearch.vue'
 import NepaliDatePicker from '../../shared/components/NepaliDatePicker.vue'
+import { ceilFonepayAmount } from '../../shared/utils/fonepayAmount'
 
 const selectedCustomer = ref(null)
 const selectedCustomerValue = ref(null)
@@ -775,7 +778,11 @@ const generateQR = async () => {
   pushStatusLog('info', 'Submitting request to generate QR code...')
 
   try {
-    const amount = Number(paymentAmount.value) || 0
+    const amount = ceilFonepayAmount(paymentAmount.value)
+    if (amount <= 0) {
+      throw new Error('Amount must be at least Rs. 1')
+    }
+    paymentAmount.value = amount
     const remarksValue = remarks.value?.trim() || ''
 
     const response = await qrCreateResource.fetch({

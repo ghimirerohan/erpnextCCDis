@@ -21,7 +21,7 @@
                   loading="lazy"
                 />
               </div>
-              <p class="text-lg sm:text-xl font-bold text-gray-900 mb-1 text-center">Rs. {{ formatAmount(amount) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 mb-1 text-center">Rs. {{ formatAmount(chargedAmount) }}</p>
               <p class="text-xs text-gray-500 mb-3 text-center">Scan with Fonepay app, then confirm below.</p>
               <label class="block text-sm font-medium text-gray-700 mb-1">Remarks <span class="text-red-600">*</span></label>
               <textarea
@@ -44,7 +44,7 @@
             <!-- Dynamic: QR Code Display -->
             <div v-else-if="qrCode && status === 'PENDING'" class="flex flex-col items-center">
               <div id="qr-code-container" class="mb-3 p-3 sm:p-4 bg-white rounded-lg border-2 border-gray-200"></div>
-              <p class="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">Rs. {{ formatAmount(amount) }}</p>
+              <p class="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">Rs. {{ formatAmount(chargedAmount) }}</p>
               <p class="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Scan to pay with Fonepay</p>
 
               <div class="flex items-center space-x-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg">
@@ -68,7 +68,7 @@
                 </svg>
               </div>
               <h4 class="text-lg sm:text-xl font-bold text-green-600 mb-1 sm:mb-2">Payment Successful!</h4>
-              <p class="text-sm sm:text-base text-gray-600">QR payment of Rs. {{ formatAmount(amount) }} received</p>
+              <p class="text-sm sm:text-base text-gray-600">QR payment of Rs. {{ formatAmount(chargedAmount) }} received</p>
             </div>
 
             <!-- Dynamic: Error State -->
@@ -146,6 +146,7 @@ import { call } from 'frappe-ui'
 import { session } from '../../../shared/data/session'
 import { isStaticQrMode, STATIC_FONEPAY_QR_IMAGE_URL } from '../config/qrPaymentMode'
 import { getTodayBs } from '../../../shared/utils/nepaliDate'
+import { ceilFonepayAmount } from '../../../shared/utils/fonepayAmount'
 
 const props = defineProps({
   show: {
@@ -198,6 +199,15 @@ const manualCheckMessage = ref('')
 let manualCheckTimer = null
 
 const currentUser = session.user || 'Unknown'
+const chargedAmount = computed(() => ceilFonepayAmount(props.amount))
+
+function qrSuccessPayload() {
+	return {
+		transactionId: transactionId.value,
+		prn: prn.value,
+		amount: chargedAmount.value,
+	}
+}
 
 function buildStaticQrStoredRemark(userText) {
 	const bs = getTodayBs()
@@ -216,12 +226,12 @@ function confirmStaticPayment() {
 	const txt = staticUserRemarks.value?.trim()
 	if (!txt) return
 	const full = buildStaticQrStoredRemark(txt)
-	const preview = `Amount: Rs. ${formatAmount(props.amount)}\n\nSave with remarks:\n${full}\n\nProceed?`
+	const preview = `Amount: Rs. ${formatAmount(chargedAmount.value)}\n\nSave with remarks:\n${full}\n\nProceed?`
 	if (!window.confirm(preview)) return
 	emit('success', {
 		mode: 'static',
 		qrRemarks: full,
-		amount: props.amount
+		amount: chargedAmount.value
 	})
 }
 
@@ -241,8 +251,14 @@ const generateQR = async () => {
 	loading.value = true
 	status.value = 'PENDING'
 	try {
+		const amount = chargedAmount.value
+		if (amount <= 0) {
+			status.value = 'ERROR'
+			errorMessage.value = 'QR amount must be at least Rs. 1 (Fonepay does not accept paisa)'
+			return
+		}
 		const response = await call('custom_erp.api.fonepay.create_dynamic_qr_for_company', {
-			amount: props.amount,
+			amount,
 			company: props.company,
 			customer: props.customer,
 			remarks1: `${currentUser}`,
@@ -346,11 +362,7 @@ const handleWebSocketMessage = async (data) => {
 			if (verify && verify.status === 'SUCCESS') {
 				status.value = 'SUCCESS'
 				closeWebSocket()
-				emit('success', {
-					transactionId: transactionId.value,
-					prn: prn.value,
-					amount: props.amount
-				})
+				emit('success', qrSuccessPayload())
 			}
 		} catch {
 			/* ignore */
@@ -405,11 +417,7 @@ const checkPaymentManually = async () => {
 			status.value = 'SUCCESS'
 			closeWebSocket()
 			clearManualCheckTimer()
-			emit('success', {
-				transactionId: transactionId.value,
-				prn: prn.value,
-				amount: props.amount
-			})
+			emit('success', qrSuccessPayload())
 		} else {
 			manualCheckMessage.value = 'Not confirmed yet'
 			setTimeout(() => {
@@ -434,7 +442,7 @@ const clearManualCheckTimer = () => {
 }
 
 const confirmSuccess = () => {
-	emit('success', transactionId.value)
+	emit('success', qrSuccessPayload())
 	close()
 }
 

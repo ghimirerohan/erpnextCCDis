@@ -355,14 +355,15 @@
               </div>
               <input
                 v-model.number="qrAmount"
-                @input="onBreakdownInput"
+                @input="onQrAmountInput"
                 type="number"
-                inputmode="decimal"
+                inputmode="numeric"
                 min="0"
+                step="1"
                 :disabled="breakdownLocked || qrProcessed"
                 class="block w-full px-4 py-3 text-base border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
               />
-              <p class="mt-1 text-xs text-blue-700">If this has an amount, a live QR is shown and must succeed before saving.</p>
+              <p class="mt-1 text-xs text-blue-700">Fonepay only accepts whole rupees. Paisa is rounded up (e.g. 150.37 → 151). A live QR is shown and must succeed before saving.</p>
             </div>
 
             <div
@@ -668,6 +669,7 @@ import QRPaymentDialog from './components/QRPaymentDialog.vue'
 import ChequeCapture from './components/ChequeCapture.vue'
 import { isStaticQrMode } from './config/qrPaymentMode'
 import { callUpdatePaymentEntry, getCachedDriverReco } from './offline/recoOffline'
+import { ceilFonepayAmount } from '../../shared/utils/fonepayAmount'
 
 const router = useRouter()
 const route = useRoute()
@@ -756,7 +758,9 @@ const calculatedRemaining = computed(() => {
 const breakdownLocked = computed(() => breakdownProcessing.value || paymentInProgress.value || saving.value)
 
 const canProcessBreakdown = computed(() => {
-  return Math.abs(calculatedRemaining.value) < 0.005 && !breakdownValidationError.value && !saving.value
+  const rem = calculatedRemaining.value
+  const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
+  return (Math.abs(rem) < 0.005 || qrCeilGap) && !breakdownValidationError.value && !saving.value
 })
 
 const processButtonLabel = computed(() => {
@@ -859,8 +863,11 @@ const handleWholeEntry = async (type) => {
   
   switch (type) {
     case 'qr':
-      pendingQRAmount.value = amount
-      showQRDialog.value = true
+      {
+        const raw = num(lineData.value.initial_total_amount)
+        pendingQRAmount.value = ceilFonepayAmount(raw)
+        showQRDialog.value = true
+      }
       break
       
     case 'cash':
@@ -961,7 +968,14 @@ const saveWholePayment = async (type, amount) => {
         paymentData.return_amount = amount
         break
       case 'qr':
-        paymentData.qr_amount = amount
+        {
+          const charged = ceilFonepayAmount(amount)
+          const extra = charged - num(lineData.value.initial_total_amount)
+          paymentData.qr_amount = charged
+          if (extra > 0) {
+            paymentData.additional_amount = extra
+          }
+        }
         if (isStaticQrMode()) {
           paymentData.fonepay_qr_transaction = null
           paymentData.remarks = `${paymentData.remarks} | Remarks: ${pendingQrRemarks.value || ''}`.trim()
@@ -998,7 +1012,7 @@ const saveWholePayment = async (type, amount) => {
           completedPaymentType.value = 'Return'
           break
         case 'qr':
-          qrAmount.value = amount
+          qrAmount.value = ceilFonepayAmount(amount)
           completedPaymentType.value = 'QR'
           pendingQrRemarks.value = ''
           break
@@ -1059,13 +1073,25 @@ const handleQRSuccess = async (data) => {
 
   showQRDialog.value = false
 
+  const paid = ceilFonepayAmount(
+    (typeof data === 'object' && data !== null && data.amount != null
+      ? data.amount
+      : pendingQRAmount.value) || pendingQRAmount.value
+  )
+  if (paid > 0) {
+    pendingQRAmount.value = paid
+  }
+
   if (entryMode.value === 'whole') {
     paymentInProgress.value = true
     await saveWholePayment('qr', pendingQRAmount.value)
   } else {
     qrProcessed.value = true
+    if (paid > 0) {
+      qrAmount.value = paid
+    }
     showSuccessDialog.value = false
-    showQrSuccessToast(num(qrAmount.value) || num(pendingQRAmount.value))
+    showQrSuccessToast(num(qrAmount.value) || paid)
     await startBreakdownProcess()
   }
 }
@@ -1139,6 +1165,27 @@ const onBreakdownInput = () => {
   validateBreakdown()
 }
 
+const onQrAmountInput = () => {
+  const raw = num(qrAmount.value)
+  qrAmount.value = raw <= 0 ? 0 : ceilFonepayAmount(raw)
+  validateBreakdown()
+}
+
+const applyQrCeiling = (forcedAmount = null) => {
+  if (qrProcessed.value && forcedAmount == null) return
+  const raw = forcedAmount != null ? num(forcedAmount) : num(qrAmount.value)
+  if (raw <= 0) {
+    qrAmount.value = 0
+    return
+  }
+  const ceiled = ceilFonepayAmount(raw)
+  const extra = ceiled - raw
+  qrAmount.value = ceiled
+  if (extra > 0.0001) {
+    additionalAmount.value = num(additionalAmount.value) + extra
+  }
+}
+
 const fillRemaining = (field) => {
   if (breakdownLocked.value) return
   if (field === 'qr' && qrProcessed.value) return
@@ -1148,7 +1195,10 @@ const fillRemaining = (field) => {
   const rest = calculatedRemaining.value + current
   if (rest < 0) return
   if (field === 'cash') cashAmount.value = rest
-  else if (field === 'qr') qrAmount.value = rest
+  else if (field === 'qr') {
+    qrAmount.value = rest
+    applyQrCeiling()
+  }
   else chequeAmount.value = rest
   validateBreakdown()
 }
@@ -1165,16 +1215,21 @@ const startBreakdownProcess = async () => {
     return
   }
   if (Math.abs(calculatedRemaining.value) > 0.005) {
-    abortBreakdownProcess()
-    alert('Split cash, QR, and cheque so the remaining amount is exactly 0.')
-    return
+    const rem = calculatedRemaining.value
+    const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
+    if (!qrCeilGap) {
+      abortBreakdownProcess()
+      alert('Split cash, QR, and cheque so the remaining amount is exactly 0.')
+      return
+    }
   }
 
   breakdownProcessing.value = true
   paymentInProgress.value = true
 
   if (num(qrAmount.value) > 0 && !qrProcessed.value) {
-    pendingQRAmount.value = num(qrAmount.value)
+    applyQrCeiling()
+    pendingQRAmount.value = ceilFonepayAmount(num(qrAmount.value))
     showQRDialog.value = true
     return
   }
@@ -1220,8 +1275,12 @@ const validateBreakdown = () => {
 const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
   // Validation check
   if (Math.abs(calculatedRemaining.value) > 0.005) {
-    alert('Please ensure the remaining amount is exactly 0 before completing payment.')
-    return
+    const rem = calculatedRemaining.value
+    const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
+    if (!qrCeilGap) {
+      alert('Please ensure the remaining amount is exactly 0 before completing payment.')
+      return
+    }
   }
 
   if (breakdownValidationError.value) {

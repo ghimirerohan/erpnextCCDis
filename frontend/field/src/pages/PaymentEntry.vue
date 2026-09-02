@@ -264,9 +264,14 @@ function startQr() {
 		toast.error(__('Customer and amount required'))
 		return
 	}
+	const n = parseFloat(amount.value)
+	if (!Number.isFinite(n) || n <= 0) {
+		toast.error(__('Amount must be greater than 0'))
+		return
+	}
 	activePrn.value = ''
 	qrCreate.submit({
-		amount: parseFloat(amount.value),
+		amount: Math.ceil(Number(n.toFixed(2))),
 		customer: selectedCustomer.value,
 		sales_invoice: salesInvoice.value || undefined,
 	})

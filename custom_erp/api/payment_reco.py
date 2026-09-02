@@ -1136,9 +1136,26 @@ def update_payment_entry(line_name: str, **kwargs) -> Dict[str, Any]:
             if field in kwargs: setattr(line_doc, field, float(kwargs[field] or 0))
         for field in ["fonepay_qr_transaction", "cheques_taageta", "remarks"]:
             if field in kwargs: setattr(line_doc, field, kwargs[field])
+        qr_amt = float(line_doc.qr_amount or 0)
+        if qr_amt > 0:
+            from custom_erp.api.fonepay import ceil_fonepay_amount
+            line_doc.qr_amount = ceil_fonepay_amount(qr_amt)
         line_doc.net_total_amount = line_doc.initial_total_amount + (line_doc.additional_amount or 0) - (line_doc.return_amount or 0)
-        line_doc.remaining_amount = line_doc.net_total_amount - (line_doc.cash_amount or 0) - (line_doc.qr_amount or 0) - (line_doc.cheque_amount or 0) - (line_doc.credit_amount or 0)
-        line_doc.settled = 1 if line_doc.remaining_amount == 0 else 0
+        line_doc.remaining_amount = (
+            line_doc.net_total_amount
+            - (line_doc.cash_amount or 0)
+            - (line_doc.qr_amount or 0)
+            - (line_doc.cheque_amount or 0)
+            - (line_doc.credit_amount or 0)
+        )
+        # Ceiling QR to whole rupees can overshoot by < Rs. 1 — treat that extra as additional collection.
+        if line_doc.remaining_amount < 0 and line_doc.remaining_amount > -1:
+            line_doc.additional_amount = float(line_doc.additional_amount or 0) - float(line_doc.remaining_amount)
+            line_doc.net_total_amount = (
+                line_doc.initial_total_amount + line_doc.additional_amount - (line_doc.return_amount or 0)
+            )
+            line_doc.remaining_amount = 0
+        line_doc.settled = 1 if abs(float(line_doc.remaining_amount or 0)) < 0.005 else 0
         line_doc.save(ignore_permissions=True)
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
         for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
@@ -2233,6 +2250,10 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
             old_net_total = float(line_doc.net_total_amount or 0)
             old_remaining = float(line_doc.remaining_amount or 0)
             old_settled = line_doc.settled
+
+        if qr > 0:
+            from custom_erp.api.fonepay import ceil_fonepay_amount
+            qr = float(ceil_fonepay_amount(qr))
         
         # Step 1: Calculate Net Total = Initial + Additional
         net_total = initial + additional
@@ -2241,8 +2262,14 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
         total_deductions = qr + cash + return_amt + cheque + credit
         remaining = net_total - total_deductions
         
+        # QR ceiling can overshoot by less than Rs. 1 — count that extra as additional.
+        if remaining < 0 and remaining > -1:
+            additional = additional - remaining
+            net_total = initial + additional
+            remaining = 0.0
+        
         # Calculate what settled should be
-        new_settled = 1 if remaining == 0 else 0
+        new_settled = 1 if abs(remaining) < 0.005 else 0
         
         # Check if values are already correct (no changes needed)
         if (abs(old_net_total - net_total) < 0.01 and 

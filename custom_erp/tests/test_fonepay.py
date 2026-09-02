@@ -4,6 +4,17 @@ from unittest.mock import patch
 import frappe
 
 
+def test_ceil_fonepay_amount_rounds_paisa_up():
+    from custom_erp.api.fonepay import ceil_fonepay_amount
+
+    assert ceil_fonepay_amount(100) == 100
+    assert ceil_fonepay_amount(100.0) == 100
+    assert ceil_fonepay_amount("100.00") == 100
+    assert ceil_fonepay_amount(100.01) == 101
+    assert ceil_fonepay_amount(150.37) == 151
+    assert ceil_fonepay_amount(0.01) == 1
+
+
 def test_sanitize_fonepay_remarks_strips_email_at():
     from custom_erp.api.fonepay import sanitize_fonepay_remarks, _prepare_fonepay_remarks
 
