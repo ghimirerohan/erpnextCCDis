@@ -4,6 +4,26 @@ from unittest.mock import patch
 import frappe
 
 
+def test_sanitize_fonepay_remarks_strips_email_at():
+    from custom_erp.api.fonepay import sanitize_fonepay_remarks, _prepare_fonepay_remarks
+
+    assert sanitize_fonepay_remarks("sujan.ramtel@erp.co") == "sujan.ramtel"
+    assert "@" not in sanitize_fonepay_remarks("sujan.ramtel@erp.co,Adhikari K")
+    assert sanitize_fonepay_remarks("Adhikari K") == "Adhikari-K"
+    assert sanitize_fonepay_remarks("2026-09-02 09:35:00") == "2026-09-02-09-35-00"
+
+    r1, r2 = _prepare_fonepay_remarks(
+        "sujan.ramtel@erp.co",
+        "Adhikari K",
+        "Adhikari K",
+        1.0,
+    )
+    assert r1 == "sujan.ramtel"
+    assert r2 == "Adhikari-K"
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/\\-")
+    assert set(r1 + r2) <= allowed
+
+
 def test_hmac_generation():
     from custom_erp.api.fonepay import generate_hmac
     secret = "testsecret"

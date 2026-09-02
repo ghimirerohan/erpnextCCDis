@@ -1,11 +1,12 @@
 import json
 import os
+import re
 import time
 import uuid
 import hmac
 import hashlib
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import frappe
 from frappe.utils import now_datetime
@@ -112,6 +113,51 @@ def _base_urls(env: str) -> Dict[str, str]:
 
 def generate_hmac(secret_key: str, message: str) -> str:
     return hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), hashlib.sha512).hexdigest()
+
+
+# Fonepay Scan & Pay rejects remarks outside this set:
+# letters, numbers, and . , / \ -
+_FONEPAY_REMARKS_DISALLOWED = re.compile(r"[^A-Za-z0-9.,/\\-]+")
+_FONEPAY_REMARKS_MAX = 50
+
+
+def sanitize_fonepay_remarks(text: str, fallback: str = "payment") -> str:
+    """Make remarks acceptable to Fonepay's Scan & Pay field validator.
+
+    Typical failure: remarks1 is the ERP user email (`user@host`), which contains `@`.
+    """
+    raw = (text or "").strip()
+    if "@" in raw:
+        local, _, domain = raw.partition("@")
+        # Bare emails (no spaces) -> local part; otherwise drop `@`.
+        raw = local if local and " " not in local and domain else raw.replace("@", ".")
+    raw = raw.replace(":", "-").replace("_", "-").replace(" ", "-")
+    cleaned = _FONEPAY_REMARKS_DISALLOWED.sub("-", raw)
+    cleaned = re.sub(r"-{2,}", "-", cleaned).strip("-.,/\\")
+    if not cleaned:
+        if fallback and fallback != text:
+            return sanitize_fonepay_remarks(fallback, "payment")
+        return "payment"
+    return cleaned[:_FONEPAY_REMARKS_MAX]
+
+
+def _prepare_fonepay_remarks(
+    remarks1: str,
+    remarks2: str,
+    customer_name: str,
+    amount: float,
+) -> Tuple[str, str]:
+    r1 = (remarks1 or "").strip()
+    r2 = (remarks2 or "").strip()
+    if not r1:
+        r1 = now_datetime().strftime("%Y-%m-%d")
+    if not r2:
+        r2 = customer_name or f"NPR-{amount}"
+    else:
+        name = (customer_name or "").strip()
+        if name and name.lower() not in r2.lower():
+            r2 = f"{r2} {name}"
+    return sanitize_fonepay_remarks(r1, "user"), sanitize_fonepay_remarks(r2, "customer")
 
 
 def acquire_tx_lock(tx_name: str, timeout: int = 5) -> bool:
@@ -370,15 +416,8 @@ def create_dynamic_qr(amount: float, customer: Optional[str] = None, sales_invoi
     if not all([merchant_code, secret_key, username, password]):
         frappe.throw("Fonepay configuration missing in site_config")
 
-    # default remarks with customer name, amount, and date
     customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
-
-    if not remarks2:
-        remarks2 = f"{customer_name} - NPR {amount}"
-    else:
-        remarks2 = f"{remarks2} {customer_name}"
-    if not remarks1:
-        remarks1 = now_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    remarks1, remarks2 = _prepare_fonepay_remarks(remarks1, remarks2, customer_name, amount)
 
     prn = str(uuid.uuid4())
     message = f"{amount},{prn},{merchant_code},{remarks1},{remarks2}"
@@ -478,15 +517,8 @@ def create_dynamic_qr_for_company(amount: float, company: str, customer: Optiona
         main_product = frappe.db.get_value("Company", company, "main_product") or "default"
         frappe.throw(f"Fonepay configuration missing for company '{company}' (config key: fonepay_{main_product})")
 
-    # default remarks with customer name, amount, and date
     customer_name = frappe.db.get_value("Customer", customer, "customer_name") or customer
-
-    if not remarks2:
-        remarks2 = f"{customer_name} - NPR {amount}"
-    else:
-        remarks2 = f"{remarks2} {customer_name}"
-    if not remarks1:
-        remarks1 = now_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    remarks1, remarks2 = _prepare_fonepay_remarks(remarks1, remarks2, customer_name, amount)
 
     prn = str(uuid.uuid4())
     message = f"{amount},{prn},{merchant_code},{remarks1},{remarks2}"
