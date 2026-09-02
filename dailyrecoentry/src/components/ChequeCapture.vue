@@ -82,6 +82,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { call } from 'frappe-ui'
+import { ceilRupees } from '../../../shared/utils/money'
 import NepaliDatePicker from '../../../shared/components/NepaliDatePicker.vue'
 import { bsToAd, adToBs } from '../../../shared/utils/nepaliDate'
 
@@ -160,7 +161,7 @@ const saveCheque = async () => {
       cheque_no: chequeNumber.value,
       cheque_date_nepali: nepaliDateStr, // Nepali BS date as string
       bank_name: instituteName.value,
-      amount: parseFloat(props.amount) || 0,
+      amount: ceilRupees(props.amount),
       promised_date: adDateStr, // English AD date for Date field
       company: props.company || '' // Pass company for correct assignment
     })

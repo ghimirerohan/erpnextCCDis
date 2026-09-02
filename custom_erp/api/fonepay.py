@@ -6,7 +6,6 @@ import uuid
 import hmac
 import hashlib
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_CEILING, InvalidOperation
 from typing import Any, Dict, Optional, Tuple
 
 import frappe
@@ -122,13 +121,12 @@ def ceil_fonepay_amount(amount) -> int:
 
     100 -> 100, 100.01 -> 101, 0.50 -> 1
     """
-    try:
-        value = Decimal(str(amount if amount is not None else 0))
-    except (InvalidOperation, ValueError, TypeError):
-        frappe.throw(_("Invalid Fonepay QR amount"))
+    from custom_erp.money import ceil_rupees
+
+    value = ceil_rupees(amount)
     if value <= 0:
         frappe.throw(_("Fonepay QR amount must be greater than 0"))
-    return int(value.to_integral_value(rounding=ROUND_CEILING))
+    return value
 
 
 # Fonepay Scan & Pay rejects remarks outside this set:

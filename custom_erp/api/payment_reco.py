@@ -16,6 +16,8 @@ from typing import Dict, List, Any, Optional, Tuple
 import traceback
 import nepali_datetime
 
+from custom_erp.money import ceil_rupees, round_money
+
 
 # ============================================================================
 # COMPANY CONFIGURATION HELPERS
@@ -30,6 +32,62 @@ BRAND_COLORS = {
 
 # Default brand color for companies without main_product set
 DEFAULT_BRAND = "cocacola"
+
+# Cash/QR/cheque each ceil up by < Rs. 1; leftover paisa is additional.
+_COLLECTION_CEIL_ABSORB_MIN = -3.01
+
+
+def _apply_collection_rounding(
+    initial,
+    additional,
+    return_amt,
+    credit,
+    cash,
+    qr,
+    cheque,
+    *,
+    net_includes_return: bool = True,
+) -> Dict[str, float]:
+    """Ceil cash/QR/cheque to whole rupees; clamp every other amount to 2 decimals.
+
+    Paisa created by ceiling is absorbed into additional_amount so remaining can settle.
+    """
+    initial = round_money(initial)
+    additional = round_money(additional)
+    return_amt = round_money(return_amt)
+    credit = round_money(credit)
+    cash_i = float(ceil_rupees(cash))
+    qr_i = float(ceil_rupees(qr))
+    cheque_i = float(ceil_rupees(cheque))
+
+    if net_includes_return:
+        net = round_money(initial + additional - return_amt)
+        remaining = round_money(net - cash_i - qr_i - cheque_i - credit)
+    else:
+        net = round_money(initial + additional)
+        remaining = round_money(net - cash_i - qr_i - cheque_i - credit - return_amt)
+
+    if remaining < -0.005 and remaining > _COLLECTION_CEIL_ABSORB_MIN:
+        additional = round_money(additional - remaining)
+        if net_includes_return:
+            net = round_money(initial + additional - return_amt)
+        else:
+            net = round_money(initial + additional)
+        remaining = 0.0
+    elif abs(remaining) < 0.005:
+        remaining = 0.0
+
+    return {
+        "initial": initial,
+        "additional": additional,
+        "return_amt": return_amt,
+        "credit": credit,
+        "cash": cash_i,
+        "qr": qr_i,
+        "cheque": cheque_i,
+        "net": net,
+        "remaining": remaining,
+    }
 
 
 def get_company_main_product(company_name: str) -> str:
@@ -211,7 +269,7 @@ def parse_and_validate_csv(csv_content: str) -> Dict[str, Any]:
                 
             outlet_name = row.get("Outlet Name", "").strip().strip('"')
             reference_no = row.get("Reference No", "").strip().strip('"')
-            amount = float(row.get("Amount", "0").strip().strip('"').replace(',', ''))
+            amount = round_money(row.get("Amount", "0").strip().strip('"').replace(',', ''))
             salesman_name = row.get("Salesman Name", "").strip().strip('"')
             customer_exists = frappe.db.exists("Customer", outlet_code)
             parsed_row = {
@@ -498,9 +556,9 @@ def create_payment_recos(driver_assignments: str, csv_data: str, company: str = 
                 if loadsheet in grouped_data:
                     for row in grouped_data[loadsheet]:
                         customer = row["outlet_code"]
-                        amount = row["amount"]
-                        customer_amounts[customer] = customer_amounts.get(customer, 0) + amount
-                        total_amount += amount
+                        amount = round_money(row["amount"])
+                        customer_amounts[customer] = round_money(customer_amounts.get(customer, 0) + amount)
+                        total_amount = round_money(total_amount + amount)
             reco_doc = frappe.get_doc({
                 "doctype": "Daily Sales Payment Reco", 
                 "driver": driver, 
@@ -636,17 +694,18 @@ def settle_all_pending_as_cash(reco_name: str) -> Dict[str, Any]:
         updated_count = 0
         for line in reco_doc.daily_sales_payment_reco_line:
             if not line.settled:
-                remaining = float(line.remaining_amount or 0)
+                remaining = round_money(line.remaining_amount or 0)
                 if remaining > 0:
-                    line.cash_amount = float(line.cash_amount or 0) + remaining
-                    line.remaining_amount = 0
-                    line.settled = 1
+                    extra_cash = float(ceil_rupees(remaining))
+                    extra_additional = round_money(extra_cash - remaining)
+                    line.cash_amount = round_money(float(line.cash_amount or 0) + extra_cash)
+                    if extra_additional > 0:
+                        line.additional_amount = round_money(float(line.additional_amount or 0) + extra_additional)
+                    _recalc_line_net_remaining_and_settled(line)
                     line.remarks = (line.remarks or "") + " [Auto-settled as Cash]"
                     updated_count += 1
         if updated_count > 0:
-            total_cash = sum([float(l.cash_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-            reco_doc.cash_amount = total_cash
-            reco_doc.remaining_amount = 0
+            _reapply_reco_totals_from_child_lines(reco_doc)
             reco_doc.save(ignore_permissions=True)
             frappe.db.commit()
         return {"success": True, "message": f"Settled {updated_count} items"}
@@ -1042,13 +1101,13 @@ def save_expense_amount(reco_name: str, expense_amount: float) -> Dict[str, Any]
     try:
         if not reco_name: raise ValueError("Reco name required")
         reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
-        expense_amount = float(expense_amount or 0)
-        cash_amount = float(reco_doc.cash_amount or 0)
-        cash_received = float(reco_doc.cash_received or 0)
+        expense_amount = round_money(expense_amount or 0)
+        cash_amount = round_money(reco_doc.cash_amount or 0)
+        cash_received = round_money(reco_doc.cash_received or 0)
         
         # Calculate cash expected and difference
-        cash_expected = cash_amount - expense_amount
-        cash_difference = cash_received - cash_expected
+        cash_expected = round_money(cash_amount - expense_amount)
+        cash_difference = round_money(cash_received - cash_expected)
         
         # Update using db_set for immediate effect
         reco_doc.db_set("expense_amount", expense_amount)
@@ -1087,13 +1146,13 @@ def save_cash_received(reco_name: str, cash_received: float) -> Dict[str, Any]:
     try:
         if not reco_name: raise ValueError("Reco name required")
         reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco_name)
-        cash_received = float(cash_received or 0)
-        cash_amount = float(reco_doc.cash_amount or 0)
-        expense_amount = float(reco_doc.expense_amount or 0)
+        cash_received = round_money(cash_received or 0)
+        cash_amount = round_money(reco_doc.cash_amount or 0)
+        expense_amount = round_money(reco_doc.expense_amount or 0)
         
         # Calculate cash expected and difference
-        cash_expected = cash_amount - expense_amount
-        cash_difference = cash_received - cash_expected
+        cash_expected = round_money(cash_amount - expense_amount)
+        cash_difference = round_money(cash_received - cash_expected)
         
         # Update using db_set for immediate effect
         reco_doc.db_set("cash_received", cash_received)
@@ -1136,32 +1195,34 @@ def update_payment_entry(line_name: str, **kwargs) -> Dict[str, Any]:
             if field in kwargs: setattr(line_doc, field, float(kwargs[field] or 0))
         for field in ["fonepay_qr_transaction", "cheques_taageta", "remarks"]:
             if field in kwargs: setattr(line_doc, field, kwargs[field])
-        qr_amt = float(line_doc.qr_amount or 0)
-        if qr_amt > 0:
-            from custom_erp.api.fonepay import ceil_fonepay_amount
-            line_doc.qr_amount = ceil_fonepay_amount(qr_amt)
-        line_doc.net_total_amount = line_doc.initial_total_amount + (line_doc.additional_amount or 0) - (line_doc.return_amount or 0)
-        line_doc.remaining_amount = (
-            line_doc.net_total_amount
-            - (line_doc.cash_amount or 0)
-            - (line_doc.qr_amount or 0)
-            - (line_doc.cheque_amount or 0)
-            - (line_doc.credit_amount or 0)
+        rounded = _apply_collection_rounding(
+            line_doc.initial_total_amount,
+            line_doc.additional_amount,
+            line_doc.return_amount,
+            line_doc.credit_amount,
+            line_doc.cash_amount,
+            line_doc.qr_amount,
+            line_doc.cheque_amount,
         )
-        # Ceiling QR to whole rupees can overshoot by < Rs. 1 — treat that extra as additional collection.
-        if line_doc.remaining_amount < 0 and line_doc.remaining_amount > -1:
-            line_doc.additional_amount = float(line_doc.additional_amount or 0) - float(line_doc.remaining_amount)
-            line_doc.net_total_amount = (
-                line_doc.initial_total_amount + line_doc.additional_amount - (line_doc.return_amount or 0)
-            )
-            line_doc.remaining_amount = 0
+        line_doc.additional_amount = rounded["additional"]
+        line_doc.return_amount = rounded["return_amt"]
+        line_doc.credit_amount = rounded["credit"]
+        line_doc.cash_amount = rounded["cash"]
+        line_doc.qr_amount = rounded["qr"]
+        line_doc.cheque_amount = rounded["cheque"]
+        line_doc.net_total_amount = rounded["net"]
+        line_doc.remaining_amount = rounded["remaining"]
         line_doc.settled = 1 if abs(float(line_doc.remaining_amount or 0)) < 0.005 else 0
         line_doc.save(ignore_permissions=True)
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
         for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
-            setattr(parent_doc, field, sum([float(l.get(field) or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.net_total_amount = parent_doc.initial_total_amount + parent_doc.additional_amount - parent_doc.return_amount
-        parent_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+            setattr(parent_doc, field, round_money(sum([float(l.get(field) or 0) for l in parent_doc.daily_sales_payment_reco_line])))
+        parent_doc.net_total_amount = round_money(
+            parent_doc.initial_total_amount + parent_doc.additional_amount - parent_doc.return_amount
+        )
+        parent_doc.remaining_amount = round_money(
+            sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        )
         parent_doc.save(ignore_permissions=True)
         frappe.db.commit()
         return {"success": True, "message": "Updated"}
@@ -1222,7 +1283,7 @@ def create_cheque_taageta(customer: str, cheque_no: str, cheque_date_nepali: str
         if not bank_name:
             raise ValueError("Institute name is required")
         
-        amount = float(amount or 0)
+        amount = float(ceil_rupees(amount or 0))
         if amount <= 0:
             raise ValueError("Amount must be greater than 0")
         
@@ -1587,7 +1648,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
         if not customer:
             raise ValueError("Customer is required")
         
-        amount = float(amount or 0)
+        amount = round_money(amount or 0)
         if amount <= 0:
             raise ValueError("Amount must be greater than 0")
         
@@ -1626,17 +1687,19 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
             new_initial = old_initial + amount
             
             # Update amounts
-            existing_line.initial_total_amount = new_initial
-            existing_line.net_total_amount = new_initial + float(existing_line.additional_amount or 0) - float(existing_line.return_amount or 0)
+            existing_line.initial_total_amount = round_money(new_initial)
+            existing_line.net_total_amount = round_money(
+                new_initial + float(existing_line.additional_amount or 0) - float(existing_line.return_amount or 0)
+            )
             
             # Recalculate remaining
-            total_paid = (
+            total_paid = round_money(
                 float(existing_line.cash_amount or 0) +
                 float(existing_line.qr_amount or 0) +
                 float(existing_line.cheque_amount or 0) +
                 float(existing_line.credit_amount or 0)
             )
-            existing_line.remaining_amount = existing_line.net_total_amount - total_paid
+            existing_line.remaining_amount = round_money(existing_line.net_total_amount - total_paid)
             
             # If it was settled and now has remaining > 0, mark as pending
             if existing_line.settled and existing_line.remaining_amount > 0:
@@ -1670,25 +1733,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
             action = "added"
         
         # Recalculate all parent totals from lines
-        reco_doc.initial_total_amount = sum([float(l.initial_total_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.additional_amount = sum([float(l.additional_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.return_amount = sum([float(l.return_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.net_total_amount = reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
-        reco_doc.qr_amount = sum([float(l.qr_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.cheque_amount = sum([float(l.cheque_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.cash_amount = sum([float(l.cash_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.credit_amount = sum([float(l.credit_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
-        
-        # Update cash expected and difference if expense is set
-        expense_amount = float(reco_doc.expense_amount or 0)
-        reco_doc.cash_expected = reco_doc.cash_amount - expense_amount
-        cash_received = float(reco_doc.cash_received or 0)
-        reco_doc.cash_difference = cash_received - reco_doc.cash_expected
-        
-        # Check if all lines are settled
-        all_settled = all([l.settled for l in reco_doc.daily_sales_payment_reco_line])
-        reco_doc.settled = 1 if all_settled else 0
+        _reapply_reco_totals_from_child_lines(reco_doc)
         
         # Save the document
         reco_doc.save(ignore_permissions=True)
@@ -1802,35 +1847,40 @@ def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> D
 
 def _recalc_line_net_remaining_and_settled(line) -> None:
     """Keep line.net_total_amount and remaining consistent with payment fields."""
-    line.net_total_amount = float(line.initial_total_amount or 0) + float(line.additional_amount or 0) - float(
-        line.return_amount or 0
+    line.net_total_amount = round_money(
+        float(line.initial_total_amount or 0) + float(line.additional_amount or 0) - float(line.return_amount or 0)
     )
-    paid = (
+    paid = round_money(
         float(line.cash_amount or 0)
         + float(line.qr_amount or 0)
         + float(line.cheque_amount or 0)
         + float(line.credit_amount or 0)
     )
-    line.remaining_amount = line.net_total_amount - paid
-    line.settled = 1 if float(line.remaining_amount or 0) == 0 else 0
+    remaining = round_money(line.net_total_amount - paid)
+    if abs(remaining) < 0.005:
+        remaining = 0.0
+    line.remaining_amount = remaining
+    line.settled = 1 if remaining == 0 else 0
 
 
 def _reapply_reco_totals_from_child_lines(reco_doc) -> None:
     """Mirror add_new_reco_entry / update_payment_entry parent aggregation."""
     lines = reco_doc.daily_sales_payment_reco_line
-    reco_doc.initial_total_amount = sum(float(l.initial_total_amount or 0) for l in lines)
-    reco_doc.additional_amount = sum(float(l.additional_amount or 0) for l in lines)
-    reco_doc.return_amount = sum(float(l.return_amount or 0) for l in lines)
-    reco_doc.net_total_amount = reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
-    reco_doc.qr_amount = sum(float(l.qr_amount or 0) for l in lines)
-    reco_doc.cheque_amount = sum(float(l.cheque_amount or 0) for l in lines)
-    reco_doc.cash_amount = sum(float(l.cash_amount or 0) for l in lines)
-    reco_doc.credit_amount = sum(float(l.credit_amount or 0) for l in lines)
-    reco_doc.remaining_amount = sum(float(l.remaining_amount or 0) for l in lines)
-    expense_amount = float(reco_doc.expense_amount or 0)
-    reco_doc.cash_expected = float(reco_doc.cash_amount or 0) - expense_amount
-    cash_received = float(reco_doc.cash_received or 0)
-    reco_doc.cash_difference = cash_received - reco_doc.cash_expected
+    reco_doc.initial_total_amount = round_money(sum(float(l.initial_total_amount or 0) for l in lines))
+    reco_doc.additional_amount = round_money(sum(float(l.additional_amount or 0) for l in lines))
+    reco_doc.return_amount = round_money(sum(float(l.return_amount or 0) for l in lines))
+    reco_doc.net_total_amount = round_money(
+        reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
+    )
+    reco_doc.qr_amount = round_money(sum(float(l.qr_amount or 0) for l in lines))
+    reco_doc.cheque_amount = round_money(sum(float(l.cheque_amount or 0) for l in lines))
+    reco_doc.cash_amount = round_money(sum(float(l.cash_amount or 0) for l in lines))
+    reco_doc.credit_amount = round_money(sum(float(l.credit_amount or 0) for l in lines))
+    reco_doc.remaining_amount = round_money(sum(float(l.remaining_amount or 0) for l in lines))
+    expense_amount = round_money(reco_doc.expense_amount or 0)
+    reco_doc.cash_expected = round_money(float(reco_doc.cash_amount or 0) - expense_amount)
+    cash_received = round_money(reco_doc.cash_received or 0)
+    reco_doc.cash_difference = round_money(cash_received - reco_doc.cash_expected)
     if lines:
         reco_doc.settled = 1 if all(l.settled for l in lines) else 0
     else:
@@ -2087,11 +2137,11 @@ def process_qr_logs_for_reco(reco_name: str) -> Dict[str, Any]:
         for qr_tx in qr_transactions:
             try:
                 line_name = qr_tx.daily_sales_payment_reco_line
-                qr_amount = float(qr_tx.amount or 0)
+                qr_amount = round_money(qr_tx.amount or 0)
                 
                 # Get the line document
                 line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
-                initial_amount = float(line_doc.initial_total_amount or 0)
+                initial_amount = round_money(line_doc.initial_total_amount or 0)
                 
                 # Calculate amounts
                 additional_from_qr = 0
@@ -2099,23 +2149,16 @@ def process_qr_logs_for_reco(reco_name: str) -> Dict[str, Any]:
                 
                 if qr_amount > initial_amount:
                     # QR amount is more than initial - difference goes to additional
-                    additional_from_qr = qr_amount - initial_amount
+                    additional_from_qr = round_money(qr_amount - initial_amount)
                     qr_to_apply = initial_amount
                 
                 # Update line amounts
                 current_qr = float(line_doc.qr_amount or 0)
                 current_additional = float(line_doc.additional_amount or 0)
                 
-                line_doc.qr_amount = current_qr + qr_to_apply
-                line_doc.additional_amount = current_additional + additional_from_qr
-                
-                # Recalculate net and remaining
-                line_doc.net_total_amount = float(line_doc.initial_total_amount or 0) + line_doc.additional_amount - float(line_doc.return_amount or 0)
-                total_paid = line_doc.qr_amount + float(line_doc.cash_amount or 0) + float(line_doc.cheque_amount or 0) + float(line_doc.credit_amount or 0)
-                line_doc.remaining_amount = line_doc.net_total_amount - total_paid
-                
-                # Check if settled
-                line_doc.settled = 1 if line_doc.remaining_amount == 0 else 0
+                line_doc.qr_amount = round_money(current_qr + qr_to_apply)
+                line_doc.additional_amount = round_money(current_additional + additional_from_qr)
+                _recalc_line_net_remaining_and_settled(line_doc)
                 
                 # Link the QR transaction
                 line_doc.fonepay_qr_transaction = qr_tx.name
@@ -2157,10 +2200,7 @@ def process_qr_logs_for_reco(reco_name: str) -> Dict[str, Any]:
         
         # Recalculate parent totals
         reco_doc.reload()
-        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
-            setattr(reco_doc, field, sum([float(l.get(field) or 0) for l in reco_doc.daily_sales_payment_reco_line]))
-        reco_doc.net_total_amount = reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
-        reco_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in reco_doc.daily_sales_payment_reco_line])
+        _reapply_reco_totals_from_child_lines(reco_doc)
         reco_doc.save(ignore_permissions=True)
         
         frappe.db.commit()
@@ -2252,21 +2292,28 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
             old_settled = line_doc.settled
 
         if qr > 0:
-            from custom_erp.api.fonepay import ceil_fonepay_amount
-            qr = float(ceil_fonepay_amount(qr))
+            qr = float(ceil_rupees(qr))
         
-        # Step 1: Calculate Net Total = Initial + Additional
-        net_total = initial + additional
-        
-        # Step 2: Calculate Remaining = Net Total - sum(QR, Cash, Return, Cheque, Credit)
-        total_deductions = qr + cash + return_amt + cheque + credit
-        remaining = net_total - total_deductions
-        
-        # QR ceiling can overshoot by less than Rs. 1 — count that extra as additional.
-        if remaining < 0 and remaining > -1:
-            additional = additional - remaining
-            net_total = initial + additional
-            remaining = 0.0
+        rounded = _apply_collection_rounding(
+            initial,
+            additional,
+            return_amt,
+            credit,
+            cash,
+            qr,
+            cheque,
+            net_includes_return=False,
+        )
+        initial = rounded["initial"]
+        additional = rounded["additional"]
+        return_amt = rounded["return_amt"]
+        credit = rounded["credit"]
+        cash = rounded["cash"]
+        qr = rounded["qr"]
+        cheque = rounded["cheque"]
+        net_total = rounded["net"]
+        remaining = rounded["remaining"]
+        total_deductions = round_money(qr + cash + return_amt + cheque + credit)
         
         # Calculate what settled should be
         new_settled = 1 if abs(remaining) < 0.005 else 0
@@ -2320,23 +2367,23 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
         
         # Sum all line amounts for parent
-        parent_doc.initial_total_amount = sum([float(l.initial_total_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.additional_amount = sum([float(l.additional_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.return_amount = sum([float(l.return_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.qr_amount = sum([float(l.qr_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.cheque_amount = sum([float(l.cheque_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.cash_amount = sum([float(l.cash_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        parent_doc.credit_amount = sum([float(l.credit_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.initial_total_amount = round_money(sum([float(l.initial_total_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.additional_amount = round_money(sum([float(l.additional_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.return_amount = round_money(sum([float(l.return_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.qr_amount = round_money(sum([float(l.qr_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.cheque_amount = round_money(sum([float(l.cheque_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.cash_amount = round_money(sum([float(l.cash_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
+        parent_doc.credit_amount = round_money(sum([float(l.credit_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
         
         # Parent net total and remaining follow same formula
-        parent_doc.net_total_amount = parent_doc.initial_total_amount + parent_doc.additional_amount
-        parent_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        parent_doc.net_total_amount = round_money(parent_doc.initial_total_amount + parent_doc.additional_amount)
+        parent_doc.remaining_amount = round_money(sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
         
         # Update cash expected and difference
-        expense_amount = float(parent_doc.expense_amount or 0)
-        parent_doc.cash_expected = parent_doc.cash_amount - expense_amount
-        cash_received = float(parent_doc.cash_received or 0)
-        parent_doc.cash_difference = cash_received - parent_doc.cash_expected
+        expense_amount = round_money(parent_doc.expense_amount or 0)
+        parent_doc.cash_expected = round_money(parent_doc.cash_amount - expense_amount)
+        cash_received = round_money(parent_doc.cash_received or 0)
+        parent_doc.cash_difference = round_money(cash_received - parent_doc.cash_expected)
         
         parent_doc.save(ignore_permissions=True)
         
@@ -2412,23 +2459,23 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
         }
         
         for line in reco_doc.daily_sales_payment_reco_line:
-            totals["initial_total_amount"] += float(line.initial_total_amount or 0)
-            totals["additional_amount"] += float(line.additional_amount or 0)
-            totals["return_amount"] += float(line.return_amount or 0)
-            totals["qr_amount"] += float(line.qr_amount or 0)
-            totals["cheque_amount"] += float(line.cheque_amount or 0)
-            totals["cash_amount"] += float(line.cash_amount or 0)
-            totals["credit_amount"] += float(line.credit_amount or 0)
-            totals["remaining_amount"] += float(line.remaining_amount or 0)
+            totals["initial_total_amount"] = round_money(totals["initial_total_amount"] + float(line.initial_total_amount or 0))
+            totals["additional_amount"] = round_money(totals["additional_amount"] + float(line.additional_amount or 0))
+            totals["return_amount"] = round_money(totals["return_amount"] + float(line.return_amount or 0))
+            totals["qr_amount"] = round_money(totals["qr_amount"] + float(line.qr_amount or 0))
+            totals["cheque_amount"] = round_money(totals["cheque_amount"] + float(line.cheque_amount or 0))
+            totals["cash_amount"] = round_money(totals["cash_amount"] + float(line.cash_amount or 0))
+            totals["credit_amount"] = round_money(totals["credit_amount"] + float(line.credit_amount or 0))
+            totals["remaining_amount"] = round_money(totals["remaining_amount"] + float(line.remaining_amount or 0))
         
         # Calculate net total: Net Total = Initial + Additional
-        totals["net_total_amount"] = totals["initial_total_amount"] + totals["additional_amount"]
+        totals["net_total_amount"] = round_money(totals["initial_total_amount"] + totals["additional_amount"])
         
         # Recalculate cash expected and difference
-        expense_amount = float(reco_doc.expense_amount or 0)
-        new_cash_expected = totals["cash_amount"] - expense_amount
-        cash_received = float(reco_doc.cash_received or 0)
-        new_cash_difference = cash_received - new_cash_expected
+        expense_amount = round_money(reco_doc.expense_amount or 0)
+        new_cash_expected = round_money(totals["cash_amount"] - expense_amount)
+        cash_received = round_money(reco_doc.cash_received or 0)
+        new_cash_difference = round_money(cash_received - new_cash_expected)
         
         # Check if any values would change
         has_changes = False
@@ -2543,32 +2590,27 @@ def process_qr_logs_for_line(line_name: str) -> Dict[str, Any]:
             return {"success": True, "data": {"processed": []}, "message": "No unprocessed QR transactions found for this line"}
         
         processed_results = []
-        initial_amount = float(line_doc.initial_total_amount or 0)
+        initial_amount = round_money(line_doc.initial_total_amount or 0)
         
         for qr_tx in qr_transactions:
             try:
-                qr_amount = float(qr_tx.amount or 0)
+                qr_amount = round_money(qr_tx.amount or 0)
                 
                 # Calculate amounts
                 additional_from_qr = 0
                 qr_to_apply = qr_amount
                 
                 if qr_amount > initial_amount:
-                    additional_from_qr = qr_amount - initial_amount
+                    additional_from_qr = round_money(qr_amount - initial_amount)
                     qr_to_apply = initial_amount
                 
                 # Update line amounts
                 current_qr = float(line_doc.qr_amount or 0)
                 current_additional = float(line_doc.additional_amount or 0)
                 
-                line_doc.qr_amount = current_qr + qr_to_apply
-                line_doc.additional_amount = current_additional + additional_from_qr
-                
-                # Recalculate
-                line_doc.net_total_amount = float(line_doc.initial_total_amount or 0) + line_doc.additional_amount - float(line_doc.return_amount or 0)
-                total_paid = line_doc.qr_amount + float(line_doc.cash_amount or 0) + float(line_doc.cheque_amount or 0) + float(line_doc.credit_amount or 0)
-                line_doc.remaining_amount = line_doc.net_total_amount - total_paid
-                line_doc.settled = 1 if line_doc.remaining_amount == 0 else 0
+                line_doc.qr_amount = round_money(current_qr + qr_to_apply)
+                line_doc.additional_amount = round_money(current_additional + additional_from_qr)
+                _recalc_line_net_remaining_and_settled(line_doc)
                 
                 line_doc.fonepay_qr_transaction = qr_tx.name
                 
@@ -2596,10 +2638,7 @@ def process_qr_logs_for_line(line_name: str) -> Dict[str, Any]:
         
         # Update parent
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
-        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
-            setattr(parent_doc, field, sum([float(l.get(field) or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.net_total_amount = parent_doc.initial_total_amount + parent_doc.additional_amount - parent_doc.return_amount
-        parent_doc.remaining_amount = sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
+        _reapply_reco_totals_from_child_lines(parent_doc)
         parent_doc.save(ignore_permissions=True)
         
         frappe.db.commit()

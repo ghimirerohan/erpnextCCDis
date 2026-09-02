@@ -152,7 +152,7 @@
                 type="number"
                 min="0"
                 :max="maxExpense"
-                step="1"
+                step="0.01"
                 placeholder="0"
                 class="block w-full pl-14 pr-4 py-3 text-lg font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
                 @keyup.enter="saveExpense"
@@ -353,7 +353,7 @@
                 v-model.number="cashReceivedInput"
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 placeholder="0"
                 class="block w-full pl-14 pr-4 py-3 text-lg font-semibold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                 @keyup.enter="saveCashReceived"
@@ -408,6 +408,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { call } from 'frappe-ui'
+import { roundMoney } from '../../../shared/utils/money'
 
 const props = defineProps({
   driverName: {
@@ -469,7 +470,7 @@ const cashExpectedValue = computed(() => {
   if (props.summary.cash_expected !== undefined && props.summary.cash_expected !== null) {
     return props.summary.cash_expected
   }
-  return (props.summary.cash_amount || 0) - (props.summary.expense_amount || 0)
+  return roundMoney((props.summary.cash_amount || 0) - (props.summary.expense_amount || 0))
 })
 
 // Total cash after expense (the expected cash to receive)
@@ -479,15 +480,16 @@ const totalCashAfterExpense = computed(() => {
 
 // Live preview of cash difference
 const cashDifferencePreview = computed(() => {
-  return (cashReceivedInput.value || 0) - cashExpectedValue.value
+  return roundMoney((cashReceivedInput.value || 0) - cashExpectedValue.value)
 })
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-NP', {
     style: 'currency',
     currency: 'NPR',
-    minimumFractionDigits: 0
-  }).format(amount || 0)
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(roundMoney(amount || 0))
 }
 
 const openExpenseDialog = () => {
@@ -518,7 +520,7 @@ const saveExpense = async () => {
   try {
     const response = await call('custom_erp.api.payment_reco.save_expense_amount', {
       reco_name: props.recoName,
-      expense_amount: expenseInput.value
+      expense_amount: roundMoney(expenseInput.value)
     })
     
     if (response.success) {
@@ -559,7 +561,7 @@ const saveCashReceived = async () => {
   try {
     const response = await call('custom_erp.api.payment_reco.save_cash_received', {
       reco_name: props.recoName,
-      cash_received: cashReceivedInput.value
+      cash_received: roundMoney(cashReceivedInput.value)
     })
     
     if (response.success) {

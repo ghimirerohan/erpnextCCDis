@@ -245,10 +245,12 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Return Amount</label>
               <input
                 v-model.number="returnAmount"
-                @input="onBreakdownInput"
+                @input="validateBreakdown"
+                @change="onAdjustmentInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                step="0.01"
                 :disabled="breakdownLocked"
                 :class="[
                   'block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation',
@@ -261,10 +263,12 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Additional Amount</label>
               <input
                 v-model.number="additionalAmount"
-                @input="onBreakdownInput"
+                @input="validateBreakdown"
+                @change="onAdjustmentInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                step="0.01"
                 :disabled="breakdownLocked"
                 class="block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation"
               />
@@ -274,10 +278,12 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">Credit Amount</label>
               <input
                 v-model.number="creditAmount"
-                @input="onBreakdownInput"
+                @input="validateBreakdown"
+                @change="onAdjustmentInput"
                 type="number"
                 inputmode="decimal"
                 min="0"
+                step="0.01"
                 :disabled="breakdownLocked"
                 :class="[
                   'block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation',
@@ -297,10 +303,10 @@
             <span
               :class="[
                 'shrink-0 text-sm font-bold px-3 py-1 rounded-full',
-                calculatedRemaining === 0 ? 'bg-green-100 text-green-800' : 'bg-sky-100 text-sky-800'
+              calculatedRemainingIsZero ? 'bg-green-100 text-green-800' : 'bg-sky-100 text-sky-800'
               ]"
             >
-              {{ calculatedRemaining === 0 ? 'Balanced' : formatCurrency(calculatedRemaining) }}
+              {{ calculatedRemainingIsZero ? 'Balanced' : formatCurrency(calculatedRemaining) }}
             </span>
           </div>
 
@@ -324,13 +330,15 @@
               </div>
               <input
                 v-model.number="cashAmount"
-                @input="onBreakdownInput"
+                @input="onCashAmountInput"
                 type="number"
-                inputmode="decimal"
+                inputmode="numeric"
                 min="0"
+                step="1"
                 :disabled="breakdownLocked"
                 class="block w-full px-4 py-3 text-base border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 touch-manipulation"
               />
+              <p class="mt-1 text-xs text-green-700">Cash is whole rupees, rounded up (e.g. 150.37 → 151). Extra paisa goes to Additional.</p>
             </div>
 
             <div
@@ -363,7 +371,7 @@
                 :disabled="breakdownLocked || qrProcessed"
                 class="block w-full px-4 py-3 text-base border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation"
               />
-              <p class="mt-1 text-xs text-blue-700">Fonepay only accepts whole rupees. Paisa is rounded up (e.g. 150.37 → 151). A live QR is shown and must succeed before saving.</p>
+              <p class="mt-1 text-xs text-blue-700">QR is whole rupees, rounded up (e.g. 150.37 → 151). Extra paisa goes to Additional. A live QR is shown and must succeed before saving.</p>
             </div>
 
             <div
@@ -388,14 +396,15 @@
               </div>
               <input
                 v-model.number="chequeAmount"
-                @input="onBreakdownInput"
+                @input="onChequeAmountInput"
                 type="number"
-                inputmode="decimal"
+                inputmode="numeric"
                 min="0"
+                step="1"
                 :disabled="breakdownLocked || chequeProcessed"
                 class="block w-full px-4 py-3 text-base border-2 border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 touch-manipulation"
               />
-              <p class="mt-1 text-xs text-purple-700">If this has an amount, cheque number, Nepali date, and institute are captured next.</p>
+              <p class="mt-1 text-xs text-purple-700">Cheque is whole rupees, rounded up (e.g. 150.37 → 151). Extra paisa goes to Additional. Cheque number, Nepali date, and institute are captured next.</p>
             </div>
           </div>
         </div>
@@ -669,7 +678,7 @@ import QRPaymentDialog from './components/QRPaymentDialog.vue'
 import ChequeCapture from './components/ChequeCapture.vue'
 import { isStaticQrMode } from './config/qrPaymentMode'
 import { callUpdatePaymentEntry, getCachedDriverReco } from './offline/recoOffline'
-import { ceilFonepayAmount } from '../../shared/utils/fonepayAmount'
+import { ceilRupees, roundMoney } from '../../shared/utils/money'
 
 const router = useRouter()
 const route = useRoute()
@@ -744,7 +753,7 @@ const num = (value) => {
 
 const calculatedRemaining = computed(() => {
   const initial = num(lineData.value?.initial_total_amount)
-  return (
+  return roundMoney(
     initial +
     num(additionalAmount.value) -
     num(returnAmount.value) -
@@ -755,12 +764,16 @@ const calculatedRemaining = computed(() => {
   )
 })
 
+const calculatedRemainingIsZero = computed(() => Math.abs(calculatedRemaining.value) < 0.005)
+
+const isCollectionCeilGap = (rem) =>
+  rem < 0 && rem > -3.01 && (num(cashAmount.value) + num(qrAmount.value) + num(chequeAmount.value) > 0)
+
 const breakdownLocked = computed(() => breakdownProcessing.value || paymentInProgress.value || saving.value)
 
 const canProcessBreakdown = computed(() => {
   const rem = calculatedRemaining.value
-  const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
-  return (Math.abs(rem) < 0.005 || qrCeilGap) && !breakdownValidationError.value && !saving.value
+  return (Math.abs(rem) < 0.005 || isCollectionCeilGap(rem)) && !breakdownValidationError.value && !saving.value
 })
 
 const processButtonLabel = computed(() => {
@@ -826,12 +839,12 @@ const loadLineData = async () => {
         }
         
         // Update payment amounts from server to ensure UI is in sync
-        cashAmount.value = line.cash_amount || 0
-        qrAmount.value = line.qr_amount || 0
-        chequeAmount.value = line.cheque_amount || 0
-        creditAmount.value = line.credit_amount || 0
-        returnAmount.value = line.return_amount || 0
-        additionalAmount.value = line.additional_amount || 0
+        cashAmount.value = ceilRupees(line.cash_amount || 0)
+        qrAmount.value = ceilRupees(line.qr_amount || 0)
+        chequeAmount.value = ceilRupees(line.cheque_amount || 0)
+        creditAmount.value = roundMoney(line.credit_amount || 0)
+        returnAmount.value = roundMoney(line.return_amount || 0)
+        additionalAmount.value = roundMoney(line.additional_amount || 0)
         
         // Update payment status
         if (line.settled) {
@@ -859,13 +872,12 @@ const handleWholeEntry = async (type) => {
     return
   }
   
-  const amount = lineData.value.initial_total_amount
+  const amount = roundMoney(lineData.value.initial_total_amount)
   
   switch (type) {
     case 'qr':
       {
-        const raw = num(lineData.value.initial_total_amount)
-        pendingQRAmount.value = ceilFonepayAmount(raw)
+        pendingQRAmount.value = ceilRupees(amount)
         showQRDialog.value = true
       }
       break
@@ -875,13 +887,13 @@ const handleWholeEntry = async (type) => {
         type: 'cash',
         title: 'Confirm Cash Payment',
         message: 'Are you sure you want to record this as a cash payment?',
-        amount: amount
+        amount: ceilRupees(amount)
       }
       showConfirmDialog.value = true
       break
       
     case 'cheque':
-      pendingChequeAmount.value = amount
+      pendingChequeAmount.value = ceilRupees(amount)
       showChequeDialog.value = true
       break
       
@@ -890,7 +902,7 @@ const handleWholeEntry = async (type) => {
         type: 'credit',
         title: 'Confirm Credit Entry',
         message: 'Are you sure you want to mark this amount as credit (pay later)?',
-        amount: amount
+        amount
       }
       showConfirmDialog.value = true
       break
@@ -900,7 +912,7 @@ const handleWholeEntry = async (type) => {
         type: 'return',
         title: 'Confirm Full Return',
         message: 'Are you sure you want to mark this as a full return?',
-        amount: amount
+        amount
       }
       showConfirmDialog.value = true
       break
@@ -934,7 +946,7 @@ const executeConfirmedPayment = async () => {
   }
 }
 
-const saveWholePayment = async (type, amount) => {
+const saveWholePayment = async (type, rawAmount) => {
   try {
     saving.value = true
     
@@ -942,6 +954,8 @@ const saveWholePayment = async (type, amount) => {
     if (!lineData.value || !lineData.value.name) {
       throw new Error('Payment line data not loaded. Please refresh the page.')
     }
+
+    let amount = rawAmount
     
     const paymentData = {
       line_name: lineData.value.name,
@@ -956,26 +970,32 @@ const saveWholePayment = async (type, amount) => {
       remarks: `Whole Entry: ${type.toUpperCase()}`
     }
     
+    const initial = num(lineData.value.initial_total_amount)
+    const applyWholeCollection = (field, rawAmount) => {
+      const charged = ceilRupees(rawAmount)
+      const extra = roundMoney(charged - initial)
+      paymentData[field] = charged
+      if (extra > 0) {
+        paymentData.additional_amount = extra
+      }
+      return charged
+    }
+
     // Set the appropriate amount - DO NOT update UI state yet
     switch (type) {
       case 'cash':
-        paymentData.cash_amount = amount
+        amount = applyWholeCollection('cash_amount', amount)
         break
       case 'credit':
-        paymentData.credit_amount = amount
+        paymentData.credit_amount = roundMoney(amount)
+        amount = paymentData.credit_amount
         break
       case 'return':
-        paymentData.return_amount = amount
+        paymentData.return_amount = roundMoney(amount)
+        amount = paymentData.return_amount
         break
       case 'qr':
-        {
-          const charged = ceilFonepayAmount(amount)
-          const extra = charged - num(lineData.value.initial_total_amount)
-          paymentData.qr_amount = charged
-          if (extra > 0) {
-            paymentData.additional_amount = extra
-          }
-        }
+        amount = applyWholeCollection('qr_amount', amount)
         if (isStaticQrMode()) {
           paymentData.fonepay_qr_transaction = null
           paymentData.remarks = `${paymentData.remarks} | Remarks: ${pendingQrRemarks.value || ''}`.trim()
@@ -984,7 +1004,7 @@ const saveWholePayment = async (type, amount) => {
         }
         break
       case 'cheque':
-        paymentData.cheque_amount = amount
+        amount = applyWholeCollection('cheque_amount', amount)
         paymentData.cheques_taageta = chequeRef.value || null
         break
     }
@@ -1012,7 +1032,7 @@ const saveWholePayment = async (type, amount) => {
           completedPaymentType.value = 'Return'
           break
         case 'qr':
-          qrAmount.value = ceilFonepayAmount(amount)
+          qrAmount.value = ceilRupees(amount)
           completedPaymentType.value = 'QR'
           pendingQrRemarks.value = ''
           break
@@ -1073,7 +1093,7 @@ const handleQRSuccess = async (data) => {
 
   showQRDialog.value = false
 
-  const paid = ceilFonepayAmount(
+  const paid = ceilRupees(
     (typeof data === 'object' && data !== null && data.amount != null
       ? data.amount
       : pendingQRAmount.value) || pendingQRAmount.value
@@ -1158,31 +1178,45 @@ const showQrSuccessToast = (amount) => {
   }, 5500)
 }
 
-const onBreakdownInput = () => {
-  if (!qrProcessed.value) {
-    /* amount still editable */
-  }
+const onAdjustmentInput = () => {
+  returnAmount.value = Math.max(0, roundMoney(returnAmount.value))
+  additionalAmount.value = Math.max(0, roundMoney(additionalAmount.value))
+  creditAmount.value = Math.max(0, roundMoney(creditAmount.value))
+  validateBreakdown()
+}
+
+const onCashAmountInput = () => {
+  const raw = num(cashAmount.value)
+  cashAmount.value = raw <= 0 ? 0 : ceilRupees(raw)
   validateBreakdown()
 }
 
 const onQrAmountInput = () => {
   const raw = num(qrAmount.value)
-  qrAmount.value = raw <= 0 ? 0 : ceilFonepayAmount(raw)
+  qrAmount.value = raw <= 0 ? 0 : ceilRupees(raw)
   validateBreakdown()
 }
 
-const applyQrCeiling = (forcedAmount = null) => {
-  if (qrProcessed.value && forcedAmount == null) return
-  const raw = forcedAmount != null ? num(forcedAmount) : num(qrAmount.value)
+const onChequeAmountInput = () => {
+  const raw = num(chequeAmount.value)
+  chequeAmount.value = raw <= 0 ? 0 : ceilRupees(raw)
+  validateBreakdown()
+}
+
+const applyRupeeCeiling = (field, forcedAmount = null) => {
+  if (field === 'qr' && qrProcessed.value && forcedAmount == null) return
+  if (field === 'cheque' && chequeProcessed.value && forcedAmount == null) return
+  const target = field === 'cash' ? cashAmount : field === 'qr' ? qrAmount : chequeAmount
+  const raw = forcedAmount != null ? num(forcedAmount) : num(target.value)
   if (raw <= 0) {
-    qrAmount.value = 0
+    target.value = 0
     return
   }
-  const ceiled = ceilFonepayAmount(raw)
-  const extra = ceiled - raw
-  qrAmount.value = ceiled
+  const ceiled = ceilRupees(raw)
+  const extra = roundMoney(ceiled - raw)
+  target.value = ceiled
   if (extra > 0.0001) {
-    additionalAmount.value = num(additionalAmount.value) + extra
+    additionalAmount.value = roundMoney(num(additionalAmount.value) + extra)
   }
 }
 
@@ -1192,14 +1226,9 @@ const fillRemaining = (field) => {
   if (field === 'cheque' && chequeProcessed.value) return
   const current =
     field === 'cash' ? num(cashAmount.value) : field === 'qr' ? num(qrAmount.value) : num(chequeAmount.value)
-  const rest = calculatedRemaining.value + current
+  const rest = roundMoney(calculatedRemaining.value + current)
   if (rest < 0) return
-  if (field === 'cash') cashAmount.value = rest
-  else if (field === 'qr') {
-    qrAmount.value = rest
-    applyQrCeiling()
-  }
-  else chequeAmount.value = rest
+  applyRupeeCeiling(field, rest)
   validateBreakdown()
 }
 
@@ -1216,8 +1245,7 @@ const startBreakdownProcess = async () => {
   }
   if (Math.abs(calculatedRemaining.value) > 0.005) {
     const rem = calculatedRemaining.value
-    const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
-    if (!qrCeilGap) {
+    if (!isCollectionCeilGap(rem)) {
       abortBreakdownProcess()
       alert('Split cash, QR, and cheque so the remaining amount is exactly 0.')
       return
@@ -1227,14 +1255,18 @@ const startBreakdownProcess = async () => {
   breakdownProcessing.value = true
   paymentInProgress.value = true
 
+  if (num(cashAmount.value) > 0) {
+    applyRupeeCeiling('cash')
+  }
   if (num(qrAmount.value) > 0 && !qrProcessed.value) {
-    applyQrCeiling()
-    pendingQRAmount.value = ceilFonepayAmount(num(qrAmount.value))
+    applyRupeeCeiling('qr')
+    pendingQRAmount.value = ceilRupees(num(qrAmount.value))
     showQRDialog.value = true
     return
   }
   if (num(chequeAmount.value) > 0 && !chequeProcessed.value) {
-    pendingChequeAmount.value = num(chequeAmount.value)
+    applyRupeeCeiling('cheque')
+    pendingChequeAmount.value = ceilRupees(num(chequeAmount.value))
     showChequeDialog.value = true
     return
   }
@@ -1276,8 +1308,7 @@ const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
   // Validation check
   if (Math.abs(calculatedRemaining.value) > 0.005) {
     const rem = calculatedRemaining.value
-    const qrCeilGap = rem < 0 && rem > -1 && num(qrAmount.value) > 0
-    if (!qrCeilGap) {
+    if (!isCollectionCeilGap(rem)) {
       alert('Please ensure the remaining amount is exactly 0 before completing payment.')
       return
     }
@@ -1315,12 +1346,12 @@ const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
 
     const paymentData = {
       line_name: lineData.value.name,
-      return_amount: returnAmount.value || 0,
-      additional_amount: additionalAmount.value || 0,
-      credit_amount: creditAmount.value || 0,
-      cash_amount: cashAmount.value || 0,
-      qr_amount: qrAmount.value || 0,
-      cheque_amount: chequeAmount.value || 0,
+      return_amount: roundMoney(returnAmount.value || 0),
+      additional_amount: roundMoney(additionalAmount.value || 0),
+      credit_amount: roundMoney(creditAmount.value || 0),
+      cash_amount: ceilRupees(cashAmount.value || 0),
+      qr_amount: ceilRupees(qrAmount.value || 0),
+      cheque_amount: ceilRupees(chequeAmount.value || 0),
       fonepay_qr_transaction: isStaticQrMode() ? null : (qrTransactionRef.value || null),
       cheques_taageta: chequeRef.value || null,
       remarks
@@ -1352,9 +1383,11 @@ const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
 
 const getTotalCollected = () => {
   if (!lineData.value) return 0
-  return (lineData.value.cash_amount || 0) + 
-         (lineData.value.qr_amount || 0) + 
-         (lineData.value.cheque_amount || 0)
+  return roundMoney(
+    (lineData.value.cash_amount || 0) +
+    (lineData.value.qr_amount || 0) +
+    (lineData.value.cheque_amount || 0)
+  )
 }
 
 const completePayment = async () => {
@@ -1393,8 +1426,9 @@ const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-NP', {
     style: 'currency',
     currency: 'NPR',
-    minimumFractionDigits: 0
-  }).format(amount || 0)
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(roundMoney(amount || 0))
 }
 
 const formatAmount = (amount) => {

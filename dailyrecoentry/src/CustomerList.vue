@@ -456,6 +456,7 @@
                   <span class="absolute left-4 top-1/2 -translate-y-1/2 font-semibold" style="color: #374151 !important;">NPR</span>
                   <input
                     v-model.number="newEntryAmount"
+                    @change="onNewEntryAmountInput"
                     type="number"
                     inputmode="decimal"
                     min="0"
@@ -722,6 +723,7 @@ import {
 import SummaryCard from './components/SummaryCard.vue'
 import CompanyBadge from '../../shared/components/CompanyBadge.vue'
 import { downloadDriverRecoPdf } from '../../shared/utils/driverRecoPdf.js'
+import { roundMoney } from '../../shared/utils/money'
 
 const router = useRouter()
 
@@ -1090,7 +1092,12 @@ const selectCustomer = (customer) => {
 
 const proceedToConfirm = () => {
   if (!canProceedToConfirm.value) return
+  newEntryAmount.value = roundMoney(newEntryAmount.value)
   addEntryStep.value = 'confirm'
+}
+
+const onNewEntryAmountInput = () => {
+  newEntryAmount.value = Math.max(0, roundMoney(newEntryAmount.value))
 }
 
 const submitNewEntry = async () => {
@@ -1103,7 +1110,7 @@ const submitNewEntry = async () => {
     const response = await call('custom_erp.api.payment_reco.add_new_reco_entry', {
       reco_name: recoData.value.reco.name,
       customer: selectedCustomerForAdd.value.name,
-      amount: newEntryAmount.value
+      amount: roundMoney(newEntryAmount.value)
     })
     
     if (response.success) {
@@ -1135,8 +1142,9 @@ const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-NP', {
     style: 'currency',
     currency: 'NPR',
-    minimumFractionDigits: 0
-  }).format(amount || 0)
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(roundMoney(amount || 0))
 }
 
 const printDriverRecoPdf = () => {
