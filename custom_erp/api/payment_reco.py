@@ -19,6 +19,52 @@ import nepali_datetime
 from custom_erp.money import ceil_rupees, round_money
 
 
+def _creation_date_str(creation) -> str:
+    from frappe.utils import getdate
+
+    try:
+        return str(getdate(creation))
+    except Exception:
+        return str(creation or "")[:10]
+
+
+def _ad_to_bs_str(date_str: str) -> str:
+    try:
+        from datetime import date as date_cls
+
+        y, m, d = [int(p) for p in str(date_str)[:10].split("-")]
+        return nepali_datetime.date.from_datetime_date(date_cls(y, m, d)).strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+
+def format_reco_option_label(date_str: str, is_today: bool, settled: bool = False) -> str:
+    """Dropdown text: 'Today — 2026-09-05 (2083-05-20 BS)' or a dated older reco."""
+    bs = _ad_to_bs_str(date_str)
+    if is_today:
+        label = f"Today — {date_str}"
+    else:
+        label = str(date_str or "")
+    if bs:
+        label = f"{label} ({bs} BS)"
+    if settled:
+        label = f"{label} · Settled"
+    return label
+
+
+def pick_default_reco(options: List[Dict[str, Any]], reco_name: str = None) -> Optional[Dict[str, Any]]:
+    """Prefer an explicit reco, otherwise today's reco. Never fall back to an older unsettled reco."""
+    if reco_name:
+        for option in options or []:
+            if option.get("name") == reco_name:
+                return option
+        return None
+    for option in options or []:
+        if option.get("is_today"):
+            return option
+    return None
+
+
 # ============================================================================
 # COMPANY CONFIGURATION HELPERS
 # These functions provide dynamic company-based logic instead of hardcoded names
@@ -1215,14 +1261,7 @@ def update_payment_entry(line_name: str, **kwargs) -> Dict[str, Any]:
         line_doc.settled = 1 if abs(float(line_doc.remaining_amount or 0)) < 0.005 else 0
         line_doc.save(ignore_permissions=True)
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
-        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
-            setattr(parent_doc, field, round_money(sum([float(l.get(field) or 0) for l in parent_doc.daily_sales_payment_reco_line])))
-        parent_doc.net_total_amount = round_money(
-            parent_doc.initial_total_amount + parent_doc.additional_amount - parent_doc.return_amount
-        )
-        parent_doc.remaining_amount = round_money(
-            sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line])
-        )
+        _reapply_reco_totals_from_child_lines(parent_doc)
         parent_doc.save(ignore_permissions=True)
         frappe.db.commit()
         return {"success": True, "message": "Updated"}
@@ -1497,81 +1536,142 @@ def get_driver_for_user(user: str) -> Optional[str]:
         return None
 
 
-@frappe.whitelist()
-def get_driver_reco_data(driver_name: str = None, company: str = None) -> Dict[str, Any]:
-    """
-    Get reconciliation data for a specific driver or the current user.
-    
-    Logic:
-    - If driver_name is provided (admin selecting), find that driver
-    - If no driver_name, find driver via: Driver.employee -> Employee.user_id = current user
-    - Admins can see all drivers, non-admins only see their own
-    - company filter can be used to filter by company
-    """
-    try:
-        user = frappe.session.user
-        roles = frappe.get_roles(user)
-        is_admin = "System Manager" in roles or "Administrator" in roles
-        
-        driver_id = None
-        if driver_name:
-            # Admin selecting a specific driver by full name
-            driver_id = frappe.db.get_value("Driver", {"full_name": driver_name}, "name")
-        else:
-            # Find driver linked to current user via Employee
-            driver_id = get_driver_for_user(user)
-            
-        if not driver_id and not is_admin:
-            return {"success": False, "is_admin": is_admin, "message": "No driver linked to your account. Please ensure your Employee record is linked to your user and a Driver record is linked to that Employee."}
-            
-        # Find active (unsettled) reco for this driver
-        filters = {"settled": 0}
-        if driver_id:
-            filters["driver"] = driver_id
-        if company:
-            filters["company"] = company
-            
-        reco = frappe.get_all("Daily Sales Payment Reco", 
-                             filters=filters, 
-                             fields=["name"], 
-                             order_by="creation desc", 
-                             limit=1)
-        
-        if not reco:
-            return {"success": False, "is_admin": is_admin, "message": "No active reconciliation found"}
-            
-        reco_doc = frappe.get_doc("Daily Sales Payment Reco", reco[0].name)
-        
-        # Format data for frontend
-        data = {
-            "reco": {
-                "name": reco_doc.name,
-                "driver": reco_doc.driver,
-                "driver_name": frappe.db.get_value("Driver", reco_doc.driver, "full_name") or reco_doc.driver,
-                "loadsheet_number": reco_doc.loadsheet_number,
-                "company": reco_doc.company or "",
-                "creation": str(reco_doc.creation)
-            },
-            "summary": {
-                "initial_total_amount": float(reco_doc.initial_total_amount or 0),
-                "additional_amount": float(reco_doc.additional_amount or 0),
-                "net_total_amount": float(reco_doc.net_total_amount or 0),
-                "return_amount": float(reco_doc.return_amount or 0),
-                "qr_amount": float(reco_doc.qr_amount or 0),
-                "cheque_amount": float(reco_doc.cheque_amount or 0),
-                "cash_amount": float(reco_doc.cash_amount or 0),
-                "credit_amount": float(reco_doc.credit_amount or 0),
-                "expense_amount": float(reco_doc.expense_amount or 0),
-                "cash_expected": float(reco_doc.cash_expected or 0) if reco_doc.cash_expected else float(reco_doc.cash_amount or 0) - float(reco_doc.expense_amount or 0),
-                "remaining_amount": float(reco_doc.remaining_amount or 0),
-                "cash_received": float(reco_doc.cash_received or 0),
-                "cash_difference": float(reco_doc.cash_difference or 0)
-            },
-            "lines": []
+def _is_reco_admin(user: str = None) -> bool:
+    roles = frappe.get_roles(user or frappe.session.user)
+    return "System Manager" in roles or "Administrator" in roles
+
+
+def _list_recos_for_driver(driver_id: str, company: str = None) -> List[Dict[str, Any]]:
+    from frappe.utils import nowdate
+
+    filters: Dict[str, Any] = {"driver": driver_id}
+    if company:
+        filters["company"] = company
+    recos = frappe.get_all(
+        "Daily Sales Payment Reco",
+        filters=filters,
+        fields=["name", "company", "loadsheet_number", "settled", "creation", "remaining_amount"],
+        order_by="creation desc",
+        limit=60,
+    )
+    today = nowdate()
+    options = []
+    for reco in recos:
+        date_str = _creation_date_str(reco.creation)
+        is_today = date_str == today
+        settled = 1 if reco.settled else 0
+        options.append(
+            {
+                "name": reco.name,
+                "company": reco.company or "",
+                "loadsheet_number": reco.loadsheet_number or "",
+                "settled": settled,
+                "creation": str(reco.creation),
+                "date": date_str,
+                "date_bs": _ad_to_bs_str(date_str),
+                "is_today": is_today,
+                "line_count": frappe.db.count("Daily Sales Payment Reco Line", {"parent": reco.name}),
+                "remaining_amount": float(reco.remaining_amount or 0),
+                "label": format_reco_option_label(date_str, is_today, bool(settled)),
+            }
+        )
+    return options
+
+
+def _list_reco_entry_drivers(company: str = None) -> List[Dict[str, Any]]:
+    """One row per driver, preferring today's reco for the customer count."""
+    from frappe.utils import nowdate
+
+    company_filter = ""
+    params: List[Any] = []
+    if company:
+        company_filter = "AND r.company = %s"
+        params = [company]
+    rows = frappe.db.sql(
+        f"""
+        SELECT
+            d.full_name as driver_name,
+            r.driver,
+            r.company,
+            r.name as reco_name,
+            r.settled,
+            r.creation,
+            (SELECT COUNT(*) FROM `tabDaily Sales Payment Reco Line` l WHERE l.parent = r.name) as line_count
+        FROM `tabDaily Sales Payment Reco` r
+        JOIN `tabDriver` d ON r.driver = d.name
+        WHERE 1=1 {company_filter}
+        ORDER BY r.creation DESC
+        """,
+        tuple(params),
+        as_dict=True,
+    )
+    today = nowdate()
+    by_driver: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        driver_id = row.driver
+        date_str = _creation_date_str(row.creation)
+        is_today = date_str == today
+        existing = by_driver.get(driver_id)
+        entry = {
+            "driver": driver_id,
+            "driver_name": row.driver_name,
+            "company": row.company or "",
+            "count": int(row.line_count or 0),
+            "has_today": is_today,
+            "today_settled": 1 if is_today and row.settled else 0,
+            "reco_name": row.reco_name,
+            "date": date_str,
         }
-        
-        for line in reco_doc.daily_sales_payment_reco_line:
-            data["lines"].append({
+        if not existing:
+            by_driver[driver_id] = entry
+            continue
+        if is_today and not existing.get("has_today"):
+            by_driver[driver_id] = entry
+    return sorted(by_driver.values(), key=lambda d: (d.get("driver_name") or "").casefold())
+
+
+def _build_driver_reco_payload(reco_doc, available_recos: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    from frappe.utils import nowdate
+
+    date_str = _creation_date_str(reco_doc.creation)
+    is_today = date_str == nowdate()
+    data = {
+        "reco": {
+            "name": reco_doc.name,
+            "driver": reco_doc.driver,
+            "driver_name": frappe.db.get_value("Driver", reco_doc.driver, "full_name") or reco_doc.driver,
+            "loadsheet_number": reco_doc.loadsheet_number,
+            "company": reco_doc.company or "",
+            "creation": str(reco_doc.creation),
+            "date": date_str,
+            "date_bs": _ad_to_bs_str(date_str),
+            "is_today": is_today,
+            "settled": 1 if reco_doc.settled else 0,
+            "label": format_reco_option_label(date_str, is_today, bool(reco_doc.settled)),
+        },
+        "available_recos": available_recos or [],
+        "summary": {
+            "initial_total_amount": float(reco_doc.initial_total_amount or 0),
+            "additional_amount": float(reco_doc.additional_amount or 0),
+            "net_total_amount": float(reco_doc.net_total_amount or 0),
+            "return_amount": float(reco_doc.return_amount or 0),
+            "qr_amount": float(reco_doc.qr_amount or 0),
+            "cheque_amount": float(reco_doc.cheque_amount or 0),
+            "cash_amount": float(reco_doc.cash_amount or 0),
+            "credit_amount": float(reco_doc.credit_amount or 0),
+            "expense_amount": float(reco_doc.expense_amount or 0),
+            "cash_expected": float(reco_doc.cash_expected or 0)
+            if reco_doc.cash_expected
+            else float(reco_doc.cash_amount or 0) - float(reco_doc.expense_amount or 0),
+            "remaining_amount": float(reco_doc.remaining_amount or 0),
+            "cash_received": float(reco_doc.cash_received or 0),
+            "cash_difference": float(reco_doc.cash_difference or 0),
+        },
+        "lines": [],
+    }
+    for line in reco_doc.daily_sales_payment_reco_line:
+        data["lines"].append(
+            {
                 "name": line.name,
                 "customer": line.customer,
                 "customer_name": frappe.db.get_value("Customer", line.customer, "customer_name") or line.customer,
@@ -1586,20 +1686,96 @@ def get_driver_reco_data(driver_name: str = None, company: str = None) -> Dict[s
                 "remaining_amount": float(line.remaining_amount or 0),
                 "settled": line.settled,
                 "remarks": line.remarks,
-                "updated_later": line.updated_later if hasattr(line, 'updated_later') else 0
-            })
-
-        data["lines"].sort(
-            key=lambda l: (l.get("customer_name") or l.get("customer") or "").casefold()
+                "updated_later": line.updated_later if hasattr(line, "updated_later") else 0,
+            }
         )
+    data["lines"].sort(key=lambda l: (l.get("customer_name") or l.get("customer") or "").casefold())
+    return data
+
+
+@frappe.whitelist()
+def get_reco_entry_drivers(company: str = None) -> Dict[str, Any]:
+    """Drivers that have any Daily Sales Payment Reco, including today's settled ones."""
+    try:
+        drivers = _list_reco_entry_drivers(company)
+        return {
+            "success": True,
+            "is_admin": _is_reco_admin(),
+            "data": drivers,
+            "message": f"Retrieved {len(drivers)} drivers",
+        }
+    except Exception:
+        try:
+            frappe.log_error(title="get_reco_entry_drivers", message=frappe.get_traceback())
+        except Exception:
+            frappe.logger().error("get_reco_entry_drivers failed", exc_info=True)
+        return {"success": False, "data": [], "message": "Failed to load drivers"}
+
+
+@frappe.whitelist()
+def get_driver_reco_data(driver_name: str = None, company: str = None, reco_name: str = None) -> Dict[str, Any]:
+    """
+    Load a driver's reconciliation for Daily Reco Entry.
+
+    - Admin must pick a driver first (no auto-load of their own reco).
+    - Default reco is today's document even if it is already settled.
+    - Older unsettled recos are listed for admin but never auto-selected.
+    """
+    try:
+        user = frappe.session.user
+        is_admin = _is_reco_admin(user)
+
+        if is_admin and not driver_name:
+            drivers = _list_reco_entry_drivers(company)
+            return {
+                "success": False,
+                "is_admin": True,
+                "needs_driver": True,
+                "data": {"drivers": drivers, "available_recos": []},
+                "message": "Select a driver",
+            }
+
+        driver_id = None
+        if driver_name:
+            driver_id = frappe.db.get_value("Driver", {"full_name": driver_name}, "name")
+        else:
+            driver_id = get_driver_for_user(user)
+
+        if not driver_id:
+            return {
+                "success": False,
+                "is_admin": is_admin,
+                "message": "No driver linked to your account. Please ensure your Employee record is linked to your user and a Driver record is linked to that Employee.",
+            }
+
+        available_recos = _list_recos_for_driver(driver_id, company)
+        chosen = pick_default_reco(available_recos, reco_name)
+        resolved_driver_name = frappe.db.get_value("Driver", driver_id, "full_name") or driver_name
+
+        if not chosen:
+            return {
+                "success": False,
+                "is_admin": is_admin,
+                "needs_reco": True,
+                "data": {
+                    "driver_name": resolved_driver_name,
+                    "available_recos": available_recos,
+                    "drivers": _list_reco_entry_drivers(company) if is_admin else [],
+                },
+                "message": "No payment reconciliation for today",
+            }
+
+        reco_doc = frappe.get_doc("Daily Sales Payment Reco", chosen["name"])
+        if reco_doc.driver != driver_id:
+            return {"success": False, "is_admin": is_admin, "message": "Reconciliation does not belong to this driver"}
 
         return {
             "success": True,
             "is_admin": is_admin,
-            "data": data
+            "data": _build_driver_reco_payload(reco_doc, available_recos),
         }
     except Exception as e:
-        error_msg = str(e)[:100]  # Truncate for error log title
+        error_msg = str(e)[:100]
         frappe.log_error(message=traceback.format_exc(), title=f"get_driver_reco_data: {error_msg}")
         return {"success": False, "is_admin": False, "message": str(e)}
 

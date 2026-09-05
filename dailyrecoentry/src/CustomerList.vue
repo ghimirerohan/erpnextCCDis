@@ -66,38 +66,71 @@
         </svg>
       </div>
 
-      <!-- Admin: Driver Selection -->
-      <div v-else-if="!recoData && isAdmin && availableDrivers.length > 0" class="text-center py-12">
+      <!-- Admin: pick a driver first -->
+      <div v-else-if="isAdmin && !selectedDriver && availableDrivers.length > 0" class="text-center py-12">
         <div class="max-w-md mx-auto">
           <svg class="mx-auto h-24 w-24 text-blue-500 drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
           </svg>
           <h3 class="mt-4 text-2xl font-bold text-gray-900">Administrator View</h3>
-          <p class="mt-2 text-gray-700 font-medium mb-6">Select a driver to view their payment reconciliation</p>
+          <p class="mt-2 text-gray-700 font-medium mb-6">Select a driver. Today's reconciliation opens automatically.</p>
           
           <div class="bg-white rounded-xl shadow-lg border-2 border-blue-500 p-6">
             <label class="block text-sm font-semibold text-gray-900 mb-3 text-left">Select Driver</label>
             <select
               v-model="selectedDriver"
-              @change="loadDriverData"
+              @change="onDriverChange"
               class="block w-full px-4 py-3 text-base border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm transition-all duration-200"
             >
               <option :value="null" class="text-gray-500">-- Choose a driver --</option>
               <option v-for="driver in availableDrivers" :key="driver.driver" :value="driver.driver_name" class="text-gray-900 font-medium">
-                {{ driver.driver_name }} ({{ driver.count }} customers)
+                {{ driverOptionLabel(driver) }}
               </option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- No Data State -->
-      <div v-else-if="!recoData && !isAdmin" class="text-center py-12">
-        <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-        </svg>
-        <h3 class="mt-4 text-xl font-medium text-gray-900">No Active Reconciliation</h3>
-        <p class="mt-2 text-gray-600">No payment reconciliation found for your account.</p>
+      <!-- Driver / admin: no reco for today -->
+      <div v-else-if="!recoData && (!isAdmin || selectedDriver)" class="space-y-6">
+        <div v-if="isAdmin" class="bg-blue-50 rounded-xl border-2 border-blue-300 p-4 shadow-md">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <label class="text-sm font-semibold text-gray-900">Driver</label>
+              <select
+                v-model="selectedDriver"
+                @change="onDriverChange"
+                class="px-4 py-2.5 border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm min-w-[250px]"
+              >
+                <option v-for="driver in availableDrivers" :key="driver.driver" :value="driver.driver_name">
+                  {{ driverOptionLabel(driver) }}
+                </option>
+              </select>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <label class="text-sm font-semibold text-gray-900">Reconciliation</label>
+              <select
+                v-model="selectedRecoName"
+                @change="onRecoChange"
+                class="px-4 py-2.5 border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm min-w-[250px]"
+              >
+                <option :value="null">-- Choose a reco --</option>
+                <option v-for="reco in availableRecos" :key="reco.name" :value="reco.name">
+                  {{ reco.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="text-center py-12">
+          <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <h3 class="mt-4 text-xl font-medium text-gray-900">No reconciliation for today</h3>
+          <p class="mt-2 text-gray-600">
+            {{ isAdmin ? 'Today\'s reco is not available for this driver. Pick another date from the list if needed.' : 'No payment reconciliation found for today.' }}
+          </p>
+        </div>
       </div>
       
       <!-- No Drivers Available (Admin) -->
@@ -105,8 +138,8 @@
         <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
         </svg>
-        <h3 class="mt-4 text-xl font-medium text-gray-900">No Active Reconciliations</h3>
-        <p class="mt-2 text-gray-600">No drivers have active payment reconciliations.</p>
+        <h3 class="mt-4 text-xl font-medium text-gray-900">No Reconciliations</h3>
+        <p class="mt-2 text-gray-600">No drivers have payment reconciliations.</p>
       </div>
 
       <!-- Main Content -->
@@ -134,25 +167,53 @@
           </div>
         </div>
 
-        <!-- Admin: Driver Switcher -->
-        <div v-if="isAdmin && availableDrivers.length > 1" class="bg-blue-50 rounded-xl border-2 border-blue-300 p-4 shadow-md">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <label class="text-sm font-semibold text-gray-900 flex items-center">
-              <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-              </svg>
-              Switch Driver:
-            </label>
-            <select
-              v-model="selectedDriver"
-              @change="loadDriverData"
-              class="px-4 py-2.5 border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm transition-all duration-200 min-w-[250px]"
-            >
-              <option v-for="driver in availableDrivers" :key="driver.driver" :value="driver.driver_name" class="text-gray-900 font-medium">
-                {{ driver.driver_name }} ({{ driver.count }} customers)
-              </option>
-            </select>
+        <!-- Admin: driver + reco (today auto-selected) -->
+        <div v-if="isAdmin" class="bg-blue-50 rounded-xl border-2 border-blue-300 p-4 shadow-md">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <label class="text-sm font-semibold text-gray-900 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                Driver
+              </label>
+              <select
+                v-model="selectedDriver"
+                @change="onDriverChange"
+                class="px-4 py-2.5 border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm transition-all duration-200 min-w-[250px]"
+              >
+                <option v-for="driver in availableDrivers" :key="driver.driver" :value="driver.driver_name" class="text-gray-900 font-medium">
+                  {{ driverOptionLabel(driver) }}
+                </option>
+              </select>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <label class="text-sm font-semibold text-gray-900 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Reconciliation
+              </label>
+              <select
+                v-model="selectedRecoName"
+                @change="onRecoChange"
+                class="px-4 py-2.5 border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-white text-gray-900 font-medium shadow-sm transition-all duration-200 min-w-[250px]"
+              >
+                <option v-for="reco in availableRecos" :key="reco.name" :value="reco.name" class="text-gray-900 font-medium">
+                  {{ reco.label }}
+                </option>
+              </select>
+            </div>
+            <p v-if="recoData?.reco?.is_today && recoData?.reco?.settled" class="text-sm text-green-800 font-medium">
+              Today's reconciliation is settled and still shown here.
+            </p>
           </div>
+        </div>
+        <div
+          v-else-if="recoData?.reco?.is_today && recoData?.reco?.settled"
+          class="bg-green-50 border-2 border-green-300 rounded-xl p-4 text-sm text-green-900 font-medium"
+        >
+          Today's reconciliation is settled and still shown here.
         </div>
 
         <!-- Summary Card -->
@@ -734,8 +795,38 @@ const searchQuery = ref('')
 const filterSettled = ref(null)
 const showAllDialog = ref(false)
 const isAdmin = ref(false)
+const ADMIN_SELECTION_KEY = 'dailyrecoentry-admin-selection'
+
 const availableDrivers = ref([])
 const selectedDriver = ref(null)
+const availableRecos = ref([])
+const selectedRecoName = ref(null)
+
+const persistAdminSelection = () => {
+  try {
+    sessionStorage.setItem(
+      ADMIN_SELECTION_KEY,
+      JSON.stringify({
+        driver: selectedDriver.value,
+        reco: selectedRecoName.value,
+      })
+    )
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+const restoreAdminSelection = () => {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_SELECTION_KEY)
+    if (!raw) return
+    const saved = JSON.parse(raw)
+    if (saved.driver) selectedDriver.value = saved.driver
+    if (saved.reco) selectedRecoName.value = saved.reco
+  } catch (e) {
+    /* ignore */
+  }
+}
 // Company state
 const currentCompany = ref('')
 const companyConfig = ref(null)
@@ -852,6 +943,30 @@ const setFilter = (value) => {
   filterSettled.value = value
 }
 
+const driverOptionLabel = (driver) => {
+  const count = driver?.count ?? 0
+  if (driver?.has_today) {
+    const settled = driver.today_settled ? ' · settled' : ''
+    return `${driver.driver_name} — Today (${count} customers${settled})`
+  }
+  return `${driver.driver_name} (${count} customers)`
+}
+
+const applyRecoResponse = async (response, cacheKey = '') => {
+  recoData.value = response.data
+  availableRecos.value = response.data.available_recos || []
+  driverName.value = response.data.reco.driver_name || session.user
+  selectedDriver.value = driverName.value
+  selectedRecoName.value = response.data.reco.name
+  currentCompany.value = response.data.reco.company || ''
+  if (cacheKey) {
+    await setCachedDriverReco(cacheKey, response)
+  }
+  if (currentCompany.value) {
+    await loadCompanyConfig(currentCompany.value)
+  }
+}
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -859,60 +974,52 @@ const loadData = async () => {
     if (selectedDriver.value) {
       params.driver_name = selectedDriver.value
     }
+    if (selectedRecoName.value) {
+      params.reco_name = selectedRecoName.value
+    }
 
     const response = await call('custom_erp.api.payment_reco.get_driver_reco_data', params)
 
     isAdmin.value = response.is_admin || false
 
     if (response.success) {
-      recoData.value = response.data
-      driverName.value = response.data.reco.driver_name || session.user
-      selectedDriver.value = driverName.value
-      const cacheKey =
-        params.driver_name ||
-        response.data?.reco?.driver_name ||
-        driverName.value ||
-        ''
-      await setCachedDriverReco(cacheKey, response)
-      // Extract company from response
-      currentCompany.value = response.data.reco.company || ''
-      
-      // Fetch company config for dynamic styling
-      if (currentCompany.value) {
-        await loadCompanyConfig(currentCompany.value)
-      }
-      
-      // If admin, also make sure available drivers are loaded
+      const cacheKey = [
+        params.driver_name || response.data?.reco?.driver_name || driverName.value || '',
+        response.data?.reco?.name || params.reco_name || '',
+      ].join(':')
+      await applyRecoResponse(response, cacheKey)
+      persistAdminSelection()
       if (isAdmin.value && availableDrivers.value.length === 0) {
         await loadAllDrivers()
       }
     } else if (isAdmin.value) {
-      // Admin user but no driver data for selection - load all drivers list
       recoData.value = null
       currentCompany.value = ''
       companyConfig.value = null
-      await loadAllDrivers()
+      availableRecos.value = response.data?.available_recos || []
+      if (response.data?.driver_name) {
+        selectedDriver.value = response.data.driver_name
+        driverName.value = response.data.driver_name
+      }
+      if (response.data?.drivers?.length) {
+        availableDrivers.value = response.data.drivers
+      } else {
+        await loadAllDrivers()
+      }
     } else {
       recoData.value = null
       currentCompany.value = ''
       companyConfig.value = null
+      availableRecos.value = response.data?.available_recos || []
     }
   } catch (error) {
     console.error('Error loading data:', error)
     const key =
-      selectedDriver.value ||
-      driverName.value ||
-      (typeof session.user === 'string' ? session.user : '') ||
-      ''
+      [selectedDriver.value || driverName.value || (typeof session.user === 'string' ? session.user : ''), selectedRecoName.value || ''].join(':')
     const cached = await getCachedDriverReco(key)
     if (cached && cached.success) {
-      recoData.value = cached.data
-      driverName.value = cached.data.reco.driver_name || session.user
       isAdmin.value = cached.is_admin || false
-      currentCompany.value = cached.data.reco.company || ''
-      if (currentCompany.value) {
-        await loadCompanyConfig(currentCompany.value)
-      }
+      await applyRecoResponse(cached)
     }
   } finally {
     loading.value = false
@@ -935,16 +1042,30 @@ const loadCompanyConfig = async (company) => {
 
 const loadAllDrivers = async () => {
   try {
-    const response = await call('custom_erp.api.payment_reco.get_all_active_recos')
+    const response = await call('custom_erp.api.payment_reco.get_reco_entry_drivers')
     if (response.success) {
       availableDrivers.value = response.data
+      if (response.is_admin) {
+        isAdmin.value = true
+      }
     }
   } catch (error) {
     console.error('Error loading drivers:', error)
   }
 }
 
-const loadDriverData = async () => {
+const onDriverChange = async () => {
+  selectedRecoName.value = null
+  recoData.value = null
+  availableRecos.value = []
+  await loadData()
+}
+
+const onRecoChange = async () => {
+  if (!selectedRecoName.value) {
+    recoData.value = null
+    return
+  }
   await loadData()
 }
 
@@ -968,7 +1089,10 @@ const openCustomerPayment = (line) => {
   router.push({
     name: 'CustomerPayment',
     params: { lineName: line.name },
-    query: { driver: driverName.value }
+    query: {
+      driver: driverName.value,
+      reco: recoData.value?.reco?.name || selectedRecoName.value || '',
+    }
   })
 }
 
@@ -1170,6 +1294,7 @@ function refreshPendingQueueCount() {
 }
 
 onMounted(() => {
+  restoreAdminSelection()
   refreshPendingQueueCount()
   window.addEventListener('online', () => {
     isOffline.value = false

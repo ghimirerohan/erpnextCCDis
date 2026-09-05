@@ -225,6 +225,7 @@ whitelisted_methods = [
 	"custom_erp.api.payment_reco.get_drivers_list",
 	"custom_erp.api.payment_reco.create_payment_recos",
 	"custom_erp.api.payment_reco.get_all_active_recos",
+	"custom_erp.api.payment_reco.get_reco_entry_drivers",
 	"custom_erp.api.payment_reco.get_driver_reco_data",
 	"custom_erp.api.payment_reco.update_payment_entry",
 	"custom_erp.api.payment_reco.generate_qr_no_payment_entry",

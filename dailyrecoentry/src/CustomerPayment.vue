@@ -791,6 +791,7 @@ const loadLineData = async () => {
   try {
     // Get line data from parent reco
     const driverName = route.query.driver
+    const recoName = route.query.reco
     if (!driverName) {
       console.error('Driver name not found in route query')
       alert('Error: Driver information not found. Please go back and select a driver.')
@@ -799,9 +800,11 @@ const loadLineData = async () => {
 
     let response
     try {
-      response = await call('custom_erp.api.payment_reco.get_driver_reco_data', { driver_name: driverName })
+      const params = { driver_name: driverName }
+      if (recoName) params.reco_name = recoName
+      response = await call('custom_erp.api.payment_reco.get_driver_reco_data', params)
     } catch (netErr) {
-      const cached = await getCachedDriverReco(driverName)
+      const cached = await getCachedDriverReco([driverName, recoName || ''].join(':'))
       if (cached && cached.success) {
         response = cached
       } else {

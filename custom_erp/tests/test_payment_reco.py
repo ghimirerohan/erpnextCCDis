@@ -2,7 +2,12 @@ from unittest.mock import patch
 
 import frappe
 
-from custom_erp.api.payment_reco import _apply_collection_rounding, get_all_active_recos
+from custom_erp.api.payment_reco import (
+	_apply_collection_rounding,
+	format_reco_option_label,
+	get_all_active_recos,
+	pick_default_reco,
+)
 from custom_erp.money import ceil_rupees, round_money
 
 
@@ -79,3 +84,23 @@ def test_get_all_active_recos_with_company_uses_placeholder():
 	values = mock_sql.call_args[0][1]
 	assert tuple(values) == ("Test Company",)
 	assert "%s" in mock_sql.call_args[0][0]
+
+
+def test_pick_default_reco_prefers_today_even_if_settled():
+	options = [
+		{"name": "OLD-UNSETTLED", "is_today": False, "settled": 0},
+		{"name": "TODAY-SETTLED", "is_today": True, "settled": 1},
+	]
+	assert pick_default_reco(options)["name"] == "TODAY-SETTLED"
+	assert pick_default_reco(options, "OLD-UNSETTLED")["name"] == "OLD-UNSETTLED"
+	assert pick_default_reco([{"name": "YESTERDAY", "is_today": False}]) is None
+	assert pick_default_reco([], "MISSING") is None
+
+
+def test_format_reco_option_label_marks_today():
+	label = format_reco_option_label("2026-09-05", True, True)
+	assert label.startswith("Today — 2026-09-05")
+	assert "Settled" in label
+	older = format_reco_option_label("2026-09-04", False, False)
+	assert older.startswith("2026-09-04")
+	assert "Today" not in older
