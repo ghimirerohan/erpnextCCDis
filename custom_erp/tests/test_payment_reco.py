@@ -2,8 +2,11 @@ from unittest.mock import patch
 
 import frappe
 
+from types import SimpleNamespace
+
 from custom_erp.api.payment_reco import (
 	_apply_collection_rounding,
+	_reapply_reco_totals_from_child_lines,
 	format_reco_option_label,
 	get_all_active_recos,
 	pick_default_reco,
@@ -61,6 +64,85 @@ def test_apply_collection_rounding_credit_and_return_stay_two_decimals():
 	assert result["credit"] == 3.33
 	# remaining = 100.33 + 1.11 - 2.22 - 3.33 = 95.89
 	assert result["remaining"] == 95.89
+	assert result["discount_amt"] == 0
+
+
+def test_apply_collection_rounding_discount_settles_like_return():
+	result = _apply_collection_rounding(
+		1000, 0, 0, 0, 950, 0, 0, discount_amt=50
+	)
+	assert result["discount_amt"] == 50
+	assert result["cash"] == 950
+	assert result["remaining"] == 0
+
+
+def test_apply_collection_rounding_discount_stays_two_decimals_while_cash_ceils():
+	result = _apply_collection_rounding(
+		150.37, 0, 0, 0, 150.37, 0, 0, discount_amt=0.37
+	)
+	assert result["discount_amt"] == 0.37
+	assert result["cash"] == 151
+	assert result["additional"] == 1.00
+	assert result["remaining"] == 0
+
+
+def test_apply_collection_rounding_omitted_discount_matches_return_only_baseline():
+	baseline = _apply_collection_rounding(100.333, 1.111, 2.222, 3.333, 0, 0, 0)
+	omitted = _apply_collection_rounding(100.333, 1.111, 2.222, 3.333, 0, 0, 0)
+	explicit_zero = _apply_collection_rounding(
+		100.333, 1.111, 2.222, 3.333, 0, 0, 0, discount_amt=None
+	)
+	assert omitted["remaining"] == baseline["remaining"] == 95.89
+	assert explicit_zero["remaining"] == 95.89
+	assert explicit_zero["discount_amt"] == 0
+
+
+def test_apply_collection_rounding_oversize_discount_stays_negative():
+	result = _apply_collection_rounding(
+		100, 0, 30, 0, 0, 0, 0, discount_amt=80
+	)
+	assert result["discount_amt"] == 80
+	assert result["remaining"] == -10
+	assert result["additional"] == 0
+
+
+def test_reapply_parent_discount_sums_and_leaves_expense():
+	parent = SimpleNamespace(
+		expense_amount=100,
+		cash_received=0,
+		daily_sales_payment_reco_line=[
+			SimpleNamespace(
+				initial_total_amount=200,
+				additional_amount=0,
+				return_amount=0,
+				discount_amount=20,
+				qr_amount=0,
+				cheque_amount=0,
+				cash_amount=180,
+				credit_amount=0,
+				remaining_amount=0,
+				settled=1,
+			),
+			SimpleNamespace(
+				initial_total_amount=300,
+				additional_amount=0,
+				return_amount=0,
+				discount_amount=30,
+				qr_amount=0,
+				cheque_amount=0,
+				cash_amount=270,
+				credit_amount=0,
+				remaining_amount=0,
+				settled=1,
+			),
+		],
+	)
+	_reapply_reco_totals_from_child_lines(parent)
+	assert parent.discount_amount == 50
+	assert parent.expense_amount == 100
+	assert parent.net_total_amount == 450
+	assert parent.cash_expected == 350
+	assert parent.settled == 1
 
 
 def test_get_all_active_recos_without_company_does_not_pass_none():

@@ -384,6 +384,7 @@
                         <span v-if="line.cheque_amount > 0" class="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded">Cheque: {{ formatCurrency(line.cheque_amount) }}</span>
                         <span v-if="line.credit_amount > 0" class="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded">Credit: {{ formatCurrency(line.credit_amount) }}</span>
                         <span v-if="line.return_amount > 0" class="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded">Return: {{ formatCurrency(line.return_amount) }}</span>
+                        <span v-if="line.discount_amount > 0" class="text-[10px] px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded">Discount: {{ formatCurrency(line.discount_amount) }}</span>
                       </div>
                     </div>
                     <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,6 +409,7 @@
                       <span v-if="line.cheque_amount > 0" class="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-md font-medium">Cheque: {{ formatCurrency(line.cheque_amount) }}</span>
                       <span v-if="line.credit_amount > 0" class="text-xs px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-md font-medium">Credit: {{ formatCurrency(line.credit_amount) }}</span>
                       <span v-if="line.return_amount > 0" class="text-xs px-2 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-md font-medium">Return: {{ formatCurrency(line.return_amount) }}</span>
+                      <span v-if="line.discount_amount > 0" class="text-xs px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-md font-medium">Discount: {{ formatCurrency(line.discount_amount) }}</span>
                     </div>
                   </div>
                   <div class="text-right flex-shrink-0">
@@ -725,6 +727,10 @@
               <div class="flex justify-between py-2 border-b">
                 <span class="text-gray-700">Return Amount:</span>
                 <span class="font-semibold text-orange-600">{{ formatCurrency(recoData?.summary.return_amount) }}</span>
+              </div>
+              <div class="flex justify-between py-2 border-b">
+                <span class="text-gray-700">Discount Amount:</span>
+                <span class="font-semibold text-rose-600">{{ formatCurrency(recoData?.summary.discount_amount) }}</span>
               </div>
               <div class="flex justify-between py-2 border-b">
                 <span class="text-gray-700">Net Total Amount:</span>

@@ -66,6 +66,10 @@
               <p class="text-xs text-gray-600 mb-1">Return</p>
               <p class="text-xl font-semibold text-orange-700">{{ formatCurrency(lineData.return_amount) }}</p>
             </div>
+            <div v-if="lineData.discount_amount > 0" class="bg-rose-50 rounded-lg p-4">
+              <p class="text-xs text-gray-600 mb-1">Discount Amount</p>
+              <p class="text-xl font-semibold text-rose-700">{{ formatCurrency(lineData.discount_amount) }}</p>
+            </div>
             <div v-if="lineData.additional_amount > 0" class="bg-indigo-50 rounded-lg p-4">
               <p class="text-xs text-gray-600 mb-1">Additional</p>
               <p class="text-xl font-semibold text-indigo-700">{{ formatCurrency(lineData.additional_amount) }}</p>
@@ -238,13 +242,31 @@
 
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6">
           <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-1">Adjustments</h3>
-          <p class="text-xs sm:text-sm text-gray-500 mb-3">Return, additional, and credit first. Remaining is then split across cash, QR, and cheque.</p>
+          <p class="text-xs sm:text-sm text-gray-500 mb-3">Return, discount, additional, and credit first. Remaining is then split across cash, QR, and cheque.</p>
 
           <div class="space-y-3 sm:space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Return Amount</label>
               <input
                 v-model.number="returnAmount"
+                @input="validateBreakdown"
+                @change="onAdjustmentInput"
+                type="number"
+                inputmode="decimal"
+                min="0"
+                step="0.01"
+                :disabled="breakdownLocked"
+                :class="[
+                  'block w-full px-4 py-3 sm:py-2 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 touch-manipulation',
+                  breakdownValidationError ? 'border-red-500' : 'border-gray-300'
+                ]"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Discount Amount (Prize Amount)</label>
+              <input
+                v-model.number="discountAmount"
                 @input="validateBreakdown"
                 @change="onAdjustmentInput"
                 type="number"
@@ -697,6 +719,7 @@ const paymentInProgress = ref(false)
 
 // Breakdown amounts
 const returnAmount = ref(0)
+const discountAmount = ref(0)
 const additionalAmount = ref(0)
 const creditAmount = ref(0)
 const cashAmount = ref(0)
@@ -757,6 +780,7 @@ const calculatedRemaining = computed(() => {
     initial +
     num(additionalAmount.value) -
     num(returnAmount.value) -
+    num(discountAmount.value) -
     num(creditAmount.value) -
     num(cashAmount.value) -
     num(qrAmount.value) -
@@ -847,6 +871,7 @@ const loadLineData = async () => {
         chequeAmount.value = ceilRupees(line.cheque_amount || 0)
         creditAmount.value = roundMoney(line.credit_amount || 0)
         returnAmount.value = roundMoney(line.return_amount || 0)
+        discountAmount.value = roundMoney(line.discount_amount || 0)
         additionalAmount.value = roundMoney(line.additional_amount || 0)
         
         // Update payment status
@@ -1183,6 +1208,7 @@ const showQrSuccessToast = (amount) => {
 
 const onAdjustmentInput = () => {
   returnAmount.value = Math.max(0, roundMoney(returnAmount.value))
+  discountAmount.value = Math.max(0, roundMoney(discountAmount.value))
   additionalAmount.value = Math.max(0, roundMoney(additionalAmount.value))
   creditAmount.value = Math.max(0, roundMoney(creditAmount.value))
   validateBreakdown()
@@ -1289,6 +1315,7 @@ const validateBreakdown = () => {
   const initial = num(lineData.value?.initial_total_amount)
   const amounts = [
     num(returnAmount.value),
+    num(discountAmount.value),
     num(additionalAmount.value),
     num(creditAmount.value),
     num(cashAmount.value),
@@ -1299,9 +1326,9 @@ const validateBreakdown = () => {
     breakdownValidationError.value = 'Amounts cannot be negative'
     return
   }
-  const totalReduction = num(returnAmount.value) + num(creditAmount.value)
+  const totalReduction = num(returnAmount.value) + num(discountAmount.value) + num(creditAmount.value)
   if (totalReduction > initial) {
-    breakdownValidationError.value = `Return + Credit (${formatCurrency(totalReduction)}) cannot exceed Initial Amount (${formatCurrency(initial)})`
+    breakdownValidationError.value = `Return + Discount + Credit (${formatCurrency(totalReduction)}) cannot exceed Initial Amount (${formatCurrency(initial)})`
   } else {
     breakdownValidationError.value = ''
   }
@@ -1324,6 +1351,7 @@ const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
 
   const summary = []
   if (returnAmount.value > 0) summary.push(`Return: ${formatCurrency(returnAmount.value)}`)
+  if (discountAmount.value > 0) summary.push(`Discount Amount: ${formatCurrency(discountAmount.value)}`)
   if (additionalAmount.value > 0) summary.push(`Additional: ${formatCurrency(additionalAmount.value)}`)
   if (creditAmount.value > 0) summary.push(`Credit: ${formatCurrency(creditAmount.value)}`)
   if (cashAmount.value > 0) summary.push(`Cash: ${formatCurrency(cashAmount.value)}`)
@@ -1350,6 +1378,7 @@ const completeBreakdownPayment = async ({ skipConfirm = false } = {}) => {
     const paymentData = {
       line_name: lineData.value.name,
       return_amount: roundMoney(returnAmount.value || 0),
+      discount_amount: roundMoney(discountAmount.value || 0),
       additional_amount: roundMoney(additionalAmount.value || 0),
       credit_amount: roundMoney(creditAmount.value || 0),
       cash_amount: ceilRupees(cashAmount.value || 0),

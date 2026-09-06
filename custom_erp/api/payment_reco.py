@@ -92,31 +92,34 @@ def _apply_collection_rounding(
     qr,
     cheque,
     *,
+    discount_amt=0,
     net_includes_return: bool = True,
 ) -> Dict[str, float]:
     """Ceil cash/QR/cheque to whole rupees; clamp every other amount to 2 decimals.
 
     Paisa created by ceiling is absorbed into additional_amount so remaining can settle.
+    Discount is a Return-class deduction (2 decimals), not a collected tender.
     """
     initial = round_money(initial)
     additional = round_money(additional)
     return_amt = round_money(return_amt)
+    discount_amt = round_money(discount_amt)
     credit = round_money(credit)
     cash_i = float(ceil_rupees(cash))
     qr_i = float(ceil_rupees(qr))
     cheque_i = float(ceil_rupees(cheque))
 
     if net_includes_return:
-        net = round_money(initial + additional - return_amt)
+        net = round_money(initial + additional - return_amt - discount_amt)
         remaining = round_money(net - cash_i - qr_i - cheque_i - credit)
     else:
         net = round_money(initial + additional)
-        remaining = round_money(net - cash_i - qr_i - cheque_i - credit - return_amt)
+        remaining = round_money(net - cash_i - qr_i - cheque_i - credit - return_amt - discount_amt)
 
     if remaining < -0.005 and remaining > _COLLECTION_CEIL_ABSORB_MIN:
         additional = round_money(additional - remaining)
         if net_includes_return:
-            net = round_money(initial + additional - return_amt)
+            net = round_money(initial + additional - return_amt - discount_amt)
         else:
             net = round_money(initial + additional)
         remaining = 0.0
@@ -127,6 +130,7 @@ def _apply_collection_rounding(
         "initial": initial,
         "additional": additional,
         "return_amt": return_amt,
+        "discount_amt": discount_amt,
         "credit": credit,
         "cash": cash_i,
         "qr": qr_i,
@@ -611,7 +615,7 @@ def create_payment_recos(driver_assignments: str, csv_data: str, company: str = 
                 "loadsheet_number": ", ".join(loadsheets),
                 "company": company,  # Set company
                 "initial_total_amount": total_amount, "net_total_amount": total_amount, "remaining_amount": total_amount,
-                "additional_amount": 0, "return_amount": 0, "qr_amount": 0, "cheque_amount": 0, "cash_amount": 0,
+                "additional_amount": 0, "return_amount": 0, "discount_amount": 0, "qr_amount": 0, "cheque_amount": 0, "cash_amount": 0,
                 "credit_amount": 0, "expense_amount": 0, "settled": 0
             })
             for customer, amount in customer_amounts.items():
@@ -683,6 +687,7 @@ def create_payment_recos_horlicks(driver: str, csv_data: str, company: str = Non
             "remaining_amount": total_amount,
             "additional_amount": 0,
             "return_amount": 0,
+            "discount_amount": 0,
             "qr_amount": 0,
             "cheque_amount": 0,
             "cash_amount": 0,
@@ -1171,6 +1176,7 @@ def save_expense_amount(reco_name: str, expense_amount: float) -> Dict[str, Any]
                 "additional_amount": float(reco_doc.additional_amount or 0),
                 "net_total_amount": float(reco_doc.net_total_amount or 0),
                 "return_amount": float(reco_doc.return_amount or 0),
+                "discount_amount": float(reco_doc.discount_amount or 0),
                 "qr_amount": float(reco_doc.qr_amount or 0),
                 "cheque_amount": float(reco_doc.cheque_amount or 0),
                 "cash_amount": cash_amount,
@@ -1216,6 +1222,7 @@ def save_cash_received(reco_name: str, cash_received: float) -> Dict[str, Any]:
                 "additional_amount": float(reco_doc.additional_amount or 0),
                 "net_total_amount": float(reco_doc.net_total_amount or 0),
                 "return_amount": float(reco_doc.return_amount or 0),
+                "discount_amount": float(reco_doc.discount_amount or 0),
                 "qr_amount": float(reco_doc.qr_amount or 0),
                 "cheque_amount": float(reco_doc.cheque_amount or 0),
                 "cash_amount": cash_amount,
@@ -1237,7 +1244,7 @@ def update_payment_entry(line_name: str, **kwargs) -> Dict[str, Any]:
     try:
         if not line_name: raise ValueError("line_name required")
         line_doc = frappe.get_doc("Daily Sales Payment Reco Line", line_name)
-        for field in ["return_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
+        for field in ["return_amount", "discount_amount", "additional_amount", "credit_amount", "cash_amount", "qr_amount", "cheque_amount"]:
             if field in kwargs: setattr(line_doc, field, float(kwargs[field] or 0))
         for field in ["fonepay_qr_transaction", "cheques_taageta", "remarks"]:
             if field in kwargs: setattr(line_doc, field, kwargs[field])
@@ -1249,9 +1256,11 @@ def update_payment_entry(line_name: str, **kwargs) -> Dict[str, Any]:
             line_doc.cash_amount,
             line_doc.qr_amount,
             line_doc.cheque_amount,
+            discount_amt=line_doc.discount_amount,
         )
         line_doc.additional_amount = rounded["additional"]
         line_doc.return_amount = rounded["return_amt"]
+        line_doc.discount_amount = rounded["discount_amt"]
         line_doc.credit_amount = rounded["credit"]
         line_doc.cash_amount = rounded["cash"]
         line_doc.qr_amount = rounded["qr"]
@@ -1655,6 +1664,7 @@ def _build_driver_reco_payload(reco_doc, available_recos: List[Dict[str, Any]] =
             "additional_amount": float(reco_doc.additional_amount or 0),
             "net_total_amount": float(reco_doc.net_total_amount or 0),
             "return_amount": float(reco_doc.return_amount or 0),
+            "discount_amount": float(reco_doc.discount_amount or 0),
             "qr_amount": float(reco_doc.qr_amount or 0),
             "cheque_amount": float(reco_doc.cheque_amount or 0),
             "cash_amount": float(reco_doc.cash_amount or 0),
@@ -1679,6 +1689,7 @@ def _build_driver_reco_payload(reco_doc, available_recos: List[Dict[str, Any]] =
                 "additional_amount": float(line.additional_amount or 0),
                 "net_total_amount": float(line.net_total_amount or 0),
                 "return_amount": float(line.return_amount or 0),
+                "discount_amount": float(line.discount_amount or 0),
                 "qr_amount": float(line.qr_amount or 0),
                 "cheque_amount": float(line.cheque_amount or 0),
                 "cash_amount": float(line.cash_amount or 0),
@@ -1865,7 +1876,10 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
             # Update amounts
             existing_line.initial_total_amount = round_money(new_initial)
             existing_line.net_total_amount = round_money(
-                new_initial + float(existing_line.additional_amount or 0) - float(existing_line.return_amount or 0)
+                new_initial
+                + float(existing_line.additional_amount or 0)
+                - float(existing_line.return_amount or 0)
+                - float(existing_line.discount_amount or 0)
             )
             
             # Recalculate remaining
@@ -1897,6 +1911,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
                 "remaining_amount": amount,
                 "additional_amount": 0,
                 "return_amount": 0,
+                "discount_amount": 0,
                 "qr_amount": 0,
                 "cheque_amount": 0,
                 "cash_amount": 0,
@@ -1925,6 +1940,7 @@ def add_new_reco_entry(reco_name: str, customer: str, amount: float, sales_refer
                 "additional_amount": float(reco_doc.additional_amount or 0),
                 "net_total_amount": float(reco_doc.net_total_amount or 0),
                 "return_amount": float(reco_doc.return_amount or 0),
+                "discount_amount": float(reco_doc.discount_amount or 0),
                 "qr_amount": float(reco_doc.qr_amount or 0),
                 "cheque_amount": float(reco_doc.cheque_amount or 0),
                 "cash_amount": float(reco_doc.cash_amount or 0),
@@ -1986,6 +2002,7 @@ def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> D
                 "additional_amount": float(line.additional_amount or 0),
                 "net_total_amount": float(line.net_total_amount or 0),
                 "return_amount": float(line.return_amount or 0),
+                "discount_amount": float(line.discount_amount or 0),
                 "qr_amount": float(line.qr_amount or 0),
                 "cheque_amount": float(line.cheque_amount or 0),
                 "cash_amount": float(line.cash_amount or 0),
@@ -2024,7 +2041,10 @@ def get_reco_lines_for_driver(driver_name: str = None, company: str = None) -> D
 def _recalc_line_net_remaining_and_settled(line) -> None:
     """Keep line.net_total_amount and remaining consistent with payment fields."""
     line.net_total_amount = round_money(
-        float(line.initial_total_amount or 0) + float(line.additional_amount or 0) - float(line.return_amount or 0)
+        float(line.initial_total_amount or 0)
+        + float(line.additional_amount or 0)
+        - float(line.return_amount or 0)
+        - float(line.discount_amount or 0)
     )
     paid = round_money(
         float(line.cash_amount or 0)
@@ -2045,8 +2065,12 @@ def _reapply_reco_totals_from_child_lines(reco_doc) -> None:
     reco_doc.initial_total_amount = round_money(sum(float(l.initial_total_amount or 0) for l in lines))
     reco_doc.additional_amount = round_money(sum(float(l.additional_amount or 0) for l in lines))
     reco_doc.return_amount = round_money(sum(float(l.return_amount or 0) for l in lines))
+    reco_doc.discount_amount = round_money(sum(float(l.discount_amount or 0) for l in lines))
     reco_doc.net_total_amount = round_money(
-        reco_doc.initial_total_amount + reco_doc.additional_amount - reco_doc.return_amount
+        reco_doc.initial_total_amount
+        + reco_doc.additional_amount
+        - reco_doc.return_amount
+        - reco_doc.discount_amount
     )
     reco_doc.qr_amount = round_money(sum(float(l.qr_amount or 0) for l in lines))
     reco_doc.cheque_amount = round_money(sum(float(l.cheque_amount or 0) for l in lines))
@@ -2161,6 +2185,7 @@ def reassign_pending_reco_lines(
                     "initial_total_amount": float(row.initial_total_amount or 0),
                     "additional_amount": float(row.additional_amount or 0),
                     "return_amount": float(row.return_amount or 0),
+                    "discount_amount": float(row.discount_amount or 0),
                     "qr_amount": 0.0,
                     "cheque_amount": 0.0,
                     "cash_amount": 0.0,
@@ -2186,13 +2211,19 @@ def reassign_pending_reco_lines(
                 existing.initial_total_amount = float(existing.initial_total_amount or 0) + snap["initial_total_amount"]
                 existing.additional_amount = float(existing.additional_amount or 0) + snap["additional_amount"]
                 existing.return_amount = float(existing.return_amount or 0) + snap["return_amount"]
+                existing.discount_amount = float(existing.discount_amount or 0) + snap["discount_amount"]
                 existing.remarks = ((existing.remarks or "") + " " + (snap["remarks"] or "")).strip()
                 if snap.get("sales_reference_no") and not (existing.sales_reference_no or "").strip():
                     existing.sales_reference_no = snap["sales_reference_no"]
                 existing.updated_later = 1
                 _recalc_line_net_remaining_and_settled(existing)
             else:
-                net = snap["initial_total_amount"] + snap["additional_amount"] - snap["return_amount"]
+                net = (
+                    snap["initial_total_amount"]
+                    + snap["additional_amount"]
+                    - snap["return_amount"]
+                    - snap["discount_amount"]
+                )
                 target_reco.append(
                     "daily_sales_payment_reco_line",
                     {
@@ -2200,6 +2231,7 @@ def reassign_pending_reco_lines(
                         "initial_total_amount": snap["initial_total_amount"],
                         "additional_amount": snap["additional_amount"],
                         "return_amount": snap["return_amount"],
+                        "discount_amount": snap["discount_amount"],
                         "qr_amount": 0,
                         "cheque_amount": 0,
                         "cash_amount": 0,
@@ -2445,6 +2477,7 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
             initial = float(ui_values.get('initial_total_amount') or 0)
             additional = float(ui_values.get('additional_amount') or 0)
             return_amt = float(ui_values.get('return_amount') or 0)
+            discount_amt = float(ui_values.get('discount_amount') or 0)
             qr = float(ui_values.get('qr_amount') or 0)
             cash = float(ui_values.get('cash_amount') or 0)
             cheque = float(ui_values.get('cheque_amount') or 0)
@@ -2458,6 +2491,7 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
             initial = float(line_doc.initial_total_amount or 0)
             additional = float(line_doc.additional_amount or 0)
             return_amt = float(line_doc.return_amount or 0)
+            discount_amt = float(line_doc.discount_amount or 0)
             qr = float(line_doc.qr_amount or 0)
             cash = float(line_doc.cash_amount or 0)
             cheque = float(line_doc.cheque_amount or 0)
@@ -2478,18 +2512,20 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
             cash,
             qr,
             cheque,
+            discount_amt=discount_amt,
             net_includes_return=False,
         )
         initial = rounded["initial"]
         additional = rounded["additional"]
         return_amt = rounded["return_amt"]
+        discount_amt = rounded["discount_amt"]
         credit = rounded["credit"]
         cash = rounded["cash"]
         qr = rounded["qr"]
         cheque = rounded["cheque"]
         net_total = rounded["net"]
         remaining = rounded["remaining"]
-        total_deductions = round_money(qr + cash + return_amt + cheque + credit)
+        total_deductions = round_money(qr + cash + return_amt + discount_amt + cheque + credit)
         
         # Calculate what settled should be
         new_settled = 1 if abs(remaining) < 0.005 else 0
@@ -2506,6 +2542,7 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
                     "additional_amount": additional,
                     "net_total_amount": net_total,
                     "return_amount": return_amt,
+                    "discount_amount": discount_amt,
                     "qr_amount": qr,
                     "cash_amount": cash,
                     "cheque_amount": cheque,
@@ -2522,13 +2559,14 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
                 "success": False,
                 "message": f"Cannot recalculate: Remaining amount would be negative (Rs. {remaining:.2f}).\n\n" +
                           f"Net Total: Rs. {net_total:.2f} (Initial: {initial:.2f} + Additional: {additional:.2f})\n" +
-                          f"Total Deductions: Rs. {total_deductions:.2f} (QR: {qr:.2f} + Cash: {cash:.2f} + Return: {return_amt:.2f} + Cheque: {cheque:.2f} + Credit: {credit:.2f})"
+                          f"Total Deductions: Rs. {total_deductions:.2f} (QR: {qr:.2f} + Cash: {cash:.2f} + Return: {return_amt:.2f} + Discount: {discount_amt:.2f} + Cheque: {cheque:.2f} + Credit: {credit:.2f})"
             }
         
         # Update line document with all values (including input values from UI)
         line_doc.initial_total_amount = initial
         line_doc.additional_amount = additional
         line_doc.return_amount = return_amt
+        line_doc.discount_amount = discount_amt
         line_doc.qr_amount = qr
         line_doc.cash_amount = cash
         line_doc.cheque_amount = cheque
@@ -2539,28 +2577,8 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
         
         line_doc.save(ignore_permissions=True)
         
-        # Also update parent summary
         parent_doc = frappe.get_doc("Daily Sales Payment Reco", line_doc.parent)
-        
-        # Sum all line amounts for parent
-        parent_doc.initial_total_amount = round_money(sum([float(l.initial_total_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.additional_amount = round_money(sum([float(l.additional_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.return_amount = round_money(sum([float(l.return_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.qr_amount = round_money(sum([float(l.qr_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.cheque_amount = round_money(sum([float(l.cheque_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.cash_amount = round_money(sum([float(l.cash_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        parent_doc.credit_amount = round_money(sum([float(l.credit_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        
-        # Parent net total and remaining follow same formula
-        parent_doc.net_total_amount = round_money(parent_doc.initial_total_amount + parent_doc.additional_amount)
-        parent_doc.remaining_amount = round_money(sum([float(l.remaining_amount or 0) for l in parent_doc.daily_sales_payment_reco_line]))
-        
-        # Update cash expected and difference
-        expense_amount = round_money(parent_doc.expense_amount or 0)
-        parent_doc.cash_expected = round_money(parent_doc.cash_amount - expense_amount)
-        cash_received = round_money(parent_doc.cash_received or 0)
-        parent_doc.cash_difference = round_money(cash_received - parent_doc.cash_expected)
-        
+        _reapply_reco_totals_from_child_lines(parent_doc)
         parent_doc.save(ignore_permissions=True)
         
         frappe.db.commit()
@@ -2573,6 +2591,7 @@ def recalculate_line_amounts(line_name: str, current_values: str = None) -> Dict
                 "additional_amount": additional,
                 "net_total_amount": net_total,
                 "return_amount": return_amt,
+                "discount_amount": discount_amt,
                 "qr_amount": qr,
                 "cash_amount": cash,
                 "cheque_amount": cheque,
@@ -2612,6 +2631,7 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
             "initial_total_amount": float(reco_doc.initial_total_amount or 0),
             "additional_amount": float(reco_doc.additional_amount or 0),
             "return_amount": float(reco_doc.return_amount or 0),
+            "discount_amount": float(reco_doc.discount_amount or 0),
             "qr_amount": float(reco_doc.qr_amount or 0),
             "cheque_amount": float(reco_doc.cheque_amount or 0),
             "cash_amount": float(reco_doc.cash_amount or 0),
@@ -2627,6 +2647,7 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
             "initial_total_amount": 0,
             "additional_amount": 0,
             "return_amount": 0,
+            "discount_amount": 0,
             "qr_amount": 0,
             "cheque_amount": 0,
             "cash_amount": 0,
@@ -2638,14 +2659,19 @@ def recalculate_reco_summary(reco_name: str) -> Dict[str, Any]:
             totals["initial_total_amount"] = round_money(totals["initial_total_amount"] + float(line.initial_total_amount or 0))
             totals["additional_amount"] = round_money(totals["additional_amount"] + float(line.additional_amount or 0))
             totals["return_amount"] = round_money(totals["return_amount"] + float(line.return_amount or 0))
+            totals["discount_amount"] = round_money(totals["discount_amount"] + float(line.discount_amount or 0))
             totals["qr_amount"] = round_money(totals["qr_amount"] + float(line.qr_amount or 0))
             totals["cheque_amount"] = round_money(totals["cheque_amount"] + float(line.cheque_amount or 0))
             totals["cash_amount"] = round_money(totals["cash_amount"] + float(line.cash_amount or 0))
             totals["credit_amount"] = round_money(totals["credit_amount"] + float(line.credit_amount or 0))
             totals["remaining_amount"] = round_money(totals["remaining_amount"] + float(line.remaining_amount or 0))
         
-        # Calculate net total: Net Total = Initial + Additional
-        totals["net_total_amount"] = round_money(totals["initial_total_amount"] + totals["additional_amount"])
+        totals["net_total_amount"] = round_money(
+            totals["initial_total_amount"]
+            + totals["additional_amount"]
+            - totals["return_amount"]
+            - totals["discount_amount"]
+        )
         
         # Recalculate cash expected and difference
         expense_amount = round_money(reco_doc.expense_amount or 0)

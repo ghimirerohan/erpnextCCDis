@@ -11,6 +11,7 @@
     "additional_amount",
     "net_total_amount",
     "return_amount",
+    "discount_amount",
     "qr_amount",
     "cheque_amount",
     "cash_amount",
@@ -67,6 +68,13 @@
       "fieldname": "return_amount",
       "fieldtype": "Currency",
       "label": "Return Amount"
+    },
+    {
+      "default": "0",
+      "description": "Sum of line Discount Amount (prize). Not Expense Amount.",
+      "fieldname": "discount_amount",
+      "fieldtype": "Currency",
+      "label": "Discount Amount"
     },
     {
       "fieldname": "qr_amount",

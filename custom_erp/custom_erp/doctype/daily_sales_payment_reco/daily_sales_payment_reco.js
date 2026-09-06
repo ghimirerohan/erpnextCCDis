@@ -114,7 +114,7 @@ function recalculate_line_amounts(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
     
     frappe.confirm(
-        __('Recalculate amounts for this line based on Initial Total Amount?<br><br>Formula: Remaining = Net Total - QR - Cash - Cheque - Credit<br>Where: Net Total = Initial + Additional - Return'),
+        __('Recalculate amounts for this line based on Initial Total Amount?<br><br>Formula: Remaining = Net Total - QR - Cash - Cheque - Credit<br>Where: Net Total = Initial + Additional - Return - Discount'),
         function() {
             // Pass current UI values (unsaved) to API instead of reading from DB
             frappe.call({
@@ -126,6 +126,7 @@ function recalculate_line_amounts(frm, cdt, cdn) {
                         initial_total_amount: flt(row.initial_total_amount),
                         additional_amount: flt(row.additional_amount),
                         return_amount: flt(row.return_amount),
+                        discount_amount: flt(row.discount_amount),
                         qr_amount: flt(row.qr_amount),
                         cash_amount: flt(row.cash_amount),
                         cheque_amount: flt(row.cheque_amount),
@@ -177,6 +178,7 @@ function update_line_values(frm, cdt, cdn, data) {
         'additional_amount', 
         'net_total_amount',
         'return_amount',
+        'discount_amount',
         'qr_amount',
         'cash_amount',
         'cheque_amount',
@@ -220,6 +222,7 @@ function update_line_values(frm, cdt, cdn, data) {
                     'additional_amount',
                     'net_total_amount', 
                     'return_amount',
+                    'discount_amount',
                     'qr_amount',
                     'cheque_amount',
                     'cash_amount',

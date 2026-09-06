@@ -10,6 +10,7 @@
     "additional_amount",
     "net_total_amount",
     "return_amount",
+    "discount_amount",
     "qr_amount",
     "cheque_amount",
     "cash_amount",
@@ -54,6 +55,14 @@
       "fieldtype": "Currency",
       "in_list_view": 1,
       "label": "Return Amount"
+    },
+    {
+      "default": "0",
+      "description": "Line-level prize discount; does not affect parent Expense Amount",
+      "fieldname": "discount_amount",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Discount Amount"
     },
     {
       "fieldname": "qr_amount",
